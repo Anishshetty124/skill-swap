@@ -8,12 +8,16 @@ const Navbar = () => {
 
   const navLinks = (
     <>
+      {/* Home link available to everyone */}
+      <Link
+        to="/"
+        className="block py-2 md:py-0 text-gray-600 dark:text-gray-300 hover:text-indigo-600 dark:hover:text-indigo-400"
+        onClick={() => setIsMenuOpen(false)}
+      >
+        Home
+      </Link>
       {isAuthenticated ? (
-        // Links for logged-in users
         <>
-          <span className="text-gray-800 dark:text-gray-200 block md:inline-block py-2 md:py-0">
-            Welcome, {user?.username}
-          </span>
           <Link
             to="/skills/new"
             className="block py-2 md:py-0 text-gray-600 dark:text-gray-300 hover:text-indigo-600 dark:hover:text-indigo-400"
@@ -39,7 +43,6 @@ const Navbar = () => {
           </button>
         </>
       ) : (
-        // Links for logged-out users
         <>
           <Link
             to="/login"
@@ -64,26 +67,21 @@ const Navbar = () => {
     <header className="bg-white dark:bg-gray-800 shadow-md sticky top-0 z-50">
       <div className="container mx-auto px-4">
         <nav className="py-4 flex justify-between items-center">
-          {/* Logo */}
           <Link to="/" className="text-2xl font-bold text-indigo-600 dark:text-indigo-400">
             SkillSwap
           </Link>
 
-          {/* Desktop Menu */}
           <div className="hidden md:flex items-center space-x-6">
             {navLinks}
           </div>
 
-          {/* Hamburger Menu Button (visible on mobile) */}
           <div className="md:hidden">
             <button onClick={() => setIsMenuOpen(!isMenuOpen)}>
               {isMenuOpen ? (
-                // Close Icon (X)
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                 </svg>
               ) : (
-                // Hamburger Icon
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16m-7 6h7" />
                 </svg>
@@ -92,7 +90,6 @@ const Navbar = () => {
           </div>
         </nav>
 
-        {/* Mobile Menu (dropdown) */}
         <div className={`md:hidden ${isMenuOpen ? 'block' : 'hidden'}`}>
           <div className="flex flex-col items-start space-y-4 py-4">
             {navLinks}

@@ -6,18 +6,13 @@ import ReviewCard from '../components/profile/ReviewCard';
 import { useAuth } from '../context/AuthContext';
 
 const ProfilePage = () => {
-  // Get the username from the URL (e.g., /profile/testuser)
   const { username } = useParams();
-  
-  // Get the currently logged-in user from our AuthContext
   const { user: loggedInUser } = useAuth();
   
-  // State for the profile data being viewed, loading, and errors
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
-  // This effect fetches the profile data when the component mounts or the username in the URL changes
   useEffect(() => {
     const fetchProfile = async () => {
       try {
@@ -34,8 +29,6 @@ const ProfilePage = () => {
     fetchProfile();
   }, [username]);
 
-  // --- Render logic based on state ---
-
   if (loading) return <p className="text-center p-10">Loading profile...</p>;
   if (error) return <p className="text-center p-10 text-red-500">{error}</p>;
   if (!profile) return <p className="text-center p-10">User not found.</p>;
@@ -45,8 +38,8 @@ const ProfilePage = () => {
       {/* --- Profile Header --- */}
       <div className="bg-white dark:bg-gray-800 p-8 rounded-lg shadow-md mb-8">
         <div className="flex justify-between items-start">
-          {/* User Info Section */}
           <div className="flex items-center space-x-6">
+            {/* This is the corrected image tag logic */}
             <img 
               className="w-24 h-24 rounded-full object-cover border-4 border-indigo-500"
               src={profile.profilePicture || `https://api.dicebear.com/8.x/initials/svg?seed=${profile.username}`}
@@ -62,7 +55,6 @@ const ProfilePage = () => {
             </div>
           </div>
           
-          {/* Edit Profile Button - Only shows if the logged-in user is viewing their own profile */}
           {loggedInUser?.username === username && (
             <Link to="/profile/edit" className="bg-gray-200 dark:bg-gray-700 text-sm font-semibold px-4 py-2 rounded-md hover:bg-gray-300 dark:hover:bg-gray-600 flex-shrink-0">
               Edit Profile

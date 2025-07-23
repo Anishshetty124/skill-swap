@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { useAuth } from '../../context/AuthContext';
 import apiClient from '../../api/axios';
+import { useAuth } from '../../context/AuthContext';
 
 const ProposalModal = ({ isOpen, onClose, requestedSkill }) => {
   const { user } = useAuth();
@@ -12,7 +12,6 @@ const ProposalModal = ({ isOpen, onClose, requestedSkill }) => {
   const [loadingSkills, setLoadingSkills] = useState(false);
 
   useEffect(() => {
-    // Only fetch skills if the modal is open and we have a user
     if (isOpen && user?._id) {
       const fetchMySkills = async () => {
         setLoadingSkills(true);
@@ -28,7 +27,6 @@ const ProposalModal = ({ isOpen, onClose, requestedSkill }) => {
       };
       fetchMySkills();
     } else {
-      // Reset state when modal is closed
       setMyOfferedSkills([]);
       setSelectedSkillId('');
       setMessage('');
@@ -57,7 +55,7 @@ const ProposalModal = ({ isOpen, onClose, requestedSkill }) => {
       await apiClient.post('/proposals', proposalData);
       setSuccess('Proposal sent successfully!');
       setTimeout(() => {
-        onClose(); // Close the modal
+        onClose();
       }, 2000);
     } catch (err) {
       setError(err.response?.data?.message || 'Failed to send proposal.');
@@ -68,7 +66,7 @@ const ProposalModal = ({ isOpen, onClose, requestedSkill }) => {
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-60 flex justify-center items-center z-50 p-4">
-      <div className="bg-white dark:bg-gray-800 p-8 rounded-lg shadow-xl w-full max-w-lg animate-fade-in-up">
+      <div className="bg-white dark:bg-gray-800 p-8 rounded-lg shadow-xl w-full max-w-lg">
         <h2 className="text-2xl font-bold mb-4">Propose a Swap</h2>
         <div className="bg-gray-100 dark:bg-gray-700 p-3 rounded-md mb-6">
           <p className="text-sm text-gray-600 dark:text-gray-400">You are requesting:</p>
@@ -82,31 +80,33 @@ const ProposalModal = ({ isOpen, onClose, requestedSkill }) => {
             {loadingSkills ? (
               <p>Loading your skills...</p>
             ) : (
+              // 👇 Corrected className
               <select
                 value={selectedSkillId}
                 onChange={(e) => setSelectedSkillId(e.target.value)}
                 required
-                className="w-full px-3 py-2 text-gray-800 border border-gray-300 rounded-md"
+                className="w-full px-3 py-2 bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-200 border border-gray-300 dark:border-gray-600 rounded-md"
               >
-                <option value="">-- Select one of your skills --</option>
+                <option value="" className="bg-white dark:bg-gray-700">-- Select one of your skills --</option>
                 {myOfferedSkills.length > 0 ? (
                   myOfferedSkills.map(skill => (
-                    <option key={skill._id} value={skill._id}>{skill.title}</option>
+                    <option key={skill._id} value={skill._id} className="bg-white dark:bg-gray-700">{skill.title}</option>
                   ))
                 ) : (
-                  <option disabled>You have no skills to offer.</option>
+                  <option disabled className="bg-white dark:bg-gray-700">You have no skills to offer.</option>
                 )}
               </select>
             )}
           </div>
           <div className="mb-6">
             <label className="block text-sm font-medium mb-2">Message (Optional):</label>
+            {/* 👇 Corrected className */}
             <textarea
               value={message}
               onChange={(e) => setMessage(e.target.value)}
               rows="3"
               placeholder="Write a short message..."
-              className="w-full px-3 py-2 text-gray-800 border border-gray-300 rounded-md"
+              className="w-full px-3 py-2 bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-200 border border-gray-300 dark:border-gray-600 rounded-md"
             ></textarea>
           </div>
           
@@ -114,8 +114,8 @@ const ProposalModal = ({ isOpen, onClose, requestedSkill }) => {
           {success && <p className="text-green-500 text-sm text-center mb-4">{success}</p>}
 
           <div className="flex justify-end space-x-4">
-            <button type="button" onClick={onClose} className="px-4 py-2 rounded-md text-gray-700 bg-gray-200 hover:bg-gray-300" disabled={success}>Cancel</button>
-            <button type="submit" className="px-4 py-2 rounded-md font-semibold text-white bg-indigo-600 hover:bg-indigo-700" disabled={success || loadingSkills}>
+            <button type="button" onClick={onClose} className="px-4 py-2 rounded-md text-gray-700 bg-gray-200 hover:bg-gray-300" disabled={!!success}>Cancel</button>
+            <button type="submit" className="px-4 py-2 rounded-md font-semibold text-white bg-indigo-600 hover:bg-indigo-700" disabled={!!success || loadingSkills}>
               {success ? 'Sent!' : 'Send Proposal'}
             </button>
           </div>

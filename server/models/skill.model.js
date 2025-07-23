@@ -34,25 +34,37 @@ const skillSchema = new Schema(
       default: 'Intermediate',
     },
     availability: {
-      type: String, // e.g., "Weekends", "Evenings"
+      type: String,
       default: 'Flexible',
     },
-    location: {
-      type: String, // e.g., "Remote", "Mudhol, Karnataka"
-      default: 'Remote',
+    locationString: { // For user's text input
+      type: String,
+      default: 'Remote'
+    },
+    geoCoordinates: { // For GeoJSON data
+      type: {
+        type: String,
+        enum: ['Point'],
+      },
+      coordinates: {
+        type: [Number], // [longitude, latitude]
+      }
     },
     status: {
       type: String,
       enum: ['active', 'in_progress', 'completed'],
       default: 'active',
     },
-     tags: {
+    tags: {
       type: [String],
-      index: true // Add index for faster queries on tags
+      index: true
     }
   },
   { timestamps: true }
 );
+
+// Add necessary indexes
+skillSchema.index({ geoCoordinates: '2dsphere' });
 skillSchema.index({ title: 'text', description: 'text' });
 
 export const Skill = mongoose.model('Skill', skillSchema);

@@ -8,7 +8,6 @@ import { Server } from 'socket.io';
 import connectDB from './config/db.js';
 import { ApiError } from './utils/ApiError.js';
 
-// Import Routers
 import userRouter from './routes/user.routes.js';
 import skillRouter from './routes/skill.routes.js';
 import proposalRouter from './routes/proposal.routes.js';
@@ -29,36 +28,31 @@ const io = new Server(httpServer, {
 app.set('io', io);
 connectDB();
 
-// --- Core Middlewares ---
 app.use(cors({
   origin: process.env.CORS_ORIGIN,
   credentials: true,
-  // This header is required for sending auth tokens
-  allowedHeaders: ['Content-Type', 'Authorization'] 
+  allowedHeaders: ['Content-Type', 'Authorization']
 }));
 app.use(express.json({ limit: '16kb' }));
 app.use(express.urlencoded({ extended: true, limit: '16kb' }));
 app.use(cookieParser());
 
-// --- Routes ---
 app.use('/api/v1/users', userRouter);
 app.use('/api/v1/skills', skillRouter);
 app.use('/api/v1/proposals', proposalRouter);
 app.use('/api/v1/reviews', reviewRouter);
 
-// --- Socket.IO Connection Logic ---
 io.on('connection', (socket) => {
   console.log(`🔌 New client connected: ${socket.id}`);
   socket.on('join_room', (userId) => {
     socket.join(userId);
-    console.log(`User ${userId} joined room: ${userId}`);
+    console.log(`User ${userId} joined notification room: ${userId}`);
   });
   socket.on('disconnect', () => {
     console.log(`Client disconnected: ${socket.id}`);
   });
 });
 
-// --- Custom API Error Handling Middleware ---
 app.use((err, req, res, next) => {
   if (err instanceof ApiError) {
     return res.status(err.statusCode).json({
@@ -74,7 +68,6 @@ app.use((err, req, res, next) => {
   });
 });
 
-// --- Start Server ---
 const PORT = process.env.PORT || 8000;
 httpServer.listen(PORT, () => {
   console.log(`🚀 Server is running at http://localhost:${PORT}`);

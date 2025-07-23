@@ -5,246 +5,147 @@ import { ApiResponse } from '../utils/ApiResponse.js';
 import { Skill } from '../models/skill.model.js';
 import { User } from '../models/user.model.js';
 import natural from 'natural';
+import opencage from 'opencage-api-client';
+
 const { WordTokenizer, TfIdf } = natural;
 
-// --- Helper function to extract keywords using NLP ---
 const generateTags = (text) => {
   const tokenizer = new WordTokenizer();
   const tfidf = new TfIdf();
-  
   tfidf.addDocument(text.toLowerCase());
-  
-  // Get the top 5 most significant terms from the text
-  const tags = tfidf.listTerms(0)
-    .slice(0, 5)
-    .map(item => item.term);
-    
+  const tags = tfidf.listTerms(0).slice(0, 5).map(item => item.term);
   return tags;
 };
 
-// --- Create a new skill ---
 const createSkill = asyncHandler(async (req, res) => {
-  const { type, title, description, category, level, availability, location } = req.body;
+  const { type, title, description, category, level, availability, locationString } = req.body;
 
   if (!type || !title || !description || !category) {
     throw new ApiError(400, 'Type, title, description, and category are required');
   }
 
-  // Auto-generate tags from the title and description
   const tags = generateTags(`${title} ${description}`);
+  const skillData = {
+    user: req.user._id, type, title, description, category, level, availability, tags, locationString
+  };
 
-  const skill = await Skill.create({
-    user: req.user._id,
-    type,
-    title,
-    description,
-    category,
-    level,
-    availability,
-    location,
-    tags, // Save the generated tags
-  });
-
-  if (!skill) {
-    throw new ApiError(500, 'Something went wrong while creating the skill');
+  if (locationString && locationString.toLowerCase() !== 'remote') {
+    try {
+      const geoData = await opencage.geocode({ q: locationString, limit: 1, key: process.env.OPENCAGE_API_KEY });
+      if (geoData.results.length > 0) {
+        const { lng, lat } = geoData.results[0].geometry;
+        skillData.geoCoordinates = { type: 'Point', coordinates: [lng, lat] };
+      }
+    } catch (error) {
+      console.error("Geocoding failed for skill:", error.message);
+    }
   }
 
-  return res
-    .status(201)
-    .json(new ApiResponse(201, skill, 'Skill posted successfully'));
+  const skill = await Skill.create(skillData);
+  return res.status(201).json(new ApiResponse(201, skill, 'Skill posted successfully'));
 });
 
-// --- Get all skills with filtering and pagination ---
 const getAllSkills = asyncHandler(async (req, res) => {
   const { page = 1, limit = 10, type, category, keywords, userId } = req.query;
-
   const query = {};
 
   if (type) query.type = type;
   if (category) query.category = category;
-  if (keywords) {
-    query.$text = { $search: keywords };
-  }
-  if (userId) {
-    if (!mongoose.Types.ObjectId.isValid(userId)) {
-      throw new ApiError(400, "Invalid user ID format");
-    }
-    query.user = userId;
-  }
-
-  const options = {
-    page: parseInt(page, 10),
-    limit: parseInt(limit, 10),
-    sort: keywords ? { score: { $meta: 'textScore' } } : { createdAt: -1 },
-    populate: {
-      path: 'user',
-      select: 'username profilePicture location' // Include location for map view
-    }
-  };
+  if (keywords) query.$text = { $search: keywords };
+  if (userId) query.user = userId;
 
   const skills = await Skill.find(query)
-                            .populate(options.populate)
-                            .sort(options.sort)
-                            .skip((options.page - 1) * options.limit)
-                            .limit(options.limit)
-                            .lean();
+    .populate({ path: 'user', select: 'username profilePicture' })
+    .sort(keywords ? { score: { $meta: 'textScore' } } : { createdAt: -1 })
+    .skip((page - 1) * limit)
+    .limit(parseInt(limit))
+    .lean();
 
   const totalDocuments = await Skill.countDocuments(query);
-  const totalPages = Math.ceil(totalDocuments / options.limit);
+  const totalPages = Math.ceil(totalDocuments / limit);
 
-  return res.status(200).json(
-    new ApiResponse(
-      200,
-      {
-        skills,
-        totalPages,
-        currentPage: options.page,
-        totalSkills: totalDocuments
-      },
-      "Skills fetched successfully"
-    )
-  );
+  return res.status(200).json(new ApiResponse(200, { skills, totalPages, currentPage: parseInt(page), totalSkills: totalDocuments }, "Skills fetched successfully"));
 });
 
-// --- Get a single skill by its ID ---
 const getSkillById = asyncHandler(async (req, res) => {
   const { skillId } = req.params;
-
-  if (!mongoose.Types.ObjectId.isValid(skillId)) {
-      throw new ApiError(400, "Invalid skill ID format");
-  }
-
-  const skill = await Skill.findById(skillId).populate({
-    path: 'user',
-    select: 'username profilePicture'
-  });
-
-  if (!skill) {
-    throw new ApiError(404, 'Skill not found');
-  }
-
-  return res
-    .status(200)
-    .json(new ApiResponse(200, skill, 'Skill details fetched successfully'));
+  const skill = await Skill.findById(skillId).populate({ path: 'user', select: 'username profilePicture' });
+  if (!skill) throw new ApiError(404, 'Skill not found');
+  return res.status(200).json(new ApiResponse(200, skill, 'Skill details fetched successfully'));
 });
 
-// --- Update a skill ---
 const updateSkill = asyncHandler(async (req, res) => {
   const { skillId } = req.params;
-  const { title, description, category, level, availability, location } = req.body;
-  
-  if (!mongoose.Types.ObjectId.isValid(skillId)) {
-    throw new ApiError(400, "Invalid skill ID format");
-  }
-
   const skill = await Skill.findById(skillId);
+  if (!skill) throw new ApiError(404, "Skill not found");
+  if (skill.user.toString() !== req.user._id.toString()) throw new ApiError(403, "You are not authorized to update this skill");
 
-  if (!skill) {
-    throw new ApiError(404, "Skill not found");
-  }
+  const { title, description, category, level, availability, locationString } = req.body;
+  const updatedData = { title, description, category, level, availability, locationString };
 
-  if (skill.user.toString() !== req.user._id.toString()) {
-    throw new ApiError(403, "You are not authorized to update this skill");
-  }
-
-  const updatedData = { title, description, category, level, availability, location };
-  
-  // Re-generate tags if title or description changes
   if (title || description) {
     const newText = `${title || skill.title} ${description || skill.description}`;
     updatedData.tags = generateTags(newText);
   }
+  
+  if (locationString && locationString.toLowerCase() !== 'remote') {
+    try {
+      const geoData = await opencage.geocode({ q: locationString, limit: 1, key: process.env.OPENCAGE_API_KEY });
+      if (geoData.results.length > 0) {
+        const { lng, lat } = geoData.results[0].geometry;
+        updatedData.geoCoordinates = { type: 'Point', coordinates: [lng, lat] };
+      }
+    } catch (error) {
+      console.error("Geocoding failed for skill update:", error.message);
+    }
+  } else {
+    updatedData.geoCoordinates = undefined;
+  }
 
-  const updatedSkill = await Skill.findByIdAndUpdate(
-    skillId,
-    { $set: updatedData },
-    { new: true, runValidators: true }
-  );
-
-  return res
-    .status(200)
-    .json(new ApiResponse(200, updatedSkill, "Skill updated successfully"));
+  const updatedSkill = await Skill.findByIdAndUpdate(skillId, { $set: updatedData }, { new: true, runValidators: true });
+  return res.status(200).json(new ApiResponse(200, updatedSkill, "Skill updated successfully"));
 });
 
-// --- Delete a skill ---
 const deleteSkill = asyncHandler(async (req, res) => {
   const { skillId } = req.params;
-
-  if (!mongoose.Types.ObjectId.isValid(skillId)) {
-    throw new ApiError(400, "Invalid skill ID format");
-  }
-
   const skill = await Skill.findById(skillId);
-
-  if (!skill) {
-    throw new ApiError(404, "Skill not found");
-  }
-
-  if (skill.user.toString() !== req.user._id.toString()) {
-    throw new ApiError(403, "You are not authorized to delete this skill");
-  }
-
+  if (!skill) throw new ApiError(404, "Skill not found");
+  if (skill.user.toString() !== req.user._id.toString()) throw new ApiError(403, "You are not authorized to delete this skill");
   await Skill.findByIdAndDelete(skillId);
-
-  return res
-    .status(200)
-    .json(new ApiResponse(200, {}, "Skill deleted successfully"));
+  return res.status(200).json(new ApiResponse(200, {}, "Skill deleted successfully"));
 });
 
-// --- Get skills near a location ---
 const getNearbySkills = asyncHandler(async (req, res) => {
   const { lat, lon, distance = 50000 } = req.query;
+  if (!lat || !lon) throw new ApiError(400, "Latitude and longitude are required");
 
-  if (!lat || !lon) {
-    throw new ApiError(400, "Latitude and longitude are required");
-  }
-
-  const nearbyUsers = await User.find({
-    location: {
+  const skills = await Skill.find({
+    type: 'OFFER',
+    geoCoordinates: {
       $nearSphere: {
-        $geometry: {
-          type: 'Point',
-          coordinates: [parseFloat(lon), parseFloat(lat)]
-        },
+        $geometry: { type: 'Point', coordinates: [parseFloat(lon), parseFloat(lat)] },
         $maxDistance: parseInt(distance)
       }
     }
-  }).select('_id');
-
-  const nearbyUserIds = nearbyUsers.map(user => user._id);
-
-  const skills = await Skill.find({ user: { $in: nearbyUserIds }, type: 'OFFER' })
-    .populate('user', 'username profilePicture location');
+  }).populate('user', 'username profilePicture');
     
   return res.status(200).json(new ApiResponse(200, skills, "Nearby skills fetched successfully"));
 });
 
-// --- Get AI-powered skill matches ---
 const getMatchingSkills = asyncHandler(async (req, res) => {
   const { skillId } = req.params;
-
   const requestSkill = await Skill.findById(skillId);
-  if (!requestSkill || requestSkill.type !== 'REQUEST') {
-    throw new ApiError(404, "Skill request not found.");
-  }
+  if (!requestSkill || requestSkill.type !== 'REQUEST') throw new ApiError(404, "Skill request not found.");
 
   const potentialMatches = await Skill.find({
     type: 'OFFER',
     user: { $ne: req.user._id },
-    $or: [
-      { category: requestSkill.category },
-      { tags: { $in: requestSkill.tags } }
-    ]
+    $or: [{ category: requestSkill.category }, { tags: { $in: requestSkill.tags } }]
   }).populate('user', 'username profilePicture');
   
   const scoredMatches = potentialMatches.map(match => {
-    let score = 0;
-    if (match.category === requestSkill.category) {
-      score += 10;
-    }
-    const commonTags = match.tags.filter(tag => requestSkill.tags.includes(tag));
-    score += commonTags.length * 5;
-    
+    let score = (match.category === requestSkill.category) ? 10 : 0;
+    score += match.tags.filter(tag => requestSkill.tags.includes(tag)).length * 5;
     return { ...match.toObject(), score };
   }).sort((a, b) => b.score - a.score);
 

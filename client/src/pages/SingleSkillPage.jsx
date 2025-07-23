@@ -1,13 +1,15 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useNavigate } from 'react-router-dom';
 import apiClient from '../api/axios';
 import { useAuth } from '../context/AuthContext';
 import ProposalModal from '../components/proposals/ProposalModal';
 import SkillCard from '../components/skills/SkillCard';
+import toast from 'react-hot-toast';
 
 const SingleSkillPage = () => {
   const { skillId } = useParams();
   const { isAuthenticated, user } = useAuth();
+  const navigate = useNavigate();
 
   const [skill, setSkill] = useState(null);
   const [matches, setMatches] = useState([]);
@@ -19,48 +21,51 @@ const SingleSkillPage = () => {
     const fetchSkillAndMatches = async () => {
       try {
         setLoading(true);
-        setMatches([]); // Reset matches on new skill load
+        setMatches([]);
         setError('');
-
         const response = await apiClient.get(`/skills/${skillId}`);
         const fetchedSkill = response.data.data;
         setSkill(fetchedSkill);
 
-        // If the logged-in user is viewing their OWN skill REQUEST, fetch matches
         if (user?._id === fetchedSkill.user._id && fetchedSkill.type === 'REQUEST') {
           const matchesResponse = await apiClient.get(`/skills/${skillId}/matches`);
           setMatches(matchesResponse.data.data);
         }
       } catch (err) {
-        setError('Failed to load skill details.');
+        setError('Failed to load skill details or skill not found.');
         console.error(err);
       } finally {
         setLoading(false);
       }
     };
-
     fetchSkillAndMatches();
-  }, [skillId, user?._id]); // Re-fetch if skillId or logged-in user changes
+  }, [skillId, user?._id]);
+  
+  const handleDelete = async () => {
+    if (window.confirm('Are you sure you want to delete this skill?')) {
+      try {
+        await apiClient.delete(`/skills/${skillId}`);
+        toast.success('Skill deleted successfully!');
+        navigate('/dashboard'); // Redirect to dashboard
+      } catch (err) {
+        const errorMessage = err.response?.data?.message || 'Failed to delete skill.';
+        toast.error(errorMessage);
+      }
+    }
+  };
 
-  const canPropose = isAuthenticated && user?._id !== skill?.user?._id;
+  const isOwner = isAuthenticated && user?._id === skill?.user._id;
+  const canPropose = isAuthenticated && !isOwner;
 
-  if (loading) {
-    return <div className="text-center p-10">Loading...</div>;
-  }
-
-  if (error) {
-    return <div className="text-center p-10 text-red-500">{error}</div>;
-  }
-
-  if (!skill) {
-    return <div className="text-center p-10">Skill not found.</div>;
-  }
+  if (loading) return <p className="text-center p-10">Loading...</p>;
+  if (error) return <p className="text-center p-10 text-red-500">{error}</p>;
+  if (!skill) return <p className="text-center p-10">Skill not found.</p>;
 
   const skillTypeColor = skill.type === 'OFFER' ? 'text-blue-500' : 'text-green-500';
 
   return (
-    <>
-      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-8 max-w-4xl mx-auto">
+    <div className="max-w-4xl mx-auto py-8">
+      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-8">
         <div className="flex justify-between items-start mb-4">
           <h1 className="text-4xl font-bold text-gray-900 dark:text-white">{skill.title}</h1>
           <span className={`text-lg font-bold ${skillTypeColor}`}>{skill.type}</span>
@@ -84,29 +89,35 @@ const SingleSkillPage = () => {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-gray-600 dark:text-gray-400">
             <p><strong>Level:</strong> {skill.level}</p>
             <p><strong>Availability:</strong> {skill.availability}</p>
-            <p><strong>Location:</strong> {skill.location}</p>
+            <p><strong>Location:</strong> {skill.locationString}</p> 
           </div>
         </div>
         
-        <div className="mt-8 text-center">
-          {canPropose ? (
+        <div className="mt-8 flex justify-center items-center gap-4">
+          {canPropose && (
             <button
               onClick={() => setIsModalOpen(true)}
-              className="w-full md:w-auto px-8 py-3 text-lg font-bold text-white bg-indigo-600 rounded-lg hover:bg-indigo-700"
+              className="px-8 py-3 text-lg font-bold text-white bg-indigo-600 rounded-lg hover:bg-indigo-700"
             >
               Propose a Swap
             </button>
-          ) : (
-            <p className="text-sm text-gray-500 italic">
-              {isAuthenticated ? "This is your own skill." : "Please log in to propose a swap."}
-            </p>
+          )}
+          {isOwner && (
+            <button
+              onClick={handleDelete}
+              className="px-6 py-2 font-semibold text-white bg-red-600 rounded-lg hover:bg-red-700"
+            >
+              Delete Skill
+            </button>
+          )}
+          {!isAuthenticated && !isOwner && (
+             <p className="text-sm text-gray-500 italic">Please log in to propose a swap.</p>
           )}
         </div>
       </div>
 
-      {/* Recommended Matches Section */}
       {matches.length > 0 && (
-        <div className="max-w-4xl mx-auto mt-12">
+        <div className="mt-12">
           <h2 className="text-2xl font-bold mb-4">Top Matches For Your Request</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {matches.map(matchSkill => <SkillCard key={matchSkill._id} skill={matchSkill} />)}
@@ -114,13 +125,12 @@ const SingleSkillPage = () => {
         </div>
       )}
 
-      {/* Proposal Modal */}
       <ProposalModal 
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
         requestedSkill={skill}
       />
-    </>
+    </div>
   );
 };
 

@@ -1,24 +1,30 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
 import { Link } from 'react-router-dom';
 
 const MapComponent = ({ skills }) => {
-  // Filter out skills that don't have valid coordinates
-  const skillsWithLocation = skills.filter(
-    skill => skill.user?.location?.coordinates?.length === 2
-  );
-
-  // Default center of the map (Mudhol, Karnataka)
   const defaultPosition = [16.333, 75.283];
-  
-  // Use the first skill's location as the center if available
-  const mapCenter = skillsWithLocation.length > 0 
-    ? [skillsWithLocation[0].user.location.coordinates[1], skillsWithLocation[0].user.location.coordinates[0]] // [lat, lon]
-    : defaultPosition;
+  const [mapCenter, setMapCenter] = useState(defaultPosition);
 
+  useEffect(() => {
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        const { latitude, longitude } = position.coords;
+        setMapCenter([latitude, longitude]);
+      },
+      () => {
+        console.log("User denied geolocation. Using default map center.");
+      }
+    );
+  }, []);
+
+  const skillsWithLocation = skills.filter(
+    skill => skill.geoCoordinates?.coordinates?.length === 2
+  );
+  
   return (
     <div className="h-[600px] rounded-lg overflow-hidden shadow-lg">
-      <MapContainer center={mapCenter} zoom={13} scrollWheelZoom={false} style={{ height: '100%', width: '100%' }}>
+      <MapContainer key={mapCenter.toString()} center={mapCenter} zoom={13} scrollWheelZoom={false} style={{ height: '100%', width: '100%' }}>
         <TileLayer
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
@@ -26,8 +32,8 @@ const MapComponent = ({ skills }) => {
         {skillsWithLocation.map(skill => (
           <Marker 
             key={skill._id} 
-            position={[skill.user.location.coordinates[1], skill.user.location.coordinates[0]]} // Leaflet uses [lat, lon]
-          > 
+            position={[skill.geoCoordinates.coordinates[1], skill.geoCoordinates.coordinates[0]]}
+          >
             <Popup>
               <div className="font-sans">
                 <h3 className="font-bold text-lg mb-1">{skill.title}</h3>

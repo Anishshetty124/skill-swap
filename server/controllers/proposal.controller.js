@@ -5,17 +5,14 @@ import { Proposal } from '../models/proposal.model.js';
 import { Skill } from '../models/skill.model.js';
 import mongoose from 'mongoose';
 
-// --- Create a new proposal ---
 const createProposal = asyncHandler(async (req, res) => {
   const { requestedSkillId, offeredSkillId, message } = req.body;
   const proposerId = req.user._id;
 
-  // Validate the ObjectIDs
   if (!mongoose.Types.ObjectId.isValid(requestedSkillId) || !mongoose.Types.ObjectId.isValid(offeredSkillId)) {
     throw new ApiError(400, "Invalid skill ID format");
   }
 
-  // Fetch both skills involved in the proposal
   const requestedSkill = await Skill.findById(requestedSkillId);
   const offeredSkill = await Skill.findById(offeredSkillId);
 
@@ -25,7 +22,6 @@ const createProposal = asyncHandler(async (req, res) => {
 
   const receiverId = requestedSkill.user;
 
-  // Authorization and validation checks
   if (proposerId.equals(receiverId)) {
     throw new ApiError(400, "You cannot propose a swap with yourself.");
   }
@@ -33,7 +29,6 @@ const createProposal = asyncHandler(async (req, res) => {
     throw new ApiError(403, "You can only offer a skill that you own.");
   }
 
-  // Create the proposal document in the database
   const proposal = await Proposal.create({
     proposer: proposerId,
     receiver: receiverId,
@@ -46,11 +41,9 @@ const createProposal = asyncHandler(async (req, res) => {
     throw new ApiError(500, "Failed to create the proposal");
   }
 
-  // After successfully creating the proposal, emit a real-time notification
-  const io = req.app.get('io'); // Get the io instance from the app
+  const io = req.app.get('io');
   const receiverIdString = proposal.receiver.toString();
   
-  // Emit a 'new_notification' event to the receiver's private room
   io.to(receiverIdString).emit('new_notification', {
     message: `You have a new swap proposal from ${req.user.username}!`,
     proposalId: proposal._id
@@ -61,7 +54,6 @@ const createProposal = asyncHandler(async (req, res) => {
     .json(new ApiResponse(201, proposal, "Proposal sent successfully"));
 });
 
-// --- Get proposals (sent or received) ---
 const getProposals = asyncHandler(async (req, res) => {
   const { type = 'received' } = req.query;
   const userId = req.user._id;
@@ -85,9 +77,8 @@ const getProposals = asyncHandler(async (req, res) => {
     .json(new ApiResponse(200, proposals, 'Proposals fetched successfully'));
 });
 
-// --- Respond to a proposal (accept or reject) ---
 const respondToProposal = asyncHandler(async (req, res) => {
-  const { proposalId } = req.params;
+  const { id } = req.params;
   const { status } = req.body;
   const userId = req.user._id;
 
@@ -95,16 +86,11 @@ const respondToProposal = asyncHandler(async (req, res) => {
     throw new ApiError(400, "Invalid status. Must be 'accepted' or 'rejected'.");
   }
 
-  if (!mongoose.Types.ObjectId.isValid(proposalId)) {
-    throw new ApiError(400, "Invalid proposal ID format");
-  }
-
-  const proposal = await Proposal.findById(proposalId);
+  const proposal = await Proposal.findById(id);
   if (!proposal) {
     throw new ApiError(404, 'Proposal not found');
   }
 
-  // Authorization: Only the receiver can respond
   if (!proposal.receiver.equals(userId)) {
     throw new ApiError(403, 'You are not authorized to respond to this proposal.');
   }
@@ -116,7 +102,6 @@ const respondToProposal = asyncHandler(async (req, res) => {
   proposal.status = status;
   await proposal.save({ validateBeforeSave: false });
   
-  // If accepted, update the status of both skills to prevent further proposals
   if (status === 'accepted') {
     await Skill.updateMany(
       { _id: { $in: [proposal.offeredSkill, proposal.requestedSkill] } },
@@ -129,4 +114,28 @@ const respondToProposal = asyncHandler(async (req, res) => {
     .json(new ApiResponse(200, proposal, `Proposal has been ${status}.`));
 });
 
-export { createProposal, getProposals, respondToProposal }; 
+const withdrawProposal = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const userId = req.user._id;
+
+  const proposal = await Proposal.findById(id);
+
+  if (!proposal) {
+    throw new ApiError(404, "Proposal not found");
+  }
+
+  if (!proposal.proposer.equals(userId)) {
+    throw new ApiError(403, "You are not authorized to withdraw this proposal.");
+  }
+
+  if (proposal.status !== 'pending') {
+    throw new ApiError(400, `Cannot withdraw a proposal that has been ${proposal.status}.`);
+  }
+
+  await Proposal.findByIdAndDelete(id);
+
+  return res.status(200).json(new ApiResponse(200, {}, "Proposal withdrawn successfully"));
+});
+
+
+export { createProposal, getProposals, respondToProposal, withdrawProposal };

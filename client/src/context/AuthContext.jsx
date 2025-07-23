@@ -1,66 +1,53 @@
 import React, { createContext, useState, useContext, useEffect } from 'react';
-import apiClient from '../api/axios';
 import { useNavigate } from 'react-router-dom';
 import { io } from 'socket.io-client';
 import toast from 'react-hot-toast';
+import apiClient from '../api/axios';
 
 const AuthContext = createContext(null);
 
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
+  const [token, setToken] = useState(localStorage.getItem('accessToken'));
   const [isAuthenticated, setIsAuthenticated] = useState(!!localStorage.getItem('accessToken'));
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
 
   useEffect(() => {
     const checkUserStatus = async () => {
-      // The interceptor in axios.js will automatically add the token to this request
-      try {
-        const response = await apiClient.get('/users/me');
-        setUser(response.data.data);
-        setIsAuthenticated(true);
-      } catch (error) {
-        // If the token is invalid, clear it
-        setUser(null);
-        setIsAuthenticated(false);
-        localStorage.removeItem('accessToken');
-      } finally {
-        setLoading(false);
+      if (token) {
+        try {
+          const response = await apiClient.get('/users/me');
+          setUser(response.data.data);
+          setIsAuthenticated(true);
+        } catch (error) {
+          setUser(null);
+          setIsAuthenticated(false);
+          setToken(null);
+          localStorage.removeItem('accessToken');
+        }
       }
-    };
-    // Only run check if a token exists
-    if (localStorage.getItem('accessToken')) {
-      checkUserStatus();
-    } else {
       setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    if (isAuthenticated && user) {
-      const socket = io(import.meta.env.VITE_API_BASE_URL.replace("/api/v1", ""));
-      socket.emit('join_room', user._id);
-      socket.on('new_notification', (data) => {
-        toast.success(data.message, { duration: 5000 });
-      });
-      return () => socket.disconnect();
-    }
-  }, [isAuthenticated, user]);
+    };
+    checkUserStatus();
+  }, [token]);
 
   const login = async (credentials) => {
-    if (credentials.user && !credentials.password) {
+    // This part updates user state after a profile edit
+    if (credentials.user) {
       setUser(credentials.user);
-      setIsAuthenticated(true);
+      if (credentials.accessToken) {
+        localStorage.setItem('accessToken', credentials.accessToken);
+        setToken(credentials.accessToken);
+      }
       return;
     }
-
+    // Standard login flow
     try {
       const response = await apiClient.post('/users/login', credentials);
       const { user: userData, accessToken } = response.data.data;
-      
-      // Save token to localStorage to persist session
       localStorage.setItem('accessToken', accessToken);
-      
+      setToken(accessToken);
       setUser(userData);
       setIsAuthenticated(true);
       navigate('/dashboard');
@@ -75,21 +62,15 @@ export const AuthProvider = ({ children }) => {
     } catch (error) {
       console.error("Logout failed:", error);
     } finally {
-      // Clear user state and remove token from localStorage
       setUser(null);
+      setToken(null);
       setIsAuthenticated(false);
       localStorage.removeItem('accessToken');
       navigate('/login');
     }
   };
   
-  const authContextValue = {
-    user,
-    isAuthenticated,
-    loading,
-    login,
-    logout,
-  };
+  const authContextValue = { user, token, isAuthenticated, loading, login, logout };
 
   return (
     <AuthContext.Provider value={authContextValue}>

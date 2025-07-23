@@ -1,16 +1,35 @@
 import React, { useState } from 'react';
 import apiClient from '../../api/axios';
 
-const ProposalCard = ({ proposal, type, onUpdate }) => {
+const ProposalCard = ({ proposal, type, onUpdate, onWithdraw }) => {
   const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
 
   const handleResponse = async (status) => {
+    setLoading(true);
     setError('');
     try {
       const response = await apiClient.patch(`/proposals/${proposal._id}/respond`, { status });
-      onUpdate(response.data.data); // Notify parent component of the update
+      onUpdate(response.data.data);
     } catch (err) {
       setError(err.response?.data?.message || `Failed to ${status} proposal.`);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleWithdraw = async () => {
+    if (window.confirm('Are you sure you want to withdraw this proposal?')) {
+      setLoading(true);
+      setError('');
+      try {
+        await apiClient.delete(`/proposals/${proposal._id}`);
+        onWithdraw(proposal._id);
+      } catch (err) {
+        setError(err.response?.data?.message || 'Failed to withdraw proposal.');
+      } finally {
+        setLoading(false);
+      }
     }
   };
 
@@ -19,6 +38,10 @@ const ProposalCard = ({ proposal, type, onUpdate }) => {
     accepted: 'bg-green-500',
     rejected: 'bg-red-500',
   };
+
+  // Safely access titles with optional chaining and provide a fallback
+  const offeredSkillTitle = proposal.offeredSkill?.title || '[Deleted Skill]';
+  const requestedSkillTitle = proposal.requestedSkill?.title || '[Deleted Skill]';
 
   return (
     <div className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow-md border-l-4 border-indigo-500">
@@ -34,15 +57,15 @@ const ProposalCard = ({ proposal, type, onUpdate }) => {
       {type === 'received' ? (
         <p className="text-gray-700 dark:text-gray-300">
           <span className="font-bold">{proposal.proposer.username}</span> wants to trade their{' '}
-          <span className="font-semibold text-blue-600 dark:text-blue-400">{proposal.offeredSkill.title}</span> for your{' '}
-          <span className="font-semibold text-green-600 dark:text-green-400">{proposal.requestedSkill.title}</span>.
+          <span className="font-semibold text-blue-600 dark:text-blue-400">{offeredSkillTitle}</span> for your{' '}
+          <span className="font-semibold text-green-600 dark:text-green-400">{requestedSkillTitle}</span>.
         </p>
       ) : (
         <p className="text-gray-700 dark:text-gray-300">
           You offered your{' '}
-          <span className="font-semibold text-blue-600 dark:text-blue-400">{proposal.offeredSkill.title}</span> for{' '}
+          <span className="font-semibold text-blue-600 dark:text-blue-400">{offeredSkillTitle}</span> for{' '}
           <span className="font-bold">{proposal.receiver.username}</span>'s{' '}
-          <span className="font-semibold text-green-600 dark:text-green-400">{proposal.requestedSkill.title}</span>.
+          <span className="font-semibold text-green-600 dark:text-green-400">{requestedSkillTitle}</span>.
         </p>
       )}
 
@@ -52,13 +75,24 @@ const ProposalCard = ({ proposal, type, onUpdate }) => {
         </div>
       )}
 
-      {type === 'received' && proposal.status === 'pending' && (
-        <div className="flex justify-end space-x-3 mt-4">
-          <button onClick={() => handleResponse('rejected')} className="px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-md hover:bg-red-700">Reject</button>
-          <button onClick={() => handleResponse('accepted')} className="px-4 py-2 text-sm font-medium text-white bg-green-600 rounded-md hover:bg-green-700">Accept</button>
-        </div>
-      )}
-      {error && <p className="text-red-500 text-xs mt-2 text-right">{error}</p>}
+      <div className="flex justify-end items-center space-x-3 mt-4">
+        {loading ? (
+          <span className="text-sm italic">Processing...</span>
+        ) : (
+          <>
+            {type === 'received' && proposal.status === 'pending' && (
+              <>
+                <button onClick={() => handleResponse('rejected')} className="px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-md hover:bg-red-700">Reject</button>
+                <button onClick={() => handleResponse('accepted')} className="px-4 py-2 text-sm font-medium text-white bg-green-600 rounded-md hover:bg-green-700">Accept</button>
+              </>
+            )}
+            {type === 'sent' && proposal.status === 'pending' && (
+              <button onClick={handleWithdraw} className="px-4 py-2 text-sm font-medium text-white bg-gray-500 rounded-md hover:bg-gray-600">Withdraw</button>
+            )}
+          </>
+        )}
+      </div>
+      {error && !loading && <p className="text-red-500 text-xs mt-2 text-right">{error}</p>}
     </div>
   );
 };
