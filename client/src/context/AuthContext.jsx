@@ -1,94 +1,103 @@
 import React, { createContext, useState, useContext, useEffect } from 'react';
 import apiClient from '../api/axios';
 import { useNavigate } from 'react-router-dom';
+import { io } from 'socket.io-client';
+import toast from 'react-hot-toast';
 
-// Create the context to hold our authentication state
 const AuthContext = createContext(null);
 
-// Create the Provider component that will wrap our application
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [loading, setLoading] = useState(true); // Add loading state
+  const [isAuthenticated, setIsAuthenticated] = useState(!!localStorage.getItem('accessToken'));
+  const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
 
-  // This effect runs once when the app starts to check if the user is already logged in
   useEffect(() => {
     const checkUserStatus = async () => {
+      // The interceptor in axios.js will automatically add the token to this request
       try {
-        // We can call the /me endpoint which is protected. 
-        // If it succeeds, the user has a valid token.
         const response = await apiClient.get('/users/me');
         setUser(response.data.data);
         setIsAuthenticated(true);
       } catch (error) {
-        // If it fails, it means no valid token, so user is not logged in.
+        // If the token is invalid, clear it
         setUser(null);
         setIsAuthenticated(false);
+        localStorage.removeItem('accessToken');
       } finally {
-        setLoading(false); // Stop loading once check is complete
+        setLoading(false);
       }
     };
-    checkUserStatus();
+    // Only run check if a token exists
+    if (localStorage.getItem('accessToken')) {
+      checkUserStatus();
+    } else {
+      setLoading(false);
+    }
   }, []);
 
-  // Function to handle login OR update the user state
+  useEffect(() => {
+    if (isAuthenticated && user) {
+      const socket = io(import.meta.env.VITE_API_BASE_URL.replace("/api/v1", ""));
+      socket.emit('join_room', user._id);
+      socket.on('new_notification', (data) => {
+        toast.success(data.message, { duration: 5000 });
+      });
+      return () => socket.disconnect();
+    }
+  }, [isAuthenticated, user]);
+
   const login = async (credentials) => {
-    // --- THIS IS THE NEW LOGIC ---
-    // If we pass a user object directly (from profile edit), just update the state.
-    // This avoids forcing a re-login after a profile update.
     if (credentials.user && !credentials.password) {
       setUser(credentials.user);
       setIsAuthenticated(true);
       return;
     }
-    // --- END OF NEW LOGIC ---
 
-    // This is the original login logic for handling email/password
     try {
       const response = await apiClient.post('/users/login', credentials);
       const { user: userData, accessToken } = response.data.data;
       
+      // Save token to localStorage to persist session
+      localStorage.setItem('accessToken', accessToken);
+      
       setUser(userData);
       setIsAuthenticated(true);
-      
       navigate('/dashboard');
     } catch (error) {
-      // Re-throw the error so the login form can catch and display it
       throw error;
     }
   };
 
-  // Function to handle logout
   const logout = async () => {
     try {
       await apiClient.post('/users/logout');
     } catch (error) {
       console.error("Logout failed:", error);
     } finally {
+      // Clear user state and remove token from localStorage
       setUser(null);
       setIsAuthenticated(false);
+      localStorage.removeItem('accessToken');
       navigate('/login');
     }
   };
   
-  // The value that will be available to all children components
   const authContextValue = {
     user,
     isAuthenticated,
-    loading, // Expose loading state
+    loading,
     login,
     logout,
   };
 
   return (
     <AuthContext.Provider value={authContextValue}>
-      {!loading && children} {/* Don't render children until the initial auth check is done */}
+      {!loading && children}
     </AuthContext.Provider>
   );
 };
 
-// A custom hook to make it easier to use the context
 export const useAuth = () => {
   return useContext(AuthContext);
 };

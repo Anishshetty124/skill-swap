@@ -27,7 +27,7 @@ const MapComponent = ({ skills }) => {
           <Marker 
             key={skill._id} 
             position={[skill.user.location.coordinates[1], skill.user.location.coordinates[0]]} // Leaflet uses [lat, lon]
-          >
+          > 
             <Popup>
               <div className="font-sans">
                 <h3 className="font-bold text-lg mb-1">{skill.title}</h3>

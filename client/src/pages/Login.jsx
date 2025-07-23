@@ -36,7 +36,7 @@ const Login = () => {
               value={credentials.email}
               onChange={handleChange}
               required
-              className="w-full px-3 py-2 mt-1 text-gray-800 border border-gray-300 rounded-md focus:outline-none focus:ring focus:ring-indigo-200"
+              className="w-full px-3 py-2 mt-1 text-gray-200 border border-gray-300 rounded-md focus:outline-none focus:ring focus:ring-indigo-200"
             />
           </div>
           <div>
@@ -47,7 +47,7 @@ const Login = () => {
               value={credentials.password}
               onChange={handleChange}
               required
-              className="w-full px-3 py-2 mt-1 text-gray-800 border border-gray-300 rounded-md focus:outline-none focus:ring focus:ring-indigo-200"
+              className="w-full px-3 py-2 mt-1 text-gray-200 border border-gray-300 rounded-md focus:outline-none focus:ring focus:ring-indigo-200"
             />
           </div>
           

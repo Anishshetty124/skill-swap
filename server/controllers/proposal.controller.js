@@ -129,4 +129,4 @@ const respondToProposal = asyncHandler(async (req, res) => {
     .json(new ApiResponse(200, proposal, `Proposal has been ${status}.`));
 });
 
-export { createProposal, getProposals, respondToProposal };
+export { createProposal, getProposals, respondToProposal }; 

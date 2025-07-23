@@ -48,37 +48,67 @@ const CreateSkillPage = () => {
       <h1 className="text-3xl font-bold text-center mb-6">Post a New Skill</h1>
       <form onSubmit={handleSubmit} className="space-y-6">
         <div>
-          <label className="block text-sm font-medium">I want to:</label>
-          <select name="type" value={formData.type} onChange={handleChange} className="w-full px-3 py-2 mt-1 text-gray-800 border border-gray-300 rounded-md">
-            <option value="OFFER">Offer a Skill</option>
-            <option value="REQUEST">Request a Skill</option>
+          <label className="block text-sm font-medium mb-1">I want to:</label>
+          <select 
+            name="type" 
+            value={formData.type} 
+            onChange={handleChange} 
+            className="w-full px-3 py-2 mt-1 bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-200 border border-gray-300 rounded-md"
+          >
+            <option value="OFFER" className="bg-white dark:bg-gray-700">Offer a Skill</option>
+            <option value="REQUEST" className="bg-white dark:bg-gray-700">Request a Skill</option>
           </select>
         </div>
         
         <div>
-          <label className="block text-sm font-medium">Title</label>
-          <input type="text" name="title" value={formData.title} onChange={handleChange} required className="w-full px-3 py-2 mt-1 text-gray-800 border border-gray-300 rounded-md"/>
+          <label className="block text-sm font-medium mb-1">Title</label>
+          <input 
+            type="text" 
+            name="title" 
+            value={formData.title} 
+            onChange={handleChange} 
+            required 
+            className="w-full px-3 py-2 mt-1 text-gray-800 dark:text-gray-200 border border-gray-300 rounded-md"
+          />
         </div>
 
         <div>
-          <label className="block text-sm font-medium">Category</label>
-          <select name="category" value={formData.category} onChange={handleChange} required className="w-full px-3 py-2 mt-1 text-gray-800 border border-gray-300 rounded-md">
-            <option value="">-- Select a Category --</option>
-            {skillCategories.map(cat => <option key={cat} value={cat}>{cat}</option>)}
+          <label className="block text-sm font-medium mb-1">Category</label>
+          <select 
+            name="category" 
+            value={formData.category} 
+            onChange={handleChange} 
+            required 
+            className="w-full px-3 py-2 mt-1 bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-200 border border-gray-300 rounded-md"
+          >
+            <option value="" className="bg-white dark:bg-gray-700">-- Select a Category --</option>
+            {skillCategories.map(cat => <option key={cat} value={cat} className="bg-white dark:bg-gray-700">{cat}</option>)}
           </select>
         </div>
         
         <div>
-          <label className="block text-sm font-medium">Description</label>
-          <textarea name="description" value={formData.description} onChange={handleChange} required rows="4" className="w-full px-3 py-2 mt-1 text-gray-800 border border-gray-300 rounded-md"></textarea>
+          <label className="block text-sm font-medium mb-1">Description</label>
+          <textarea 
+            name="description" 
+            value={formData.description} 
+            onChange={handleChange} 
+            required 
+            rows="4" 
+            className="w-full px-3 py-2 mt-1 text-gray-800 dark:text-gray-200 border border-gray-300 rounded-md"
+          ></textarea>
         </div>
 
         <div>
-          <label className="block text-sm font-medium">Skill Level</label>
-          <select name="level" value={formData.level} onChange={handleChange} className="w-full px-3 py-2 mt-1 text-gray-800 border border-gray-300 rounded-md">
-            <option>Beginner</option>
-            <option>Intermediate</option>
-            <option>Expert</option>
+          <label className="block text-sm font-medium mb-1">Skill Level</label>
+          <select 
+            name="level" 
+            value={formData.level} 
+            onChange={handleChange} 
+            className="w-full px-3 py-2 mt-1 bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-200 border border-gray-300 rounded-md"
+          >
+            <option className="bg-white dark:bg-gray-700">Beginner</option>
+            <option className="bg-white dark:bg-gray-700">Intermediate</option>
+            <option className="bg-white dark:bg-gray-700">Expert</option>
           </select>
         </div>
         
