@@ -9,6 +9,11 @@ const userSchema = new mongoose.Schema({
   role: { type: String, enum: ['user', 'admin'], default: 'user' },
   profilePicture: { type: String, default: '' },
   bio: { type: String, default: '' },
+  socials: {
+    github: { type: String, default: '' },
+    linkedin: { type: String, default: '' },
+    website: { type: String, default: '' },
+  },
   locationString: { type: String, default: '' },
   location: {
     type: { type: String, enum: ['Point'] },

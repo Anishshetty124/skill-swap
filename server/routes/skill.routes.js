@@ -10,11 +10,15 @@ import {
   bookmarkSkill,
   unbookmarkSkill,
   rateSkill,
+  getLocationSuggestions,
+  getKeywordSuggestions,
 } from '../controllers/skill.controller.js';
 import { verifyJWT } from '../middlewares/auth.middleware.js';
 
 const router = Router();
 
+router.route('/keyword-suggestions').get(getKeywordSuggestions); 
+router.route('/locations').get(getLocationSuggestions);
 // --- Public Routes --- (Anyone can view skills)
 router.route('/').get(getAllSkills);
 router.route('/nearby').get(getNearbySkills);

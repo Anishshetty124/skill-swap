@@ -3,7 +3,6 @@ import { ApiError } from '../utils/ApiError.js';
 import { ApiResponse } from '../utils/ApiResponse.js';
 import { User } from '../models/user.model.js';
 import { Skill } from '../models/skill.model.js';
-import { Review } from '../models/review.model.js';
 import opencage from 'opencage-api-client';
 
 const registerUser = asyncHandler(async (req, res) => {
@@ -59,22 +58,35 @@ const getCurrentUser = asyncHandler(async (req, res) => {
 });
 
 const updateUserProfile = asyncHandler(async (req, res) => {
-  const { bio, locationString } = req.body;
+  const { bio, locationString, socials } = req.body;
+  
   const updateData = {};
+
   if (bio !== undefined) updateData.bio = bio;
+  if (socials) updateData.socials = socials;
+
   if (locationString) {
     updateData.locationString = locationString;
     try {
       const geoData = await opencage.geocode({ q: locationString, limit: 1, key: process.env.OPENCAGE_API_KEY });
       if (geoData.results.length > 0) {
         const { lng, lat } = geoData.results[0].geometry;
-        updateData.location = { type: 'Point', coordinates: [lng, lat] };
+        updateData.location = {
+          type: 'Point',
+          coordinates: [lng, lat]
+        };
       }
     } catch (error) {
       console.error("Geocoding failed:", error.message);
     }
   }
-  const user = await User.findByIdAndUpdate(req.user._id, { $set: updateData }, { new: true, runValidators: true }).select("-password -refreshToken");
+
+  const user = await User.findByIdAndUpdate(
+    req.user._id,
+    { $set: updateData },
+    { new: true, runValidators: true }
+  ).select("-password -refreshToken");
+
   return res.status(200).json(new ApiResponse(200, user, "Profile updated successfully"));
 });
 
@@ -85,32 +97,42 @@ const updateUserAvatar = asyncHandler(async (req, res) => {
   return res.status(200).json(new ApiResponse(200, user, "Avatar updated successfully"));
 });
 
+const deleteUserAvatar = asyncHandler(async (req, res) => {
+    const user = await User.findByIdAndUpdate(
+        req.user._id,
+        { $set: { profilePicture: '' } },
+        { new: true }
+    ).select("-password -refreshToken");
+    return res.status(200).json(new ApiResponse(200, user, "Avatar removed successfully"));
+});
+
+const changePassword = asyncHandler(async (req, res) => {
+    const { newPassword } = req.body;
+    if (!newPassword || newPassword.length < 6) {
+        throw new ApiError(400, "Password must be at least 6 characters long.");
+    }
+    const user = await User.findById(req.user._id);
+    user.password = newPassword;
+    await user.save();
+    return res.status(200).json(new ApiResponse(200, {}, "Password changed successfully."));
+});
+
 const getUserProfile = asyncHandler(async (req, res) => {
   const { username } = req.params;
   const user = await User.findOne({ username }).select("-password -refreshToken -role");
   if (!user) throw new ApiError(404, "User not found");
   
-  const [skills, reviews] = await Promise.all([
+  const [skills, reviews, bookmarks] = await Promise.all([
     Skill.find({ user: user._id, type: 'OFFER' }).sort({ createdAt: -1 }),
-    Review.find({ reviewee: user._id }).sort({ createdAt: -1 }).populate('reviewer', 'username')
+    Skill.find({ bookmarkedBy: user._id }).populate('user', 'username profilePicture').sort({ createdAt: -1 })
   ]);
   
   const totalRating = reviews.reduce((acc, review) => acc + review.rating, 0);
   const averageRating = reviews.length > 0 ? (totalRating / reviews.length).toFixed(1) : 0;
   
-  const profileData = { ...user.toObject(), averageRating, skills, reviews };
+  const profileData = { ...user.toObject(), averageRating, skills, reviews, bookmarks };
   
   return res.status(200).json(new ApiResponse(200, profileData, "User profile fetched successfully"));
-});
-
-const deleteUserAvatar = asyncHandler(async (req, res) => {
-  const user = await User.findByIdAndUpdate(
-    req.user._id,
-    { $set: { profilePicture: '' } }, // Set the profile picture URL to an empty string
-    { new: true }
-  ).select("-password -refreshToken");
-  
-  return res.status(200).json(new ApiResponse(200, user, "Avatar removed successfully"));
 });
 
 export {
@@ -120,6 +142,7 @@ export {
   getCurrentUser,
   updateUserProfile,
   updateUserAvatar,
-  getUserProfile,
-  deleteUserAvatar
+  deleteUserAvatar,
+  changePassword,
+  getUserProfile
 };

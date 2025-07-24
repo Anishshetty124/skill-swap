@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import apiClient from '../../api/axios';
 import { useAuth } from '../../context/AuthContext';
+import { Link } from 'react-router-dom'; // 👈 Import Link
 
 const ProposalModal = ({ isOpen, onClose, requestedSkill }) => {
   const { user } = useAuth();
@@ -79,8 +80,7 @@ const ProposalModal = ({ isOpen, onClose, requestedSkill }) => {
             <label className="block text-sm font-medium mb-2">In exchange for your skill:</label>
             {loadingSkills ? (
               <p>Loading your skills...</p>
-            ) : (
-              // 👇 Corrected className
+            ) : myOfferedSkills.length > 0 ? (
               <select
                 value={selectedSkillId}
                 onChange={(e) => setSelectedSkillId(e.target.value)}
@@ -88,19 +88,26 @@ const ProposalModal = ({ isOpen, onClose, requestedSkill }) => {
                 className="w-full px-3 py-2 bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-200 border border-gray-300 dark:border-gray-600 rounded-md"
               >
                 <option value="" className="bg-white dark:bg-gray-700">-- Select one of your skills --</option>
-                {myOfferedSkills.length > 0 ? (
-                  myOfferedSkills.map(skill => (
-                    <option key={skill._id} value={skill._id} className="bg-white dark:bg-gray-700">{skill.title}</option>
-                  ))
-                ) : (
-                  <option disabled className="bg-white dark:bg-gray-700">You have no skills to offer.</option>
-                )}
+                {myOfferedSkills.map(skill => (
+                  <option key={skill._id} value={skill._id} className="bg-white dark:bg-gray-700">{skill.title}</option>
+                ))}
               </select>
+            ) : (
+              // This is the new part 👇
+              <div className="text-center p-4 border-2 border-dashed rounded-md">
+                <p className="text-sm text-gray-500 mb-2">You have no skills to offer.</p>
+                <Link 
+                  to="/skills/new"
+                  onClick={onClose}
+                  className="text-indigo-600 dark:text-indigo-400 font-semibold hover:underline"
+                >
+                  Click here to add one!
+                </Link>
+              </div>
             )}
           </div>
           <div className="mb-6">
             <label className="block text-sm font-medium mb-2">Message (Optional):</label>
-            {/* 👇 Corrected className */}
             <textarea
               value={message}
               onChange={(e) => setMessage(e.target.value)}
@@ -115,7 +122,7 @@ const ProposalModal = ({ isOpen, onClose, requestedSkill }) => {
 
           <div className="flex justify-end space-x-4">
             <button type="button" onClick={onClose} className="px-4 py-2 rounded-md text-gray-700 bg-gray-200 hover:bg-gray-300" disabled={!!success}>Cancel</button>
-            <button type="submit" className="px-4 py-2 rounded-md font-semibold text-white bg-indigo-600 hover:bg-indigo-700" disabled={!!success || loadingSkills}>
+            <button type="submit" className="px-4 py-2 rounded-md font-semibold text-white bg-indigo-600 hover:bg-indigo-700" disabled={!!success || loadingSkills || myOfferedSkills.length === 0}>
               {success ? 'Sent!' : 'Send Proposal'}
             </button>
           </div>

@@ -1,9 +1,12 @@
 import React, { useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 import apiClient from '../../api/axios';
+import toast from 'react-hot-toast';
 
-const ProposalCard = ({ proposal, type, onUpdate, onWithdraw }) => {
+const ProposalCard = ({ proposal, type, onUpdate }) => {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const navigate = useNavigate();
 
   const handleResponse = async (status) => {
     setLoading(true);
@@ -11,6 +14,7 @@ const ProposalCard = ({ proposal, type, onUpdate, onWithdraw }) => {
     try {
       const response = await apiClient.patch(`/proposals/${proposal._id}/respond`, { status });
       onUpdate(response.data.data);
+      toast.success(`Proposal ${status}.`);
     } catch (err) {
       setError(err.response?.data?.message || `Failed to ${status} proposal.`);
     } finally {
@@ -18,16 +22,17 @@ const ProposalCard = ({ proposal, type, onUpdate, onWithdraw }) => {
     }
   };
 
-  const handleWithdraw = async () => {
-    if (window.confirm('Are you sure you want to withdraw this proposal?')) {
+  const handleDelete = async () => {
+    const actionText = proposal.status === 'pending' && type === 'sent' ? 'withdraw' : 'delete';
+    if (window.confirm(`Are you sure you want to ${actionText} this proposal?`)) {
       setLoading(true);
       setError('');
       try {
         await apiClient.delete(`/proposals/${proposal._id}`);
-        onWithdraw(proposal._id);
+        toast.success(`Proposal ${actionText} successfully!`);
+        navigate('/'); // Redirect to the home page
       } catch (err) {
-        setError(err.response?.data?.message || 'Failed to withdraw proposal.');
-      } finally {
+        setError(err.response?.data?.message || `Failed to ${actionText} proposal.`);
         setLoading(false);
       }
     }
@@ -39,7 +44,6 @@ const ProposalCard = ({ proposal, type, onUpdate, onWithdraw }) => {
     rejected: 'bg-red-500',
   };
 
-  // Safely access titles with optional chaining and provide a fallback
   const offeredSkillTitle = proposal.offeredSkill?.title || '[Deleted Skill]';
   const requestedSkillTitle = proposal.requestedSkill?.title || '[Deleted Skill]';
 
@@ -76,9 +80,8 @@ const ProposalCard = ({ proposal, type, onUpdate, onWithdraw }) => {
       )}
 
       <div className="flex justify-end items-center space-x-3 mt-4">
-        {loading ? (
-          <span className="text-sm italic">Processing...</span>
-        ) : (
+        {loading && <span className="text-sm italic">Processing...</span>}
+        {!loading && (
           <>
             {type === 'received' && proposal.status === 'pending' && (
               <>
@@ -86,9 +89,9 @@ const ProposalCard = ({ proposal, type, onUpdate, onWithdraw }) => {
                 <button onClick={() => handleResponse('accepted')} className="px-4 py-2 text-sm font-medium text-white bg-green-600 rounded-md hover:bg-green-700">Accept</button>
               </>
             )}
-            {type === 'sent' && proposal.status === 'pending' && (
-              <button onClick={handleWithdraw} className="px-4 py-2 text-sm font-medium text-white bg-gray-500 rounded-md hover:bg-gray-600">Withdraw</button>
-            )}
+            <button onClick={handleDelete} className="text-gray-400 hover:text-red-500" title="Delete Proposal">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clipRule="evenodd" /></svg>
+            </button>
           </>
         )}
       </div>

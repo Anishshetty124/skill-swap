@@ -113,29 +113,22 @@ const respondToProposal = asyncHandler(async (req, res) => {
     .status(200)
     .json(new ApiResponse(200, proposal, `Proposal has been ${status}.`));
 });
-
-const withdrawProposal = asyncHandler(async (req, res) => {
+const deleteProposal = asyncHandler(async (req, res) => {
   const { id } = req.params;
   const userId = req.user._id;
 
   const proposal = await Proposal.findById(id);
+  if (!proposal) throw new ApiError(404, "Proposal not found");
 
-  if (!proposal) {
-    throw new ApiError(404, "Proposal not found");
-  }
-
-  if (!proposal.proposer.equals(userId)) {
-    throw new ApiError(403, "You are not authorized to withdraw this proposal.");
-  }
-
-  if (proposal.status !== 'pending') {
-    throw new ApiError(400, `Cannot withdraw a proposal that has been ${proposal.status}.`);
+  // Allow EITHER the proposer OR the receiver to delete it
+  if (!proposal.proposer.equals(userId) && !proposal.receiver.equals(userId)) {
+    throw new ApiError(403, "You are not authorized to delete this proposal.");
   }
 
   await Proposal.findByIdAndDelete(id);
 
-  return res.status(200).json(new ApiResponse(200, {}, "Proposal withdrawn successfully"));
+  return res.status(200).json(new ApiResponse(200, {}, "Proposal deleted successfully"));
 });
 
-
-export { createProposal, getProposals, respondToProposal, withdrawProposal };
+// Rename withdrawProposal to deleteProposal in the export
+export { createProposal, getProposals, respondToProposal, deleteProposal };

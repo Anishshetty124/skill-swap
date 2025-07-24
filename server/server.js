@@ -11,7 +11,6 @@ import { ApiError } from './utils/ApiError.js';
 import userRouter from './routes/user.routes.js';
 import skillRouter from './routes/skill.routes.js';
 import proposalRouter from './routes/proposal.routes.js';
-import reviewRouter from './routes/review.routes.js';
 
 dotenv.config({ path: './.env' });
 
@@ -40,7 +39,6 @@ app.use(cookieParser());
 app.use('/api/v1/users', userRouter);
 app.use('/api/v1/skills', skillRouter);
 app.use('/api/v1/proposals', proposalRouter);
-app.use('/api/v1/reviews', reviewRouter);
 
 io.on('connection', (socket) => {
   console.log(`🔌 New client connected: ${socket.id}`);

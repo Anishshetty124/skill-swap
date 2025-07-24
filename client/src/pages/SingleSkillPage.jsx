@@ -76,7 +76,8 @@ const SingleSkillPage = () => {
       try {
         await apiClient.delete(`/skills/${skillId}`);
         toast.success('Skill deleted successfully!');
-        navigate('/dashboard');
+        // Navigate to dashboard and pass a state to indicate a refresh is needed
+        navigate('/dashboard', { state: { refresh: true } });
       } catch (err) {
         toast.error(err.response?.data?.message || 'Failed to delete skill.');
         setDeleting(false);
@@ -90,19 +91,17 @@ const SingleSkillPage = () => {
         return;
     }
     try {
-      const response = await apiClient.post(`/skills/${skillId}/rate`, { rating });
-      const newRatings = response.data.data;
-      
-      const myRating = newRatings.find(r => r.user?._id === user?._id);
-      if (myRating) setUserRating(myRating.rating);
-      
-      const total = newRatings.reduce((acc, r) => acc + r.rating, 0);
-      setAvgRating(newRatings.length > 0 ? total / newRatings.length : 0);
-      
-      // We need to refetch the skill to get the populated user data for the new review
-      const updatedSkillResponse = await apiClient.get(`/skills/${skillId}`);
-      setSkill(updatedSkillResponse.data.data);
+      await apiClient.post(`/skills/${skillId}/rate`, { rating });
+      const response = await apiClient.get(`/skills/${skillId}`);
+      const updatedSkill = response.data.data;
+      setSkill(updatedSkill);
 
+      if (updatedSkill.ratings && updatedSkill.ratings.length > 0) {
+        const total = updatedSkill.ratings.reduce((acc, r) => acc + r.rating, 0);
+        setAvgRating(total / updatedSkill.ratings.length);
+        const myRating = updatedSkill.ratings.find(r => r.user?._id === user?._id);
+        if (myRating) setUserRating(myRating.rating);
+      }
       toast.success("Your rating has been submitted!");
     } catch (error) {
       toast.error(error.response?.data?.message || "Failed to submit rating.");
