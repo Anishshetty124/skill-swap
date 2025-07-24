@@ -16,13 +16,24 @@ const EditProfilePage = () => {
     setAvatarFile(e.target.files[0]);
   };
 
+  const handleRemoveAvatar = async () => {
+    if (window.confirm('Are you sure you want to remove your profile picture?')) {
+      try {
+        const response = await apiClient.delete('/users/me/avatar');
+        login({ user: response.data.data }); // Update the context
+        toast.success('Profile picture removed.');
+      } catch (error) {
+        toast.error('Failed to remove profile picture.');
+      }
+    }
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
     let updatedUser = { ...user };
 
     try {
-      // Step 1: Upload image to Cloudinary if a new one is selected
       if (avatarFile) {
         const formData = new FormData();
         formData.append('file', avatarFile);
@@ -34,16 +45,13 @@ const EditProfilePage = () => {
         });
         const cloudinaryData = await cloudinaryRes.json();
         
-        // Step 2: Update avatar URL in our backend
         const avatarUpdateRes = await apiClient.patch('/users/me/avatar', { avatarUrl: cloudinaryData.secure_url });
         updatedUser = avatarUpdateRes.data.data;
       }
 
-      // Step 3: Update text-based profile info
       const profileUpdateRes = await apiClient.patch('/users/me', { bio, locationString });
       updatedUser = { ...updatedUser, ...profileUpdateRes.data.data };
 
-      // Step 4: Update the user in the global context
       login({ user: updatedUser });
 
       toast.success('Profile updated successfully!');
@@ -67,11 +75,21 @@ const EditProfilePage = () => {
             src={avatarFile ? URL.createObjectURL(avatarFile) : user?.profilePicture || `https://api.dicebear.com/8.x/initials/svg?seed=${user?.username}`}
             alt="Profile Preview"
           />
-          <div>
+          <div className="flex flex-col gap-4">
             <label htmlFor="avatar-upload" className="cursor-pointer bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200 px-4 py-2 rounded-md hover:bg-gray-300 dark:hover:bg-gray-600">
               Change Picture
             </label>
             <input id="avatar-upload" type="file" accept="image/*" onChange={handleFileChange} className="hidden" />
+            
+            {user?.profilePicture && (
+              <button
+                type="button"
+                onClick={handleRemoveAvatar}
+                className="bg-red-500 text-white text-sm px-4 py-2 rounded-md hover:bg-red-600"
+              >
+                Remove
+              </button>
+            )}
           </div>
         </div>
 

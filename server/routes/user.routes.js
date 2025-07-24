@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { registerUser, loginUser, logoutUser, getCurrentUser, getUserProfile, updateUserProfile, updateUserAvatar } from "../controllers/user.controller.js";
+import { registerUser, loginUser, logoutUser, getCurrentUser, getUserProfile, updateUserProfile, updateUserAvatar, deleteUserAvatar } from "../controllers/user.controller.js";
 import { verifyJWT } from "../middlewares/auth.middleware.js";
 
 const router = Router();
@@ -12,6 +12,7 @@ router.route("/login").post(loginUser);
 router.route("/me").get(verifyJWT, getCurrentUser);
 router.route("/me").patch(verifyJWT, updateUserProfile);
 router.route("/me/avatar").patch(verifyJWT, updateUserAvatar);
+router.route("/me/avatar").delete(verifyJWT, deleteUserAvatar); // Add the DELETE method
 router.route("/logout").post(verifyJWT, logoutUser);
 
 // Dynamic Public Route (must be last)

@@ -52,7 +52,10 @@ const logoutUser = asyncHandler(async (req, res) => {
 });
 
 const getCurrentUser = asyncHandler(async (req, res) => {
-  return res.status(200).json(new ApiResponse(200, req.user, "User profile fetched successfully"));
+  const bookmarkedSkills = await Skill.find({ bookmarkedBy: req.user._id }).select('_id');
+  const bookmarkIds = bookmarkedSkills.map(skill => skill._id);
+  const userData = { ...req.user.toObject(), bookmarks: bookmarkIds };
+  return res.status(200).json(new ApiResponse(200, userData, "User profile fetched successfully"));
 });
 
 const updateUserProfile = asyncHandler(async (req, res) => {
@@ -77,9 +80,7 @@ const updateUserProfile = asyncHandler(async (req, res) => {
 
 const updateUserAvatar = asyncHandler(async (req, res) => {
   const { avatarUrl } = req.body;
-  if (!avatarUrl) {
-    throw new ApiError(400, "Avatar URL is required");
-  }
+  if (!avatarUrl) throw new ApiError(400, "Avatar URL is required");
   const user = await User.findByIdAndUpdate(req.user._id, { $set: { profilePicture: avatarUrl } }, { new: true }).select("-password -refreshToken");
   return res.status(200).json(new ApiResponse(200, user, "Avatar updated successfully"));
 });
@@ -87,17 +88,38 @@ const updateUserAvatar = asyncHandler(async (req, res) => {
 const getUserProfile = asyncHandler(async (req, res) => {
   const { username } = req.params;
   const user = await User.findOne({ username }).select("-password -refreshToken -role");
-  if (!user) {
-    throw new ApiError(404, "User not found");
-  }
+  if (!user) throw new ApiError(404, "User not found");
+  
   const [skills, reviews] = await Promise.all([
     Skill.find({ user: user._id, type: 'OFFER' }).sort({ createdAt: -1 }),
     Review.find({ reviewee: user._id }).sort({ createdAt: -1 }).populate('reviewer', 'username')
   ]);
+  
   const totalRating = reviews.reduce((acc, review) => acc + review.rating, 0);
   const averageRating = reviews.length > 0 ? (totalRating / reviews.length).toFixed(1) : 0;
+  
   const profileData = { ...user.toObject(), averageRating, skills, reviews };
+  
   return res.status(200).json(new ApiResponse(200, profileData, "User profile fetched successfully"));
 });
 
-export { registerUser, loginUser, logoutUser, getCurrentUser, updateUserProfile, updateUserAvatar, getUserProfile };
+const deleteUserAvatar = asyncHandler(async (req, res) => {
+  const user = await User.findByIdAndUpdate(
+    req.user._id,
+    { $set: { profilePicture: '' } }, // Set the profile picture URL to an empty string
+    { new: true }
+  ).select("-password -refreshToken");
+  
+  return res.status(200).json(new ApiResponse(200, user, "Avatar removed successfully"));
+});
+
+export {
+  registerUser,
+  loginUser,
+  logoutUser,
+  getCurrentUser,
+  updateUserProfile,
+  updateUserAvatar,
+  getUserProfile,
+  deleteUserAvatar
+};

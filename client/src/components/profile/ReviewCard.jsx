@@ -1,6 +1,6 @@
 import React from 'react';
 
-// A simple component to render stars
+// A simple component to render stars from 1 to 5
 const StarRating = ({ rating }) => {
   const stars = [];
   for (let i = 1; i <= 5; i++) {
@@ -23,6 +23,6 @@ const ReviewCard = ({ review }) => {
       <p className="text-gray-600 dark:text-gray-400 italic">"{review.comment}"</p>
     </div>
   );
-};
+};   
 
 export default ReviewCard;

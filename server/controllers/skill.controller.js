@@ -13,21 +13,16 @@ const generateTags = (text) => {
   const tokenizer = new WordTokenizer();
   const tfidf = new TfIdf();
   tfidf.addDocument(text.toLowerCase());
-  const tags = tfidf.listTerms(0).slice(0, 5).map(item => item.term);
-  return tags;
+  return tfidf.listTerms(0).slice(0, 5).map(item => item.term);
 };
 
 const createSkill = asyncHandler(async (req, res) => {
   const { type, title, description, category, level, availability, locationString } = req.body;
-
   if (!type || !title || !description || !category) {
     throw new ApiError(400, 'Type, title, description, and category are required');
   }
-
   const tags = generateTags(`${title} ${description}`);
-  const skillData = {
-    user: req.user._id, type, title, description, category, level, availability, tags, locationString
-  };
+  const skillData = { user: req.user._id, type, title, description, category, level, availability, tags, locationString };
 
   if (locationString && locationString.toLowerCase() !== 'remote') {
     try {
@@ -40,7 +35,6 @@ const createSkill = asyncHandler(async (req, res) => {
       console.error("Geocoding failed for skill:", error.message);
     }
   }
-
   const skill = await Skill.create(skillData);
   return res.status(201).json(new ApiResponse(201, skill, 'Skill posted successfully'));
 });
@@ -55,7 +49,7 @@ const getAllSkills = asyncHandler(async (req, res) => {
   if (userId) query.user = userId;
 
   const skills = await Skill.find(query)
-    .populate({ path: 'user', select: 'username profilePicture' })
+    .populate({ path: 'user', select: 'username profilePicture location' })
     .sort(keywords ? { score: { $meta: 'textScore' } } : { createdAt: -1 })
     .skip((page - 1) * limit)
     .limit(parseInt(limit))
@@ -69,8 +63,15 @@ const getAllSkills = asyncHandler(async (req, res) => {
 
 const getSkillById = asyncHandler(async (req, res) => {
   const { skillId } = req.params;
-  const skill = await Skill.findById(skillId).populate({ path: 'user', select: 'username profilePicture' });
-  if (!skill) throw new ApiError(404, 'Skill not found');
+  if (!mongoose.Types.ObjectId.isValid(skillId)) {
+    throw new ApiError(400, "Invalid skill ID format");
+  }
+  const skill = await Skill.findById(skillId)
+    .populate({ path: 'user', select: 'username profilePicture' })
+    .populate({ path: 'ratings.user', select: 'username' });
+  if (!skill) {
+    throw new ApiError(404, 'Skill not found');
+  }
   return res.status(200).json(new ApiResponse(200, skill, 'Skill details fetched successfully'));
 });
 
@@ -79,15 +80,13 @@ const updateSkill = asyncHandler(async (req, res) => {
   const skill = await Skill.findById(skillId);
   if (!skill) throw new ApiError(404, "Skill not found");
   if (skill.user.toString() !== req.user._id.toString()) throw new ApiError(403, "You are not authorized to update this skill");
-
+  
   const { title, description, category, level, availability, locationString } = req.body;
   const updatedData = { title, description, category, level, availability, locationString };
-
   if (title || description) {
     const newText = `${title || skill.title} ${description || skill.description}`;
     updatedData.tags = generateTags(newText);
   }
-  
   if (locationString && locationString.toLowerCase() !== 'remote') {
     try {
       const geoData = await opencage.geocode({ q: locationString, limit: 1, key: process.env.OPENCAGE_API_KEY });
@@ -101,7 +100,6 @@ const updateSkill = asyncHandler(async (req, res) => {
   } else {
     updatedData.geoCoordinates = undefined;
   }
-
   const updatedSkill = await Skill.findByIdAndUpdate(skillId, { $set: updatedData }, { new: true, runValidators: true });
   return res.status(200).json(new ApiResponse(200, updatedSkill, "Skill updated successfully"));
 });
@@ -152,6 +150,49 @@ const getMatchingSkills = asyncHandler(async (req, res) => {
   return res.status(200).json(new ApiResponse(200, scoredMatches.slice(0, 5), "Matching skills fetched"));
 });
 
+const bookmarkSkill = asyncHandler(async (req, res) => {
+  const { skillId } = req.params;
+  const userId = req.user._id;
+  const skill = await Skill.findByIdAndUpdate(skillId, { $addToSet: { bookmarkedBy: userId } }, { new: true });
+  if (!skill) throw new ApiError(404, "Skill not found");
+  return res.status(200).json(new ApiResponse(200, {}, "Skill bookmarked"));
+});
+
+const unbookmarkSkill = asyncHandler(async (req, res) => {
+  const { skillId } = req.params;
+  const userId = req.user._id;
+  const skill = await Skill.findByIdAndUpdate(skillId, { $pull: { bookmarkedBy: userId } }, { new: true });
+  if (!skill) throw new ApiError(404, "Skill not found");
+  return res.status(200).json(new ApiResponse(200, {}, "Bookmark removed"));
+});
+
+const rateSkill = asyncHandler(async (req, res) => {
+  const { skillId } = req.params;
+  const { rating } = req.body;
+  const userId = req.user._id;
+
+  if (!rating || rating < 1 || rating > 5) {
+    throw new ApiError(400, "Please provide a rating between 1 and 5.");
+  }
+
+  let skill = await Skill.findById(skillId);
+  if (!skill) throw new ApiError(404, "Skill not found");
+
+  const existingRating = skill.ratings.find(r => r.user.equals(userId));
+
+  if (existingRating) {
+    existingRating.rating = rating;
+  } else {
+    skill.ratings.push({ user: userId, rating });
+  }
+
+  await skill.save();
+  
+  const updatedSkill = await Skill.findById(skillId).populate('ratings.user', 'username');
+
+  return res.status(200).json(new ApiResponse(200, updatedSkill.ratings, "Thank you for your rating!"));
+});
+
 export {
   createSkill,
   getAllSkills,
@@ -159,5 +200,8 @@ export {
   updateSkill,
   deleteSkill,
   getNearbySkills,
-  getMatchingSkills
+  getMatchingSkills,
+  bookmarkSkill,
+  unbookmarkSkill,
+  rateSkill
 };
