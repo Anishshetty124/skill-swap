@@ -10,6 +10,7 @@ import opencage from 'opencage-api-client';
 
 const { WordTokenizer, TfIdf } = natural;
 
+
 const generateTags = (text) => {
   const tokenizer = new WordTokenizer();
   const tfidf = new TfIdf();
@@ -217,4 +218,29 @@ const getKeywordSuggestions = asyncHandler(async (req, res) => {
     ]);
     return res.status(200).json(new ApiResponse(200, skills, "Keyword suggestions fetched"));
 });
-export { createSkill, getAllSkills, getSkillById, updateSkill, deleteSkill, getNearbySkills, getLocationSuggestions, getMatchingSkills, bookmarkSkill, unbookmarkSkill, rateSkill, getKeywordSuggestions };
+
+
+const getYoutubeTutorials = asyncHandler(async (req, res) => {
+  let { keyword } = req.query;
+
+  // If no specific keyword is provided, choose a random high-value skill
+  if (!keyword) {
+    const defaultTopics = [
+      "communication skills", "public speaking", "learn programming for beginners",
+      "graphic design basics", "digital marketing", "learn a new language"
+    ];
+    keyword = defaultTopics[Math.floor(Math.random() * defaultTopics.length)];
+  }
+
+  const youtubeApiUrl = `https://www.googleapis.com/youtube/v3/search?part=snippet&q=${keyword}%20tutorial&type=video&maxResults=6&key=${process.env.YOUTUBE_API_KEY}`;
+  
+  try {
+    const response = await fetch(youtubeApiUrl);
+    const data = await response.json();
+    return res.status(200).json(new ApiResponse(200, data.items || [], "YouTube videos fetched"));
+  } catch (error) {
+    throw new ApiError(500, "Failed to fetch videos from YouTube.");
+  }
+});
+
+export { createSkill, getAllSkills, getSkillById, updateSkill, deleteSkill, getNearbySkills, getLocationSuggestions, getMatchingSkills, bookmarkSkill, unbookmarkSkill, rateSkill, getKeywordSuggestions , getYoutubeTutorials};

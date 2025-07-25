@@ -39,9 +39,27 @@ export const AuthProvider = ({ children }) => {
     if (isAuthenticated && user) {
       const socket = io(import.meta.env.VITE_API_BASE_URL.replace("/api/v1", ""));
       socket.emit('join_room', user._id);
+      
       socket.on('new_notification', (data) => {
         toast.success(data.message, { duration: 5000 });
       });
+
+      socket.on('contact_info_received', (data) => {
+        toast(
+          (t) => (
+            <div className="text-sm">
+              <p className="font-bold">{data.message}</p>
+              {data.details.phone && <p><strong>Phone:</strong> {data.details.phone}</p>}
+              {data.details.note && <p><strong>Note:</strong> {data.details.note}</p>}
+              <button onClick={() => toast.dismiss(t.id)} className="w-full mt-2 px-4 py-1 text-xs bg-slate-200 text-slate-700 rounded-md hover:bg-slate-300">
+                Dismiss
+              </button>
+            </div>
+          ),
+          { duration: 10000 } // Keep this toast open longer
+        );
+      });
+
       return () => socket.disconnect();
     }
   }, [isAuthenticated, user]);
@@ -49,12 +67,11 @@ export const AuthProvider = ({ children }) => {
   const login = async (credentials) => {
     if (credentials.user) {
       setUser(credentials.user);
-      setIsAuthenticated(true); // Ensure auth state is true
+      setIsAuthenticated(true);
       if (credentials.accessToken) {
         localStorage.setItem('accessToken', credentials.accessToken);
         setToken(credentials.accessToken);
       }
-      // Also update bookmarks if they are part of the user object
       setBookmarks(credentials.user.bookmarks || []);
       return;
     }
@@ -62,16 +79,12 @@ export const AuthProvider = ({ children }) => {
     try {
       const response = await apiClient.post('/users/login', credentials);
       const { user: userData, accessToken } = response.data.data;
-      
       localStorage.setItem('accessToken', accessToken);
       setToken(accessToken);
       setUser(userData);
       setIsAuthenticated(true);
-      
-      // Fetch user data again to get bookmarks
       const meResponse = await apiClient.get('/users/me');
       setBookmarks(meResponse.data.data.bookmarks || []);
-      
       navigate('/dashboard');
     } catch (error) {
       throw error;
@@ -95,15 +108,12 @@ export const AuthProvider = ({ children }) => {
   
   const toggleBookmark = async (skillId) => {
     const isBookmarked = bookmarks.includes(skillId);
-    
-    // Optimistic UI update
     const originalBookmarks = bookmarks;
     if (isBookmarked) {
       setBookmarks(prev => prev.filter(id => id !== skillId));
     } else {
       setBookmarks(prev => [...prev, skillId]);
     }
-
     try {
       if (isBookmarked) {
         await apiClient.delete(`/skills/${skillId}/bookmark`);
@@ -112,7 +122,6 @@ export const AuthProvider = ({ children }) => {
       }
     } catch (error) {
       toast.error("Failed to update bookmark.");
-      // Revert on error
       setBookmarks(originalBookmarks); 
     }
   };

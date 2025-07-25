@@ -19,6 +19,10 @@ const userSchema = new mongoose.Schema({
     type: { type: String, enum: ['Point'] },
     coordinates: { type: [Number] } // [longitude, latitude]
   },
+   badges: {
+    type: [String],
+    default: []
+  },
   refreshToken: { type: String }
 }, { timestamps: true });
 

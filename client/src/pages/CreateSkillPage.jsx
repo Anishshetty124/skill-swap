@@ -57,8 +57,9 @@ const CreateSkillPage = () => {
         
         <div>
           <label className="block text-sm font-medium mb-1">Title</label>
-          <input type="text" name="title" value={formData.title} onChange={handleChange} required className="w-full px-3 py-2 mt-1 text-gray-800 dark:text-gray-200 border border-gray-300 rounded-md"/>
+          <input type="text" name="title" value={formData.title} onChange={handleChange} required className="w-full px-3 py-2 mt-1 bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-200 border border-gray-300 rounded-md"/>
         </div>
+        
 
         <div>
           <label className="block text-sm font-medium mb-1">Category</label>
@@ -70,7 +71,7 @@ const CreateSkillPage = () => {
         
         <div>
           <label className="block text-sm font-medium mb-1">Description</label>
-          <textarea name="description" value={formData.description} onChange={handleChange} required rows="4" className="w-full px-3 py-2 mt-1 text-gray-800 dark:text-gray-200 border border-gray-300 rounded-md"></textarea>
+          <textarea name="description" value={formData.description} onChange={handleChange} required rows="4" className="w-full px-3 py-2 mt-1 bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-200 border border-gray-300 rounded-md"></textarea>
         </div>
 
         <div>

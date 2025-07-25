@@ -10,6 +10,7 @@ import SingleSkillPage from './pages/SingleSkillPage';
 import CreateSkillPage from './pages/CreateSkillPage';
 import EditProfilePage from './pages/EditProfilePage';
 import ProfilePage from './pages/ProfilePage';
+import MySkillsPage from './pages/MySkillsPage';
 
 function App() {
   return (
@@ -21,12 +22,13 @@ function App() {
         <Route path="register" element={<Register />} />
         <Route path="skills/:skillId" element={<SingleSkillPage />} />
         <Route path="profile/:username" element={<ProfilePage />} />
-
+ 
         {/* Protected Routes */}
         <Route element={<ProtectedRoute />}>
           <Route path="dashboard" element={<Dashboard />} />
           <Route path="skills/new" element={<CreateSkillPage />} />
           <Route path="profile/edit" element={<EditProfilePage />} />
+           <Route path="/my-skills" element={<MySkillsPage />} />
         </Route>
       </Route>
     </Routes>

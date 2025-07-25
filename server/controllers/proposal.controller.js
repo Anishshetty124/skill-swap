@@ -3,6 +3,8 @@ import { ApiError } from '../utils/ApiError.js';
 import { ApiResponse } from '../utils/ApiResponse.js';
 import { Proposal } from '../models/proposal.model.js';
 import { Skill } from '../models/skill.model.js';
+import { User } from '../models/user.model.js';
+import { calculateBadges } from '../utils/BadgeManager.js';
 import mongoose from 'mongoose';
 
 const createProposal = asyncHandler(async (req, res) => {
@@ -79,11 +81,11 @@ const getProposals = asyncHandler(async (req, res) => {
 
 const respondToProposal = asyncHandler(async (req, res) => {
   const { id } = req.params;
-  const { status } = req.body;
+  const { status, contactInfo } = req.body;
   const userId = req.user._id;
 
   if (!['accepted', 'rejected'].includes(status)) {
-    throw new ApiError(400, "Invalid status. Must be 'accepted' or 'rejected'.");
+    throw new ApiError(400, "Invalid status.");
   }
 
   const proposal = await Proposal.findById(id);
@@ -99,6 +101,11 @@ const respondToProposal = asyncHandler(async (req, res) => {
     throw new ApiError(400, `This proposal has already been ${proposal.status}.`);
   }
 
+  // Save the contact info if it exists
+  if (status === 'accepted' && contactInfo) {
+    proposal.contactInfo = contactInfo;
+  }
+  
   proposal.status = status;
   await proposal.save({ validateBeforeSave: false });
   
@@ -107,28 +114,55 @@ const respondToProposal = asyncHandler(async (req, res) => {
       { _id: { $in: [proposal.offeredSkill, proposal.requestedSkill] } },
       { $set: { status: 'in_progress' } }
     );
+    
+    const io = req.app.get('io');
+    const proposerId = proposal.proposer.toString();
+    const receiverUsername = req.user.username;
+
+    io.to(proposerId).emit('new_notification', {
+        message: `Your proposal was accepted by ${receiverUsername}!`
+    });
+    
+    if (contactInfo && (contactInfo.phone || contactInfo.note)) {
+      io.to(proposerId).emit('contact_info_received', {
+        message: `${receiverUsername} has shared their contact details with you.`,
+        details: contactInfo
+      });
+    }
+
+    const usersInvolved = await User.find({ _id: { $in: [proposal.proposer, proposal.receiver] } });
+
+    for (const user of usersInvolved) {
+      const oldBadges = new Set(user.badges || []);
+      const { earnedBadges } = await calculateBadges(user);
+      const newBadges = new Set(earnedBadges);
+      const newlyEarnedBadges = [...newBadges].filter(badge => !oldBadges.has(badge));
+
+      if (newlyEarnedBadges.length > 0) {
+        user.badges = earnedBadges;
+        await user.save({ validateBeforeSave: false });
+        newlyEarnedBadges.forEach(badgeName => {
+          io.to(user._id.toString()).emit('new_notification', {
+            message: `Congratulations! You've earned the "${badgeName}" badge! 🎉`
+          });
+        });
+      }
+    }
   }
 
-  return res
-    .status(200)
-    .json(new ApiResponse(200, proposal, `Proposal has been ${status}.`));
+  return res.status(200).json(new ApiResponse(200, proposal, `Proposal has been ${status}.`));
 });
+
 const deleteProposal = asyncHandler(async (req, res) => {
   const { id } = req.params;
   const userId = req.user._id;
-
   const proposal = await Proposal.findById(id);
   if (!proposal) throw new ApiError(404, "Proposal not found");
-
-  // Allow EITHER the proposer OR the receiver to delete it
   if (!proposal.proposer.equals(userId) && !proposal.receiver.equals(userId)) {
     throw new ApiError(403, "You are not authorized to delete this proposal.");
   }
-
   await Proposal.findByIdAndDelete(id);
-
   return res.status(200).json(new ApiResponse(200, {}, "Proposal deleted successfully"));
 });
 
-// Rename withdrawProposal to deleteProposal in the export
 export { createProposal, getProposals, respondToProposal, deleteProposal };

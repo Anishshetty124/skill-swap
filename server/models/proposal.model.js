@@ -31,6 +31,10 @@ const proposalSchema = new Schema(
       enum: ['pending', 'accepted', 'rejected', 'countered'],
       default: 'pending',
     },
+     contactInfo: {
+      phone: { type: String },
+      note: { type: String },
+    }
   },
   { timestamps: true }
 );

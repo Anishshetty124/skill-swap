@@ -1,76 +1,113 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import apiClient from '../api/axios';
 import SkillCard from '../components/skills/SkillCard';
-import MapComponent from '../components/map/MapComponent';
+import SkillCardSkeleton from '../components/skills/SkillCardSkeleton';
 import { debounce } from 'lodash';
 
 const Home = () => {
   const [skills, setSkills] = useState([]);
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(true);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [view, setView] = useState('card');
-  
-  const [filters, setFilters] = useState({
-    keywords: '',
-    category: '',
-    level: ''
-  });
-  
+  const [filters, setFilters] = useState({ keywords: '', category: '', level: '' });
   const [locationQuery, setLocationQuery] = useState('');
   const [keywordSuggestions, setKeywordSuggestions] = useState([]);
   const [locationSuggestions, setLocationSuggestions] = useState([]);
   const [currentSearch, setCurrentSearch] = useState('');
   const [showCitySearch, setShowCitySearch] = useState(false);
+  const [youtubeVideos, setYoutubeVideos] = useState([]);
+  const [youtubeLoading, setYoutubeLoading] = useState(true);
 
-  const buildQueryString = () => {
-    const params = new URLSearchParams();
-    if (filters.keywords) params.append('keywords', filters.keywords);
-    if (filters.category) params.append('category', filters.category);
-    if (filters.level) params.append('level', filters.level);
-    if (locationQuery) params.append('location', locationQuery);
+  const SKILLS_LIMIT = 6;
+
+  const buildQueryString = (pageNum = 1, currentFilters = filters, currentLocQuery = locationQuery) => {
+    const params = new URLSearchParams({ page: pageNum, limit: SKILLS_LIMIT });
+    if (currentFilters.keywords) params.append('keywords', currentFilters.keywords);
+    if (currentFilters.category) params.append('category', currentFilters.category);
+    if (currentFilters.level) params.append('level', currentFilters.level);
+    if (currentLocQuery) params.append('location', currentLocQuery);
     return params.toString();
   };
-  
-  const fetchSkills = async (queryString = '') => {
+
+  const fetchSkills = async (pageNum = 1, isNewSearch = false, currentFilters = filters, currentLocQuery = locationQuery) => {
     try {
       setLoading(true);
       setError('');
+      
+      const queryString = buildQueryString(pageNum, currentFilters, currentLocQuery);
       const response = await apiClient.get(`/skills?${queryString}`);
-      const data = response.data.data;
-      setSkills(data.skills || []);
+      const newSkills = response.data.data.skills || [];
+
+      if (isNewSearch) {
+        setSkills(newSkills);
+      } else {
+        setSkills(prevSkills => [...prevSkills, ...newSkills]);
+      }
+
+      setHasMore(newSkills.length === SKILLS_LIMIT);
     } catch (err) {
       setError('Failed to load skills.');
     } finally {
       setLoading(false);
     }
   };
+  
+  const fetchYoutubeVideos = async (keyword = '') => {
+    setYoutubeLoading(true);
+    try {
+      const response = await apiClient.get(`/skills/youtube-tutorials?keyword=${encodeURIComponent(keyword)}`);
+      setYoutubeVideos(response.data.data);
+    } catch (err) {
+      console.error("Failed to fetch YouTube videos", err);
+    } finally {
+      setYoutubeLoading(false);
+    }
+  };
 
   useEffect(() => {
-    fetchSkills();
+    fetchSkills(1, true);
+    fetchYoutubeVideos();
   }, []);
 
   const handleSearch = (e) => {
-    e.preventDefault();
+    if (e) e.preventDefault();
     let searchTerms = [];
     if (filters.keywords) searchTerms.push(filters.keywords);
     if (filters.category) searchTerms.push(filters.category);
     if (filters.level) searchTerms.push(filters.level);
     if (locationQuery) searchTerms.push(locationQuery);
-    
     const searchTermDisplay = searchTerms.join(', ');
     setCurrentSearch(searchTermDisplay || 'all skills');
     
-    fetchSkills(buildQueryString());
+    setPage(1);
+    setHasMore(true);
+    setSkills([]);
+    fetchSkills(1, true);
+    fetchYoutubeVideos(filters.keywords);
+    
     setKeywordSuggestions([]);
     setLocationSuggestions([]);
   };
-  
+
+  const loadMoreSkills = () => {
+    const nextPage = page + 1;
+    setPage(nextPage);
+    fetchSkills(nextPage, false);
+  };
+
   const clearSearch = () => {
-    setFilters({ keywords: '', category: '', level: '' });
-    setLocationQuery('');
+    const emptyFilters = { keywords: '', category: '', level: '' };
+    const emptyLocation = '';
+    setFilters(emptyFilters);
+    setLocationQuery(emptyLocation);
     setCurrentSearch('');
     setShowCitySearch(false);
-    fetchSkills();
+    setPage(1);
+    setHasMore(true);
+    setSkills([]);
+    fetchSkills(1, true, emptyFilters, emptyLocation); // Re-fetch with empty filters
+    fetchYoutubeVideos();
   };
 
   const fetchKeywordSuggestions = async (query) => {
@@ -99,35 +136,31 @@ const Home = () => {
     setFilters(prev => ({ ...prev, keywords: value }));
     debouncedKeywordFetch(value);
   };
-  
+
   const handleLocationInputChange = (e) => {
     const value = e.target.value;
     setLocationQuery(value);
     debouncedLocationFetch(value);
   };
-  
+
   const skillCategories = ['Tech', 'Art', 'Music', 'Writing', 'Marketing', 'Language', 'Fitness', 'Cooking', 'Crafts'];
+  const isAnyFilterActive = filters.keywords || filters.category || filters.level || locationQuery;
 
   return (
-    <div>
-      <div className="flex flex-wrap justify-between items-center gap-4 mb-6">
-        <h1 className="text-3xl font-bold">Discover Skills</h1>
-        <div className="flex items-center gap-4">
-          <div className="flex items-center bg-gray-200 dark:bg-gray-700 rounded-lg p-1">
-            <button onClick={() => setView('card')} className={`px-3 py-1 text-sm font-semibold rounded-md ${view === 'card' ? 'bg-white dark:bg-gray-900 shadow' : ''}`}>Card</button>
-            <button onClick={() => setView('map')} className={`px-3 py-1 text-sm font-semibold rounded-md ${view === 'map' ? 'bg-white dark:bg-gray-900 shadow' : ''}`}>Map</button>
-          </div>
-        </div>
+    <div className="container mx-auto px-4 py-8">
+      <div className="text-center mb-12">
+        <h1 className="text-4xl md:text-5xl font-extrabold text-slate-900 dark:text-white">Discover & Exchange Skills</h1>
+        <p className="mt-4 text-lg text-slate-600 dark:text-slate-400">The premier platform for bartering your talents.</p>
       </div>
 
-      <form onSubmit={handleSearch} className="mb-8 p-4 bg-white dark:bg-gray-800 rounded-lg shadow-md grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
+      <form onSubmit={handleSearch} className="mb-8 p-4 bg-white dark:bg-slate-800 rounded-2xl shadow-lg grid grid-cols-1 md:grid-cols-5 gap-4 items-end transition-colors duration-300">
         <div className="md:col-span-2 relative">
           <label className="block text-sm font-medium mb-1">Search by Keyword</label>
-          <input type="text" name="keywords" value={filters.keywords} onChange={handleKeywordChange} placeholder="e.g., Python, Guitar" className="w-full px-3 py-2 mt-1 bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-200 border border-gray-300 dark:border-gray-600 rounded-md" autoComplete="off" />
+          <input type="text" name="keywords" value={filters.keywords} onChange={handleKeywordChange} placeholder="e.g., Python, Guitar" className="w-full px-3 py-2 mt-1 bg-white dark:bg-slate-700 text-slate-800 dark:text-slate-200 border rounded-md" autoComplete="off" />
           {keywordSuggestions.length > 0 && (
-            <ul className="absolute z-10 w-full bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md mt-1 shadow-lg">
+            <ul className="absolute z-10 w-full bg-white dark:bg-slate-700 border rounded-md mt-1 shadow-lg">
               {keywordSuggestions.map((s, index) => (
-                <li key={index} className="px-4 py-2 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600" onClick={() => { setFilters(prev => ({...prev, keywords: s.title})); setKeywordSuggestions([]); }}>
+                <li key={index} className="px-4 py-2 cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-600" onClick={() => { setFilters(prev => ({...prev, keywords: s.title})); setKeywordSuggestions([]); }}>
                   {s.title}
                 </li>
               ))}
@@ -136,47 +169,49 @@ const Home = () => {
         </div>
         <div>
           <label className="block text-sm font-medium mb-1">Category</label>
-          <select name="category" value={filters.category} onChange={(e) => setFilters(prev => ({...prev, category: e.target.value}))} className="w-full px-3 py-2 mt-1 bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-200 border border-gray-300 dark:border-gray-600 rounded-md">
+          <select name="category" value={filters.category} onChange={(e) => setFilters(prev => ({...prev, category: e.target.value}))} className="w-full px-3 py-2 mt-1 bg-white dark:bg-slate-700 text-slate-800 dark:text-slate-200 border rounded-md">
             <option value="">All</option>
-            {skillCategories.map(cat => <option key={cat} value={cat} className="bg-white dark:bg-gray-700">{cat}</option>)}
+            {skillCategories.map(cat => <option key={cat} value={cat} className="bg-white dark:bg-slate-700">{cat}</option>)}
           </select>
         </div>
         <div>
           <label className="block text-sm font-medium mb-1">Skill Level</label>
-          <select name="level" value={filters.level} onChange={(e) => setFilters(prev => ({...prev, level: e.target.value}))} className="w-full px-3 py-2 mt-1 bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-200 border border-gray-300 dark:border-gray-600 rounded-md">
+          <select name="level" value={filters.level} onChange={(e) => setFilters(prev => ({...prev, level: e.target.value}))} className="w-full px-3 py-2 mt-1 bg-white dark:bg-slate-700 text-slate-800 dark:text-slate-200 border rounded-md">
             <option value="">All</option>
-            <option className="bg-white dark:bg-gray-700">Beginner</option>
-            <option className="bg-white dark:bg-gray-700">Intermediate</option>
-            <option className="bg-white dark:bg-gray-700">Expert</option>
+            <option className="bg-white dark:bg-slate-700">Beginner</option>
+            <option className="bg-white dark:bg-slate-700">Intermediate</option>
+            <option className="bg-white dark:bg-slate-700">Expert</option>
           </select>
         </div>
-        <div className="md:col-span-4 flex justify-end gap-2">
-            <button type="submit" className="px-6 py-2 bg-indigo-600 text-white font-semibold rounded-md hover:bg-indigo-700">Search</button>
-            <button type="button" onClick={clearSearch} className="px-4 py-2 bg-gray-500 text-white font-semibold rounded-md hover:bg-gray-600">Clear</button>
+        <div className="flex flex-col sm:flex-row justify-end gap-2">
+            <button type="submit" className="w-full sm:w-auto px-6 py-2 bg-blue-600 text-white font-semibold rounded-md hover:bg-blue-700">Filter</button>
+            {isAnyFilterActive && (
+              <button type="button" onClick={clearSearch} className="w-full sm:w-auto px-4 py-2 bg-red-500 text-white font-semibold rounded-md hover:bg-red-600">Clear</button>
+            )}
         </div>
       </form>
       
-      <div className="mb-8 p-6 bg-white dark:bg-gray-800 rounded-lg shadow-md">
+      <div className="mb-8 p-6 bg-white dark:bg-slate-800 rounded-2xl shadow-lg transition-colors duration-300">
         {!showCitySearch ? (
-            <>
+            <div className="text-center md:text-left">
                 <h2 className="text-xl font-bold mb-2">Looking for skills in a specific area?</h2>
                 <button onClick={() => setShowCitySearch(true)} className="px-6 py-2 bg-blue-600 text-white font-semibold rounded-md hover:bg-blue-700">Search by City</button>
-            </>
+            </div>
         ) : (
           <form onSubmit={handleSearch} className="relative">
             <label className="block text-sm font-medium mb-1">Search by City Name</label>
-            <div className="flex gap-2">
-              <input type="text" value={locationQuery} onChange={handleLocationInputChange} placeholder="Enter a city or place..." className="flex-grow px-4 py-2 bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-200 border border-gray-300 dark:border-gray-600 rounded-md" autoComplete="off"/>
-              <button type="submit" className="px-6 py-2 bg-indigo-600 text-white font-semibold rounded-md hover:bg-indigo-700">Search City</button>
+            <div className="flex flex-col sm:flex-row gap-2">
+              <input type="text" value={locationQuery} onChange={handleLocationInputChange} placeholder="Enter a city or place..." className="flex-grow px-4 py-2 bg-white dark:bg-slate-700 text-slate-800 dark:text-slate-200 border rounded-md" autoComplete="off"/>
+              <button type="submit" className="px-6 py-2 bg-blue-600 text-white font-semibold rounded-md hover:bg-blue-700">Search</button>
+              {locationQuery && (
+                <button type="button" onClick={clearSearch} className="px-4 py-2 bg-red-500 text-white font-semibold rounded-md hover:bg-red-600">Clear</button>
+              )}
             </div>
             {locationSuggestions.length > 0 && (
-                <ul className="absolute z-10 w-full bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md mt-1 shadow-lg">
+                <ul className="absolute z-10 w-full bg-white dark:bg-slate-700 border rounded-md mt-1 shadow-lg">
                     {locationSuggestions.map((s, index) => (
-                        <li key={index} className="px-4 py-2 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600"
-                            onClick={() => {
-                                setLocationQuery(s.location);
-                                setLocationSuggestions([]);
-                            }}>
+                        <li key={index} className="px-4 py-2 cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-600"
+                            onClick={() => { setLocationQuery(s.location); setLocationSuggestions([]); }}>
                             {s.location}
                         </li>
                     ))}
@@ -186,24 +221,53 @@ const Home = () => {
         )}
       </div>
       
-      {currentSearch && !loading && ( <h2 className="text-2xl font-bold mb-4">Showing results for: <span className="text-indigo-600">{currentSearch}</span></h2> )}
+      {currentSearch && !loading && ( <h2 className="text-2xl font-bold mb-4">Showing results for: <span className="text-blue-600">{currentSearch}</span></h2> )}
       
-      {loading && <p className="text-center p-10">Searching for skills...</p>}
-      {error && !loading && <p className="text-center p-10 text-red-500">{error}</p>}
-
-      {!loading && !error && (
-        view === 'card' ? (
-          skills.length > 0 ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {skills.map((skill) => <SkillCard key={skill._id} skill={skill} />)}
+      {loading && skills.length === 0 ? (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+          {[...Array(6)].map((_, index) => <SkillCardSkeleton key={index} />)}
+        </div>
+      ) : error ? (
+        <p className="text-center p-10 text-red-500">{error}</p>
+      ) : skills.length > 0 ? (
+        <>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+            {skills.map((skill) => <SkillCard key={skill._id} skill={skill} />)}
+          </div>
+          {hasMore && (
+            <div className="text-center mt-8">
+              <button onClick={loadMoreSkills} disabled={loading} className="px-6 py-2 bg-slate-200 dark:bg-slate-700 font-semibold rounded-md disabled:opacity-50">
+                {loading ? 'Loading...' : 'Load More Skills'}
+              </button>
             </div>
-          ) : (
-             <p className="text-center p-10 text-gray-500">No skills found matching your criteria.</p>
-          )
-        ) : (
-          <MapComponent skills={skills} />
-        )
+          )}
+        </>
+      ) : (
+        <p className="text-center p-10 text-slate-500">No skills found matching your criteria.</p>
       )}
+
+      <div className="mt-12">
+        <h2 className="text-2xl font-bold mb-4">
+          {filters.keywords ? `Tutorials for "${filters.keywords}"` : "Explore Skills with YouTube"}
+        </h2>
+        {youtubeLoading ? (
+          <p>Loading tutorials...</p>
+        ) : youtubeVideos.length > 0 ? (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+            {youtubeVideos.map(video => (
+              <a key={video.id.videoId || video.id} href={`https://www.youtube.com/watch?v=${video.id.videoId || video.id}`} target="_blank" rel="noopener noreferrer" className="block bg-white dark:bg-slate-800 rounded-lg shadow-lg overflow-hidden group">
+                <img src={video.snippet.thumbnails.high.url} alt={video.snippet.title} className="w-full h-48 object-cover"/>
+                <div className="p-4">
+                  <h3 className="font-bold text-slate-800 dark:text-white group-hover:text-blue-500">{video.snippet.title}</h3>
+                  <p className="text-sm text-slate-500 dark:text-slate-400">{video.snippet.channelTitle}</p>
+                </div>
+              </a>
+            ))}
+          </div>
+        ) : (
+          <p className="text-center text-slate-500">No tutorials found.</p>
+        )}
+      </div>
     </div>
   );
 };
