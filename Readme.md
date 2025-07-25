@@ -658,3 +658,34 @@ To provide a proactive and intelligent user experience, the backend features a r
 * **Automatic Tag Generation**: The system uses the `natural` NLP library to perform basic text analysis on the `title` and `description` of every new skill. It automatically extracts the most relevant keywords (tags) using TF-IDF (Term Frequency-Inverse Document Frequency) and saves them with the skill. This enriches the data without requiring manual user input.
 
 * **Scoring & Ranking Algorithm**: A dedicated endpoint (`GET /api/v1/skills/:skillId/matches`) uses a custom scoring algorithm to find the best matches for a given skill request. It fetches a pool of potential candidates and assigns each a `matchScore` based on weighted criteria, such as sharing the same `category` (high weight) and having common `tags` (medium weight). The results are then sorted by this score to provide a ranked list of the most relevant skills.
+Load Limited Cards (Pagination)
+This feature improves performance by loading skills in batches instead of all at once.
+
+Backend: The getAllSkills controller in /server/controllers/skill.controller.js accepts page and limit as query parameters. It uses Mongoose's .skip((page - 1) * limit) and .limit(limit) methods to fetch only a specific "page" of results from the database. It also returns the totalPages so the frontend knows if more skills are available.
+
+Frontend: The /client/src/pages/Home.jsx component manages a page number in its state. Initially, it fetches page 1. When a user clicks the "Load More Skills" button, the page number is incremented, and another API call is made to fetch the next set of skills, which are then appended to the existing list.
+
+Message on Accepting Swap
+This feature facilitates communication by allowing a user to share contact details when they accept a proposal, which are then sent to the proposer.
+
+Frontend: When the "Accept" button is clicked in /client/src/components/dashboard/ProposalCard.jsx, it opens a ShareContactModal.jsx. This modal has a form for a phone number and a note. When submitted, the frontend sends a PATCH request to the backend with the proposal status and the optional contact information.
+
+Backend: The respondToProposal controller in /server/controllers/proposal.controller.js receives this request. If the status is "accepted" and contact details are included, it saves the details to the proposal document in the database and uses Socket.IO to emit a contact_info_received event directly to the original proposer's private room. The frontend listens for this event and displays the details in a toast notification.
+
+YouTube Tutorials
+This feature adds value by showing relevant learning resources based on a user's search.
+
+Backend: A dedicated endpoint, /api/v1/skills/youtube-tutorials, is handled by the getYoutubeTutorials controller. This function receives a keyword, constructs a request to the Google YouTube Data API v3, and fetches a list of relevant tutorial videos. If no keyword is provided, it fetches a random set of popular educational videos.
+
+Frontend: The /client/src/pages/Home.jsx component has a dedicated "YouTube Tutorials" section. On initial page load, it calls the backend endpoint without a keyword to display default popular videos. When a user performs a keyword search for skills, a second, parallel API call is made to the same endpoint with the search term, and the section updates to show tutorials related to that specific skill.
+
+Badges (Gamification)
+This feature encourages user engagement by awarding achievements for platform activity.
+
+Backend: The logic is centralized in /server/utils/badgeManager.js. The calculateBadges function takes a user object, queries the database to count their completed swaps and skills offered, and returns an array of badge names they've earned (e.g., "First Swap", "Gold Swapper"). This calculation is triggered in two places:
+
+When a user's profile is loaded (getUserProfile), to display their current badges.
+
+When a proposal is accepted (respondToProposal), to check if a new badge has just been earned and send a real-time notification via Socket.IO if it has.
+
+Frontend: The /client/src/pages/ProfilePage.jsx receives the array of badge names from the backend. It then maps over this array, rendering a reusable /client/src/components/profile/Badge.jsx component for each badge. The Badge.jsx component contains a dictionary that maps badge names to specific colors and icons from the Heroicons library for a visually appealing display.
