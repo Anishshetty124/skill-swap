@@ -24,8 +24,8 @@ export const calculateBadges = async (user) => {
     if (skillsCount >= 5) badges.add('Expert Sharer');
     
     // Time-based badge
-    const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
-    if (user.createdAt > thirtyDaysAgo) {
+    const TwoDayAgo = new Date(Date.now() - 2 * 24 * 60 * 60 * 1000);
+    if (user.createdAt > TwoDayAgo) {
         badges.add('New Member');
     }
 

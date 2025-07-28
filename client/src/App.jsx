@@ -11,12 +11,13 @@ import CreateSkillPage from './pages/CreateSkillPage';
 import EditProfilePage from './pages/EditProfilePage';
 import ProfilePage from './pages/ProfilePage';
 import MySkillsPage from './pages/MySkillsPage';
+import WelcomePage from './pages/WelcomePage';
 
 function App() {
   return (
     <Routes>
       <Route path="/" element={<Layout />}>
-        {/* Public Routes */}
+        <Route path="welcome" element={<WelcomePage />} />
         <Route index element={<Home />} />
         <Route path="login" element={<Login />} />
         <Route path="register" element={<Register />} />

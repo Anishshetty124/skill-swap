@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import apiClient from '../api/axios';
 import SkillCard from '../components/skills/SkillCard';
 import { useAuth } from '../context/AuthContext';
 import Badge from '../components/profile/Badge';
+import apiClient from '../api/axios';
 
 const ProfilePage = () => {
   const { username } = useParams();
@@ -40,25 +40,36 @@ const ProfilePage = () => {
   }));
   
   const topCategories = [...new Set(profile.skills.map(skill => skill.category))];
-  const displayedSkills = showAllSkills ? skillsWithUser : skillsWithUser.slice(0, 5);
+  const displayedSkills = showAllSkills ? skillsWithUser : skillsWithUser.slice(0, 6);
 
   return (
     <div className="container mx-auto px-4 py-8">
-      {/* --- Profile Header --- */}
       <div className="bg-white dark:bg-slate-800 p-6 md:p-8 rounded-lg shadow-md mb-8">
         <div className="flex flex-col md:flex-row md:justify-between items-center md:items-start gap-4">
           <div className="flex flex-col md:flex-row items-center text-center md:text-left gap-6">
-            <img 
-              className="w-24 h-24 md:w-28 md:h-28 rounded-full object-cover border-4 border-accent-500"
-              src={profile.profilePicture || `https://api.dicebear.com/8.x/initials/svg?seed=${profile.username}`}
-              alt={profile.username}
-            />
+            {profile.profilePicture ? (
+              <img 
+                className="w-24 h-24 md:w-28 md:h-28 rounded-full object-cover border-4 border-accent-500"
+                src={profile.profilePicture}
+                alt={profile.username}
+              />
+            ) : (
+              <div className="w-24 h-24 md:w-28 md:h-28 rounded-full bg-accent-500 text-white flex items-center justify-center text-5xl font-bold border-4 border-white/50 flex-shrink-0">
+                {profile.username.charAt(0).toUpperCase()}
+              </div>
+            )}
             <div>
               <h1 className="text-3xl font-bold">{profile.username}</h1>
               <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
                 Member since {new Date(profile.createdAt).toLocaleDateString()}
               </p>
-              <p className="text-slate-600 dark:text-slate-400 mt-2">{profile.bio || 'This user has not written a bio yet.'}</p>
+              {profile.bio ? (
+             <p className="text-slate-600 dark:text-slate-400 mt-2">{profile.bio}</p>
+              ) : loggedInUser?.username === username ? (
+               <p className="text-slate-500 italic mt-2">You haven't written a bio yet. Click 'Edit Profile' to add one.</p>
+               ) : (
+   <p className="text-slate-500 italic mt-2">This user has not written a bio yet.</p>
+)}
               <div className="flex items-center justify-center md:justify-start space-x-4 mt-4 text-blue-500 font-semibold">
                 {profile.socials?.github && <a href={profile.socials.github} target="_blank" rel="noopener noreferrer" className="hover:underline">GitHub</a>}
                 {profile.socials?.linkedin && <a href={profile.socials.linkedin} target="_blank" rel="noopener noreferrer" className="hover:underline">LinkedIn</a>}
@@ -76,12 +87,13 @@ const ProfilePage = () => {
         
         <div className="border-t dark:border-slate-700 mt-6 pt-6 flex flex-col md:flex-row gap-6">
           <div className="flex-1">
-            <h3 className="text-lg font-semibold mb-2">Statistics</h3>
-            <div className="space-y-2 text-sm text-slate-600 dark:text-slate-400">
-              <p><strong>Skills Offered:</strong> {profile.skillsOfferedCount}</p>
-              <p><strong>Swaps Completed:</strong> {profile.swapsCompleted}</p>
-            </div>
-          </div>
+  <h3 className="text-lg font-semibold mb-2">Statistics</h3>
+  <div className="space-y-2 text-sm text-slate-600 dark:text-slate-400">
+    <p><strong>Skills Offered:</strong> {profile.skillsOfferedCount}</p>
+    <p><strong>Swaps Completed:</strong> {profile.swapsCompleted}</p>
+    <p><strong>Swap Credits:</strong> {profile.swapCredits}</p>
+  </div>
+</div>
           <div className="flex-1">
             <h3 className="text-lg font-semibold mb-2">Top Categories</h3>
             <div className="flex flex-wrap gap-2">
@@ -117,11 +129,10 @@ const ProfilePage = () => {
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {displayedSkills.map(skill => <SkillCard key={skill._id} skill={skill} hideUser={true} />)}
               </div>
-              {/* Corrected condition from > 6 to > 5 */}
-              {skillsWithUser.length > 5 && (
+              {skillsWithUser.length > 6 && (
                 <div className="text-center mt-8">
                   <button onClick={() => setShowAllSkills(!showAllSkills)} className="px-6 py-2 bg-slate-200 dark:bg-slate-700 font-semibold rounded-md">
-                    {showAllSkills ? 'Show Less' : 'Show All'}
+                    {showAllSkills ? 'Show Less' : `Show All ${skillsWithUser.length} Skills`}
                   </button>
                 </div>
               )}

@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import apiClient from '../api/axios';
 
+
 const CreateSkillPage = () => {
   const [formData, setFormData] = useState({
     type: 'OFFER',
@@ -9,8 +10,9 @@ const CreateSkillPage = () => {
     description: '',
     category: '',
     level: 'Intermediate',
-    availability: 'Flexible',
     locationString: 'Remote',
+    costInCredits: 1,
+    desiredSkill: '',
   });
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
@@ -95,7 +97,18 @@ const CreateSkillPage = () => {
             className="w-full px-3 py-2 mt-1 bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-200 border border-gray-300 rounded-md"
           />
         </div>
-        
+         <div>
+          <label className="block text-sm font-medium mb-1">What I Want in Return (Optional)</label>
+          <input 
+            type="text" 
+            name="desiredSkill"
+            value={formData.desiredSkill} 
+            onChange={handleChange} 
+            placeholder="e.g., Help with a logo, guitar lessons..."
+            className="w-full px-3 py-2 mt-1 bg-white dark:bg-slate-700 ..."
+          />
+        </div>
+
         <button type="submit" className="w-full px-4 py-3 font-bold text-white bg-indigo-600 rounded-md hover:bg-indigo-700">
           Post Skill
         </button>

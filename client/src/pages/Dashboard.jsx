@@ -1,12 +1,16 @@
 import React, { useState, useEffect } from 'react';
 import apiClient from '../api/axios';
 import ProposalList from '../components/dashboard/ProposalList';
+import { useLocation } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
 
 const Dashboard = () => {
+  const { user } = useAuth();
   const [activeTab, setActiveTab] = useState('received');
   const [proposals, setProposals] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const location = useLocation();
 
   useEffect(() => {
     const fetchProposals = async () => {
@@ -14,8 +18,7 @@ const Dashboard = () => {
         setLoading(true);
         setError('');
         const response = await apiClient.get(`/proposals?type=${activeTab}`);
-        // This filter will run on the frontend and hide any invalid proposals
-        const validProposals = response.data.data.filter(p => p.offeredSkill && p.requestedSkill);
+        const validProposals = response.data.data.filter(p => p.requestedSkill);
         setProposals(validProposals);
       } catch (err) {
         setError(`Failed to fetch ${activeTab} proposals.`);
@@ -23,37 +26,53 @@ const Dashboard = () => {
         setLoading(false);
       }
     };
-    fetchProposals();
-  }, [activeTab]);
+    if (user) { // Only fetch proposals if the user is loaded
+        fetchProposals();
+    }
+  }, [user, activeTab, location.state]);
 
   const handleProposalUpdate = (updatedProposal) => {
-    setProposals(prevProposals => 
+    setProposals(prevProposals =>
       prevProposals.map(p => p._id === updatedProposal._id ? updatedProposal : p)
     );
   };
   
-  const handleProposalDelete = (deletedProposalId) => {
+  const handleProposalDelete = (deletedProposalUnId) => {
     setProposals(prevProposals =>
-      prevProposals.filter(p => p._id !== deletedProposalId)
+      prevProposals.filter(p => p._id !== deletedProposalUnId)
     );
   };
 
   const tabClass = (tabName) => 
     `px-4 py-2 font-semibold rounded-t-md transition-colors duration-200 ${activeTab === tabName 
-      ? 'bg-indigo-600 text-white' 
-      : 'bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600'}`;
+      ? 'bg-accent-600 text-white' 
+      : 'bg-slate-200 dark:bg-slate-700 text-slate-800 dark:text-slate-300 hover:bg-slate-300 dark:hover:bg-slate-600'}`;
 
   return (
     <div className="max-w-4xl mx-auto">
       <h1 className="text-3xl font-bold mb-6">Your Dashboard</h1>
       <div className="mb-6 flex space-x-2">
-        <button onClick={() => setActiveTab('received')} className={tabClass('received')}>Received Proposals</button>
-        <button onClick={() => setActiveTab('sent')} className={tabClass('sent')}>Sent Proposals</button>
+        <button onClick={() => setActiveTab('received')} className={tabClass('received')}>
+          Received Proposals
+        </button>
+        <button onClick={() => setActiveTab('sent')} className={tabClass('sent')}>
+          Sent Proposals
+        </button>
       </div>
-      <div className="p-6 bg-gray-50 dark:bg-gray-800 rounded-b-md rounded-r-md">
-        {loading ? ( <p className="text-center">Loading proposals...</p> ) : 
-         error ? ( <p className="text-center text-red-500">{error}</p> ) : 
-         ( <ProposalList proposals={proposals} type={activeTab} onUpdate={handleProposalUpdate} onDelete={handleProposalDelete} /> )}
+
+      <div className="p-6 bg-white dark:bg-slate-800 rounded-b-md rounded-r-md">
+        {loading ? (
+          <p className="text-center">Loading proposals...</p>
+        ) : error ? (
+          <p className="text-center text-red-500">{error}</p>
+        ) : (
+          <ProposalList 
+            proposals={proposals} 
+            type={activeTab} 
+            onUpdate={handleProposalUpdate} 
+            onDelete={handleProposalDelete}
+          />
+        )}
       </div>
     </div>
   );

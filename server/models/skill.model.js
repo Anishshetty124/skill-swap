@@ -64,6 +64,15 @@ const skillSchema = new Schema(
       user: { type: Schema.Types.ObjectId, ref: 'User' },
       rating: { type: Number, min: 1, max: 5 }
     }],
+    costInCredits: {
+    type: Number,
+    default: 1,
+    min: 0
+  },
+  desiredSkill: {
+    type: String,
+    trim: true,
+  }
   },
   { timestamps: true }
 );

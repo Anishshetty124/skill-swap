@@ -13,6 +13,7 @@ import {
   getLocationSuggestions,
   getKeywordSuggestions,
   getYoutubeTutorials,
+  getYoutubePlaceholders,
 } from '../controllers/skill.controller.js';
 import { verifyJWT } from '../middlewares/auth.middleware.js';
 
@@ -20,7 +21,7 @@ const router = Router();
 
 router.route('/keyword-suggestions').get(getKeywordSuggestions); 
 router.route('/locations').get(getLocationSuggestions);
-// --- Public Routes --- (Anyone can view skills)
+router.route('/youtube-placeholders').get(getYoutubePlaceholders);
 router.route('/youtube-tutorials').get(getYoutubeTutorials); 
 router.route('/nearby').get(getNearbySkills);
 router.route('/').get(getAllSkills);

@@ -10,7 +10,6 @@ import opencage from 'opencage-api-client';
 
 const { WordTokenizer, TfIdf } = natural;
 
-
 const generateTags = (text) => {
   const tokenizer = new WordTokenizer();
   const tfidf = new TfIdf();
@@ -45,7 +44,6 @@ const getAllSkills = asyncHandler(async (req, res) => {
   const { page = 1, limit = 10, category, keywords, userId, location, level } = req.query;
   const query = {};
 
-  // Apply all filters that are present in the request query
   if (category) query.category = category;
   if (keywords) query.$text = { $search: keywords };
   if (userId) query.user = userId;
@@ -115,11 +113,21 @@ const updateSkill = asyncHandler(async (req, res) => {
 
 const deleteSkill = asyncHandler(async (req, res) => {
   const { skillId } = req.params;
+
   const skill = await Skill.findById(skillId);
-  if (!skill) throw new ApiError(404, "Skill not found");
-  if (skill.user.toString() !== req.user._id.toString()) throw new ApiError(403, "You are not authorized to delete this skill");
+  if (!skill) {
+    throw new ApiError(404, "Skill not found");
+  }
+  if (skill.user.toString() !== req.user._id.toString()) {
+    throw new ApiError(403, "You are not authorized to delete this skill");
+  }
+
+  // First, delete the skill itself
   await Skill.findByIdAndDelete(skillId);
-  await Proposal.deleteMany({ $or: [{ offeredSkill: skillId }, { requestedSkill: skillId }] });
+
+  // Then, delete all proposals where this skill was the one being requested
+  await Proposal.deleteMany({ requestedSkill: skillId });
+
   return res.status(200).json(new ApiResponse(200, {}, "Skill and associated proposals deleted successfully"));
 });
 
@@ -208,8 +216,6 @@ const getKeywordSuggestions = asyncHandler(async (req, res) => {
     if (!search) {
         return res.status(200).json(new ApiResponse(200, [], "No search query provided"));
     }
-    
-    // Find skills where the title matches the search query, then get the distinct titles
     const skills = await Skill.aggregate([
         { $match: { title: { $regex: new RegExp(search, 'i') } } },
         { $group: { _id: '$title' } },
@@ -219,28 +225,48 @@ const getKeywordSuggestions = asyncHandler(async (req, res) => {
     return res.status(200).json(new ApiResponse(200, skills, "Keyword suggestions fetched"));
 });
 
-
 const getYoutubeTutorials = asyncHandler(async (req, res) => {
   let { keyword } = req.query;
-
-  // If no specific keyword is provided, choose a random high-value skill
   if (!keyword) {
     const defaultTopics = [
       "communication skills", "public speaking", "learn programming for beginners",
-      "graphic design basics", "digital marketing", "learn a new language"
+      "graphic design basics", "digital marketing", "learn a new language",
+      "financial literacy", "creative writing tips", "data science introduction",
+      "learn to cook", "fitness for beginners", "project management"
     ];
     keyword = defaultTopics[Math.floor(Math.random() * defaultTopics.length)];
   }
-
-  const youtubeApiUrl = `https://www.googleapis.com/youtube/v3/search?part=snippet&q=${keyword}%20tutorial&type=video&maxResults=6&key=${process.env.YOUTUBE_API_KEY}`;
-  
+  const youtubeApiUrl = `https://www.googleapis.com/youtube/v3/search?part=snippet&q=${encodeURIComponent(keyword)}%20tutorial&type=video&maxResults=6&key=${process.env.YOUTUBE_API_KEY}`;
   try {
     const response = await fetch(youtubeApiUrl);
     const data = await response.json();
+    if (data.error) {
+      console.error("YouTube API Error:", data.error.message);
+      throw new ApiError(500, "Failed to fetch videos from YouTube due to an API error.");
+    }
     return res.status(200).json(new ApiResponse(200, data.items || [], "YouTube videos fetched"));
   } catch (error) {
+    console.error("Fetch Error:", error);
     throw new ApiError(500, "Failed to fetch videos from YouTube.");
   }
 });
 
-export { createSkill, getAllSkills, getSkillById, updateSkill, deleteSkill, getNearbySkills, getLocationSuggestions, getMatchingSkills, bookmarkSkill, unbookmarkSkill, rateSkill, getKeywordSuggestions , getYoutubeTutorials};
+const getYoutubePlaceholders = asyncHandler(async (req, res) => {
+  const placeholderTopics = [
+    "Communication Skills for Beginners", "Public Speaking Tips", "Learn Python in 1 Hour",
+    "Graphic Design Basics", "Digital Marketing 101", "Learn a New Language Fast",
+    "Financial Literacy Basics", "Creative Writing Prompts", "Introduction to Data Science",
+    "How to Cook Pasta", "Fitness for Beginners", "Project Management Fundamentals",
+    "Learn to Play Guitar", "Introduction to JavaScript", "Resume Writing Tips"
+  ];
+
+  // Shuffle the array and get the first 8 topics
+  const shuffled = placeholderTopics.sort(() => 0.5 - Math.random());
+  const selected = shuffled.slice(0, 8);
+
+  return res.status(200).json(new ApiResponse(200, selected, "YouTube placeholders fetched"));
+});
+
+export {
+  createSkill, getAllSkills, getSkillById, updateSkill, deleteSkill, getNearbySkills, getLocationSuggestions, getMatchingSkills, bookmarkSkill, unbookmarkSkill, rateSkill, getKeywordSuggestions, getYoutubeTutorials, getYoutubePlaceholders
+};

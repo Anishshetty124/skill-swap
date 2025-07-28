@@ -16,7 +16,14 @@ const ProposalCard = ({ proposal, type, onUpdate }) => {
     try {
       const response = await apiClient.patch(`/proposals/${proposal._id}/respond`, { status, contactInfo });
       onUpdate(response.data.data);
-      toast.success(`Proposal ${status}.`);
+
+      if (status === 'accepted') {
+          const cost = proposal.requestedSkill?.costInCredits || 0;
+          toast.success(`Proposal accepted! You earned ${cost} credits.`);
+      } else {
+          toast.success("Proposal rejected.");
+      }
+      
     } catch (err) {
       setError(err.response?.data?.message || `Failed to ${status} proposal.`);
     } finally {
@@ -51,8 +58,8 @@ const ProposalCard = ({ proposal, type, onUpdate }) => {
     rejected: 'bg-red-500',
   };
 
-  const offeredSkillTitle = proposal.offeredSkill?.title || '[Deleted Skill]';
   const requestedSkillTitle = proposal.requestedSkill?.title || '[Deleted Skill]';
+  const offeredSkillTitle = proposal.offeredSkill?.title || '[Deleted Skill]';
 
   return (
     <>
@@ -68,25 +75,25 @@ const ProposalCard = ({ proposal, type, onUpdate }) => {
 
         {type === 'received' ? (
           <p className="text-slate-700 dark:text-slate-300">
-            <span className="font-bold">{proposal.proposer.username}</span> wants to trade their{' '}
-            <span className="font-semibold text-blue-600 dark:text-blue-400">{offeredSkillTitle}</span> for your{' '}
-            <span className="font-semibold text-green-600 dark:text-green-400">{requestedSkillTitle}</span>.
+            <span className="font-bold">{proposal.proposer.username}</span> wants your skill{' '}
+            <span className="font-semibold text-accent-500">{requestedSkillTitle}</span>{' '}
+            {proposal.proposalType === 'skill' 
+              ? <>for their <span className="font-semibold text-green-500">{offeredSkillTitle}</span>.</>
+              : <>for <span className="font-bold text-amber-500">{proposal.costInCredits} credits</span>.</>
+            }
           </p>
         ) : (
           <p className="text-slate-700 dark:text-slate-300">
-            You offered your{' '}
-            <span className="font-semibold text-blue-600 dark:text-blue-400">{offeredSkillTitle}</span> for{' '}
-            <span className="font-bold">{proposal.receiver.username}</span>'s{' '}
-            <span className="font-semibold text-green-600 dark:text-green-400">{requestedSkillTitle}</span>.
+            You proposed to get{' '}
+            <span className="font-semibold text-accent-500">{requestedSkillTitle}</span> from{' '}
+            <span className="font-bold">{proposal.receiver.username}</span>{' '}
+            {proposal.proposalType === 'skill'
+              ? <>for your <span className="font-semibold text-green-500">{offeredSkillTitle}</span>.</>
+              : <>for <span className="font-bold text-amber-500">{proposal.costInCredits} credits</span>.</>
+            }
           </p>
         )}
-
-        {proposal.message && (
-          <div className="mt-3 p-3 bg-slate-100 dark:bg-slate-700 rounded-md">
-            <p className="text-sm italic text-slate-600 dark:text-slate-400">"{proposal.message}"</p>
-          </div>
-        )}
-
+        
         {proposal.status === 'accepted' && proposal.contactInfo && (
           <div className="mt-4 pt-4 border-t border-slate-200 dark:border-slate-700">
             <h4 className="text-sm font-semibold mb-2">Contact Details Shared:</h4>

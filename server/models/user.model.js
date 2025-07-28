@@ -23,7 +23,11 @@ const userSchema = new mongoose.Schema({
     type: [String],
     default: []
   },
-  refreshToken: { type: String }
+  refreshToken: { type: String },
+  swapCredits: {
+    type: Number,
+    default: 10 // New users start with 10 credits
+  }
 }, { timestamps: true });
 
 userSchema.index({ location: '2dsphere' });

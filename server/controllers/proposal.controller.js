@@ -4,56 +4,54 @@ import { ApiResponse } from '../utils/ApiResponse.js';
 import { Proposal } from '../models/proposal.model.js';
 import { Skill } from '../models/skill.model.js';
 import { User } from '../models/user.model.js';
-import { calculateBadges } from '../utils/BadgeManager.js';
+import { calculateBadges } from '../utils/badgeManager.js';
 import mongoose from 'mongoose';
 
 const createProposal = asyncHandler(async (req, res) => {
-  const { requestedSkillId, offeredSkillId, message } = req.body;
+  const { requestedSkillId, proposalType, offeredSkillId } = req.body;
   const proposerId = req.user._id;
 
-  if (!mongoose.Types.ObjectId.isValid(requestedSkillId) || !mongoose.Types.ObjectId.isValid(offeredSkillId)) {
-    throw new ApiError(400, "Invalid skill ID format");
+  if (!mongoose.Types.ObjectId.isValid(requestedSkillId)) {
+    throw new ApiError(400, "Invalid requested skill ID format");
   }
 
   const requestedSkill = await Skill.findById(requestedSkillId);
-  const offeredSkill = await Skill.findById(offeredSkillId);
-
-  if (!requestedSkill || !offeredSkill) {
-    throw new ApiError(404, "One or both skills not found");
-  }
-
+  if (!requestedSkill) throw new ApiError(404, "Requested skill not found");
+  
   const receiverId = requestedSkill.user;
-
   if (proposerId.equals(receiverId)) {
-    throw new ApiError(400, "You cannot propose a swap with yourself.");
+    throw new ApiError(400, "You cannot propose a swap for your own skill.");
   }
-  if (!offeredSkill.user.equals(proposerId)) {
-    throw new ApiError(403, "You can only offer a skill that you own.");
-  }
-
-  const proposal = await Proposal.create({
+  
+  const proposalData = {
     proposer: proposerId,
     receiver: receiverId,
-    offeredSkill: offeredSkillId,
     requestedSkill: requestedSkillId,
-    message,
-  });
+    proposalType,
+  };
 
-  if (!proposal) {
-    throw new ApiError(500, "Failed to create the proposal");
+  if (proposalType === 'skill') {
+    if (!offeredSkillId) throw new ApiError(400, "An offered skill is required for this proposal type.");
+    if (!mongoose.Types.ObjectId.isValid(offeredSkillId)) {
+        throw new ApiError(400, "Invalid offered skill ID format");
+    }
+    const offeredSkill = await Skill.findById(offeredSkillId);
+    if (!offeredSkill || !offeredSkill.user.equals(proposerId)) {
+      throw new ApiError(403, "You can only offer a skill that you own.");
+    }
+    proposalData.offeredSkill = offeredSkillId;
+  } else { // proposalType is 'credits'
+    const proposer = await User.findById(proposerId);
+    if (proposer.swapCredits < requestedSkill.costInCredits) {
+      throw new ApiError(400, "You do not have enough credits for this swap.");
+    }
+    proposalData.costInCredits = requestedSkill.costInCredits;
   }
 
+  const proposal = await Proposal.create(proposalData);
   const io = req.app.get('io');
-  const receiverIdString = proposal.receiver.toString();
-  
-  io.to(receiverIdString).emit('new_notification', {
-    message: `You have a new swap proposal from ${req.user.username}!`,
-    proposalId: proposal._id
-  });
-
-  return res
-    .status(201)
-    .json(new ApiResponse(201, proposal, "Proposal sent successfully"));
+  io.to(receiverId.toString()).emit('new_notification', { message: `You have a new proposal from ${req.user.username}!` });
+  return res.status(201).json(new ApiResponse(201, proposal, "Proposal sent successfully"));
 });
 
 const getProposals = asyncHandler(async (req, res) => {
@@ -70,8 +68,8 @@ const getProposals = asyncHandler(async (req, res) => {
   const proposals = await Proposal.find(query)
     .populate({ path: 'proposer', select: 'username profilePicture' })
     .populate({ path: 'receiver', select: 'username profilePicture' })
-    .populate({ path: 'offeredSkill', select: 'title category' })
-    .populate({ path: 'requestedSkill', select: 'title category' })
+    .populate({ path: 'requestedSkill', select: 'title category costInCredits' })
+    .populate({ path: 'offeredSkill', select: 'title category' }) // Populate offeredSkill as well
     .sort({ createdAt: -1 });
 
   return res
@@ -88,18 +86,13 @@ const respondToProposal = asyncHandler(async (req, res) => {
     throw new ApiError(400, "Invalid status.");
   }
 
-  const proposal = await Proposal.findById(id);
-  if (!proposal) {
-    throw new ApiError(404, 'Proposal not found');
-  }
+  const proposal = await Proposal.findById(id)
+    .populate('requestedSkill', 'title category costInCredits')
+    .populate('offeredSkill', 'title category');
 
-  if (!proposal.receiver.equals(userId)) {
-    throw new ApiError(403, 'You are not authorized to respond to this proposal.');
-  }
-
-  if (proposal.status !== 'pending') {
-    throw new ApiError(400, `This proposal has already been ${proposal.status}.`);
-  }
+  if (!proposal) throw new ApiError(404, 'Proposal not found');
+  if (!proposal.receiver.equals(userId)) throw new ApiError(403, 'You are not authorized to respond.');
+  if (proposal.status !== 'pending') throw new ApiError(400, `This proposal has already been ${proposal.status}.`);
 
   // Save the contact info if it exists
   if (status === 'accepted' && contactInfo) {
@@ -108,30 +101,43 @@ const respondToProposal = asyncHandler(async (req, res) => {
   
   proposal.status = status;
   await proposal.save({ validateBeforeSave: false });
-  
+
   if (status === 'accepted') {
-    await Skill.updateMany(
-      { _id: { $in: [proposal.offeredSkill, proposal.requestedSkill] } },
-      { $set: { status: 'in_progress' } }
-    );
+    if (proposal.proposalType === 'credits') {
+      const cost = proposal.costInCredits;
+      await User.findByIdAndUpdate(proposal.proposer, { $inc: { swapCredits: -cost } });
+      await User.findByIdAndUpdate(proposal.receiver, { $inc: { swapCredits: cost } });
+    }
+    
+    const skillsToUpdate = [proposal.requestedSkill._id];
+    if (proposal.offeredSkill) {
+      skillsToUpdate.push(proposal.offeredSkill._id);
+    }
+    await Skill.updateMany({ _id: { $in: skillsToUpdate } }, { $set: { status: 'in_progress' } });
     
     const io = req.app.get('io');
     const proposerId = proposal.proposer.toString();
+    const receiverId = proposal.receiver.toString();
     const receiverUsername = req.user.username;
 
-    io.to(proposerId).emit('new_notification', {
-        message: `Your proposal was accepted by ${receiverUsername}!`
-    });
-    
-    if (contactInfo && (contactInfo.phone || contactInfo.note)) {
-      io.to(proposerId).emit('contact_info_received', {
-        message: `${receiverUsername} has shared their contact details with you.`,
-        details: contactInfo
-      });
+    // Send notifications about credit/swap acceptance
+    if (proposal.proposalType === 'credits') {
+      io.to(proposerId).emit('new_notification', { message: `Your proposal was accepted! You spent ${proposal.costInCredits} credits.` });
+      io.to(receiverId).emit('new_notification', { message: `You accepted the proposal and earned ${proposal.costInCredits} credits!` });
+    } else {
+      io.to(proposerId).emit('new_notification', { message: `Your skill swap with ${receiverUsername} was accepted!` });
     }
 
-    const usersInvolved = await User.find({ _id: { $in: [proposal.proposer, proposal.receiver] } });
+    // Send contact info if shared
+    if (contactInfo && (contactInfo.phone || contactInfo.note)) {
+        io.to(proposerId).emit('contact_info_received', {
+            message: `${receiverUsername} has shared their contact details with you.`,
+            details: contactInfo
+        });
+    }
 
+    // Check for new badges for both users
+    const usersInvolved = await User.find({ _id: { $in: [proposal.proposer, proposal.receiver] } });
     for (const user of usersInvolved) {
       const oldBadges = new Set(user.badges || []);
       const { earnedBadges } = await calculateBadges(user);

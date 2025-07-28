@@ -138,8 +138,9 @@ const SingleSkillPage = () => {
           <h3 className="text-xl font-semibold mb-4">Details</h3>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-gray-600 dark:text-gray-400">
             <p><strong>Level:</strong> {skill.level}</p>
-            <p><strong>Availability:</strong> {skill.availability}</p>
+              <p className="md:col-span-2"><strong>Seeking in Return:</strong> {skill.desiredSkill || 'Open to offers'}</p>
             <p><strong>Location:</strong> {skill.locationString}</p> 
+
           </div>
         </div>
 

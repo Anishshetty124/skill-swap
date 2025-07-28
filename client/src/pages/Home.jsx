@@ -3,6 +3,7 @@ import apiClient from '../api/axios';
 import SkillCard from '../components/skills/SkillCard';
 import SkillCardSkeleton from '../components/skills/SkillCardSkeleton';
 import { debounce } from 'lodash';
+import { MagnifyingGlassIcon as SearchIcon, UserGroupIcon, ArrowsRightLeftIcon } from '@heroicons/react/24/solid';
 
 const Home = () => {
   const [skills, setSkills] = useState([]);
@@ -17,7 +18,9 @@ const Home = () => {
   const [currentSearch, setCurrentSearch] = useState('');
   const [showCitySearch, setShowCitySearch] = useState(false);
   const [youtubeVideos, setYoutubeVideos] = useState([]);
-  const [youtubeLoading, setYoutubeLoading] = useState(true);
+  const [youtubeLoading, setYoutubeLoading] = useState(false);
+  const [youtubePlaceholders, setYoutubePlaceholders] = useState([]);
+  const [showAllSkills, setShowAllSkills] = useState(false);
 
   const SKILLS_LIMIT = 6;
 
@@ -34,17 +37,14 @@ const Home = () => {
     try {
       setLoading(true);
       setError('');
-      
       const queryString = buildQueryString(pageNum, currentFilters, currentLocQuery);
       const response = await apiClient.get(`/skills?${queryString}`);
       const newSkills = response.data.data.skills || [];
-
       if (isNewSearch) {
         setSkills(newSkills);
       } else {
         setSkills(prevSkills => [...prevSkills, ...newSkills]);
       }
-
       setHasMore(newSkills.length === SKILLS_LIMIT);
     } catch (err) {
       setError('Failed to load skills.');
@@ -53,8 +53,10 @@ const Home = () => {
     }
   };
   
-  const fetchYoutubeVideos = async (keyword = '') => {
+  const fetchYoutubeVideos = async (keyword) => {
+    if (!keyword) return;
     setYoutubeLoading(true);
+    setYoutubePlaceholders([]);
     try {
       const response = await apiClient.get(`/skills/youtube-tutorials?keyword=${encodeURIComponent(keyword)}`);
       setYoutubeVideos(response.data.data);
@@ -64,10 +66,19 @@ const Home = () => {
       setYoutubeLoading(false);
     }
   };
+  
+  const fetchYoutubePlaceholders = async () => {
+    try {
+        const response = await apiClient.get('/skills/youtube-placeholders');
+        setYoutubePlaceholders(response.data.data);
+    } catch (error) {
+        console.error("Failed to fetch YouTube placeholders", error);
+    }
+  }
 
   useEffect(() => {
     fetchSkills(1, true);
-    fetchYoutubeVideos();
+    fetchYoutubePlaceholders();
   }, []);
 
   const handleSearch = (e) => {
@@ -79,13 +90,10 @@ const Home = () => {
     if (locationQuery) searchTerms.push(locationQuery);
     const searchTermDisplay = searchTerms.join(', ');
     setCurrentSearch(searchTermDisplay || 'all skills');
-    
     setPage(1);
     setHasMore(true);
     setSkills([]);
     fetchSkills(1, true);
-    fetchYoutubeVideos(filters.keywords);
-    
     setKeywordSuggestions([]);
     setLocationSuggestions([]);
   };
@@ -106,8 +114,9 @@ const Home = () => {
     setPage(1);
     setHasMore(true);
     setSkills([]);
-    fetchSkills(1, true, emptyFilters, emptyLocation); // Re-fetch with empty filters
-    fetchYoutubeVideos();
+    fetchSkills(1, true, emptyFilters, emptyLocation); 
+    setYoutubeVideos([]);
+    fetchYoutubePlaceholders();
   };
 
   const fetchKeywordSuggestions = async (query) => {
@@ -145,6 +154,7 @@ const Home = () => {
 
   const skillCategories = ['Tech', 'Art', 'Music', 'Writing', 'Marketing', 'Language', 'Fitness', 'Cooking', 'Crafts'];
   const isAnyFilterActive = filters.keywords || filters.category || filters.level || locationQuery;
+  const displayedSkills = showAllSkills ? skills : skills.slice(0, 6);
 
   return (
     <div className="container mx-auto px-4 py-8">
@@ -232,41 +242,81 @@ const Home = () => {
       ) : skills.length > 0 ? (
         <>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-            {skills.map((skill) => <SkillCard key={skill._id} skill={skill} />)}
+            {displayedSkills.map((skill) => <SkillCard key={skill._id} skill={skill} />)}
           </div>
-          {hasMore && (
+          {skills.length > 6 && (
             <div className="text-center mt-8">
-              <button onClick={loadMoreSkills} disabled={loading} className="px-6 py-2 bg-slate-200 dark:bg-slate-700 font-semibold rounded-md disabled:opacity-50">
-                {loading ? 'Loading...' : 'Load More Skills'}
+              <button onClick={() => setShowAllSkills(!showAllSkills)} className="px-6 py-2 bg-slate-200 dark:bg-slate-700 font-semibold rounded-md">
+                {showAllSkills ? 'Show Less' : `Show All ${skills.length} Skills`}
               </button>
             </div>
           )}
         </>
       ) : (
-        <p className="text-center p-10 text-slate-500">No skills found matching your criteria.</p>
+        <p className="text-center p-10 text-slate-500">{currentSearch ? "No skills found matching your criteria." : "No skills have been posted yet. Be the first!"}</p>
       )}
 
       <div className="mt-12">
-        <h2 className="text-2xl font-bold mb-4">
-          {filters.keywords ? `Tutorials for "${filters.keywords}"` : "Explore Skills with YouTube"}
-        </h2>
-        {youtubeLoading ? (
-          <p>Loading tutorials...</p>
-        ) : youtubeVideos.length > 0 ? (
+        <div className="flex items-center justify-between mb-4">
+            <h2 className="text-2xl font-bold">
+                {filters.keywords ? `Tutorials for "${filters.keywords}"` : "Explore Skills with YouTube"}
+            </h2>
+            {filters.keywords && (
+                <button onClick={() => fetchYoutubeVideos(filters.keywords)} className="px-4 py-2 text-sm bg-red-600 text-white font-semibold rounded-md hover:bg-red-700">
+                    Search YouTube
+                </button>
+            )}
+        </div>
+
+        {youtubeLoading ? ( <p>Loading tutorials...</p> ) : 
+         youtubeVideos.length > 0 ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
             {youtubeVideos.map(video => (
               <a key={video.id.videoId || video.id} href={`https://www.youtube.com/watch?v=${video.id.videoId || video.id}`} target="_blank" rel="noopener noreferrer" className="block bg-white dark:bg-slate-800 rounded-lg shadow-lg overflow-hidden group">
                 <img src={video.snippet.thumbnails.high.url} alt={video.snippet.title} className="w-full h-48 object-cover"/>
                 <div className="p-4">
-                  <h3 className="font-bold text-slate-800 dark:text-white group-hover:text-blue-500">{video.snippet.title}</h3>
+                  <h3 className="font-bold text-slate-800 dark:text-white group-hover:text-accent-500">{video.snippet.title}</h3>
                   <p className="text-sm text-slate-500 dark:text-slate-400">{video.snippet.channelTitle}</p>
                 </div>
               </a>
             ))}
           </div>
         ) : (
-          <p className="text-center text-slate-500">No tutorials found.</p>
+          <div className="flex flex-wrap gap-3">
+            {youtubePlaceholders.map((topic, index) => (
+              <a key={index} href={`https://www.youtube.com/results?search_query=${encodeURIComponent(topic)}`} target="_blank" rel="noopener noreferrer" className="px-4 py-2 bg-slate-200 dark:bg-slate-700 text-sm font-semibold rounded-full hover:bg-slate-300 dark:hover:bg-slate-600">
+                {topic}
+              </a>
+            ))}
+          </div>
         )}
+      </div>
+      
+      <div className="mt-16 text-center">
+          <h2 className="text-3xl font-bold mb-8">How SkillSwap Works</h2>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+              <div className="flex flex-col items-center">
+                  <div className="p-4 bg-white dark:bg-slate-800 rounded-full shadow-lg mb-4">
+                      <SearchIcon className="h-8 w-8 text-accent-500" />
+                  </div>
+                  <h3 className="text-xl font-semibold mb-2">1. Find a Skill</h3>
+                  <p className="text-slate-600 dark:text-slate-400">Browse or search for a skill you want to learn from our talented community.</p>
+              </div>
+              <div className="flex flex-col items-center">
+                  <div className="p-4 bg-white dark:bg-slate-800 rounded-full shadow-lg mb-4">
+                      <ArrowsRightLeftIcon className="h-8 w-8 text-accent-500" />
+                  </div>
+                  <h3 className="text-xl font-semibold mb-2">2. Propose a Swap</h3>
+                  <p className="text-slate-600 dark:text-slate-400">Use your Swap Credits to propose an exchange. You earn credits by offering your own skills.</p>
+              </div>
+              <div className="flex flex-col items-center">
+                  <div className="p-4 bg-white dark:bg-slate-800 rounded-full shadow-lg mb-4">
+                      <UserGroupIcon className="h-8 w-8 text-accent-500" />
+                  </div>
+                  <h3 className="text-xl font-semibold mb-2">3. Connect & Learn</h3>
+                  <p className="text-slate-600 dark:text-slate-400">Once your proposal is accepted, connect with the user to learn your new skill!</p>
+              </div>
+          </div>
       </div>
     </div>
   );

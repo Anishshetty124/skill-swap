@@ -1,4 +1,4 @@
-import React, { createContext, useState, useContext, useEffect } from 'react';
+import React, { createContext, useState, useContext, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { io } from 'socket.io-client';
 import toast from 'react-hot-toast';
@@ -56,7 +56,7 @@ export const AuthProvider = ({ children }) => {
               </button>
             </div>
           ),
-          { duration: 10000 } // Keep this toast open longer
+          { duration: 10000 }
         );
       });
 
@@ -64,7 +64,7 @@ export const AuthProvider = ({ children }) => {
     }
   }, [isAuthenticated, user]);
 
-  const login = async (credentials) => {
+  const login = useCallback(async (credentials) => {
     if (credentials.user) {
       setUser(credentials.user);
       setIsAuthenticated(true);
@@ -75,7 +75,6 @@ export const AuthProvider = ({ children }) => {
       setBookmarks(credentials.user.bookmarks || []);
       return;
     }
-
     try {
       const response = await apiClient.post('/users/login', credentials);
       const { user: userData, accessToken } = response.data.data;
@@ -89,9 +88,9 @@ export const AuthProvider = ({ children }) => {
     } catch (error) {
       throw error;
     }
-  };
+  }, [navigate]);
 
-  const logout = async () => {
+  const logout = useCallback(async () => {
     try {
       await apiClient.post('/users/logout');
     } catch (error) {
@@ -104,11 +103,12 @@ export const AuthProvider = ({ children }) => {
       localStorage.removeItem('accessToken');
       navigate('/login');
     }
-  };
+  }, [navigate]);
   
-  const toggleBookmark = async (skillId) => {
-    const isBookmarked = bookmarks.includes(skillId);
-    const originalBookmarks = bookmarks;
+  const toggleBookmark = useCallback(async (skillId) => {
+    const originalBookmarks = [...bookmarks];
+    const isBookmarked = originalBookmarks.includes(skillId);
+    
     if (isBookmarked) {
       setBookmarks(prev => prev.filter(id => id !== skillId));
     } else {
@@ -124,7 +124,14 @@ export const AuthProvider = ({ children }) => {
       toast.error("Failed to update bookmark.");
       setBookmarks(originalBookmarks); 
     }
-  };
+  }, [bookmarks]);
+
+  const markUserAsWelcomedInState = useCallback(() => {
+    setUser(currentUser => {
+      if (!currentUser) return null;
+      return { ...currentUser, welcomed: true };
+    });
+  }, []);
 
   const authContextValue = {
     user,
@@ -135,6 +142,7 @@ export const AuthProvider = ({ children }) => {
     toggleBookmark,
     login,
     logout,
+    markUserAsWelcomedInState,
   };
 
   return (

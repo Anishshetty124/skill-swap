@@ -4,9 +4,7 @@ import { ApiResponse } from '../utils/ApiResponse.js';
 import { User } from '../models/user.model.js';
 import { Skill } from '../models/skill.model.js';
 import opencage from 'opencage-api-client';
-import { Proposal } from '../models/proposal.model.js';
-import { calculateBadges } from '../utils/BadgeManager.js';
-
+import { calculateBadges } from '../utils/badgeManager.js';
 
 const registerUser = asyncHandler(async (req, res) => {
   const { username, email, password } = req.body;
@@ -15,10 +13,21 @@ const registerUser = asyncHandler(async (req, res) => {
     throw new ApiError(400, "All fields are required");
   }
 
-  // --- NEW: Password Validation Logic ---
-  const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/;
-  if (!passwordRegex.test(password)) {
-    throw new ApiError(400, "Password must be at least 8 characters long and contain at least one uppercase letter, one lowercase letter, one number, and one special character.");
+  // --- NEW: Specific Password Validation ---
+  if (password.length < 8) {
+    throw new ApiError(400, "Password must be at least 8 characters long.");
+  }
+  if (!/[a-z]/.test(password)) {
+    throw new ApiError(400, "Password must contain at least one lowercase letter.");
+  }
+  if (!/[A-Z]/.test(password)) {
+    throw new ApiError(400, "Password must contain at least one uppercase letter.");
+  }
+  if (!/\d/.test(password)) {
+    throw new ApiError(400, "Password must contain at least one number.");
+  }
+  if (!/[@$!%*?&]/.test(password)) {
+    throw new ApiError(400, "Password must contain at least one special character (@$!%*?&).");
   }
 
   const existedUser = await User.findOne({ $or: [{ username }, { email }] });
@@ -38,8 +47,8 @@ const registerUser = asyncHandler(async (req, res) => {
     throw new ApiError(500, "Something went wrong while registering the user");
   }
 
-  return res.status(201).json(
-    new ApiResponse(201, createdUser, "User registered successfully")
+   return res.status(201).json(
+    new ApiResponse(201, { ...createdUser.toObject(), isNewUser: true }, "User registered successfully")
   );
 });
 
@@ -48,7 +57,7 @@ const loginUser = asyncHandler(async (req, res) => {
   if (!username && !email) {
     throw new ApiError(400, "Username or email is required");
   }
-  const user = await User.findOne({ $or: [{ username }, { email }] });
+  const user = await User.findOne({ $or: [{ username }, { email }] }).select("+password");
   if (!user) {
     throw new ApiError(404, "User does not exist");
   }
@@ -56,6 +65,15 @@ const loginUser = asyncHandler(async (req, res) => {
   if (!isPasswordValid) {
     throw new ApiError(401, "Invalid user credentials");
   }
+  
+  if (!user.welcomed) {
+    const io = req.app.get('io');
+    io.to(user._id.toString()).emit('new_notification', {
+      message: `Welcome! You've received 10 free Swap Credits to get started! 🎁`
+    });
+    user.welcomed = true;
+  }
+
   const accessToken = user.generateAccessToken();
   const refreshToken = user.generateRefreshToken();
   user.refreshToken = refreshToken;
@@ -80,50 +98,60 @@ const getCurrentUser = asyncHandler(async (req, res) => {
 
 const updateUserProfile = asyncHandler(async (req, res) => {
   const { bio, locationString, socials } = req.body;
-  
   const updateData = {};
-
   if (bio !== undefined) updateData.bio = bio;
   if (socials) updateData.socials = socials;
-
   if (locationString) {
     updateData.locationString = locationString;
     try {
       const geoData = await opencage.geocode({ q: locationString, limit: 1, key: process.env.OPENCAGE_API_KEY });
       if (geoData.results.length > 0) {
         const { lng, lat } = geoData.results[0].geometry;
-        updateData.location = {
-          type: 'Point',
-          coordinates: [lng, lat]
-        };
+        updateData.location = { type: 'Point', coordinates: [lng, lat] };
       }
     } catch (error) {
       console.error("Geocoding failed:", error.message);
     }
   }
-
-  const user = await User.findByIdAndUpdate(
-    req.user._id,
-    { $set: updateData },
-    { new: true, runValidators: true }
-  ).select("-password -refreshToken");
-
+  const user = await User.findByIdAndUpdate(req.user._id, { $set: updateData }, { new: true, runValidators: true }).select("-password -refreshToken");
   return res.status(200).json(new ApiResponse(200, user, "Profile updated successfully"));
+});
+
+const updateAccountDetails = asyncHandler(async (req, res) => {
+    const { username, email } = req.body;
+    if (!username || !email) {
+        throw new ApiError(400, "Username and email are required.");
+    }
+    const existingUser = await User.findOne({ 
+        $or: [{ username }, { email }],
+        _id: { $ne: req.user._id }
+    });
+    if (existingUser) {
+        throw new ApiError(409, "Username or email is already in use by another account.");
+    }
+    const updatedUser = await User.findByIdAndUpdate(req.user._id, { $set: { username, email } }, { new: true }).select("-password -refreshToken");
+    return res.status(200).json(new ApiResponse(200, updatedUser, "Account details updated successfully."));
 });
 
 const updateUserAvatar = asyncHandler(async (req, res) => {
   const { avatarUrl } = req.body;
-  if (!avatarUrl) throw new ApiError(400, "Avatar URL is required");
-  const user = await User.findByIdAndUpdate(req.user._id, { $set: { profilePicture: avatarUrl } }, { new: true }).select("-password -refreshToken");
+  if (!avatarUrl) {
+    throw new ApiError(400, "Avatar URL is required");
+  }
+
+  const optimizedUrl = avatarUrl.replace('/upload/', '/upload/w_200,h_200,c_fill,q_auto/');
+
+  const user = await User.findByIdAndUpdate(
+    req.user._id,
+    { $set: { profilePicture: optimizedUrl } }, // Save the optimized URL
+    { new: true }
+  ).select("-password -refreshToken");
+  
   return res.status(200).json(new ApiResponse(200, user, "Avatar updated successfully"));
 });
 
 const deleteUserAvatar = asyncHandler(async (req, res) => {
-    const user = await User.findByIdAndUpdate(
-        req.user._id,
-        { $set: { profilePicture: '' } },
-        { new: true }
-    ).select("-password -refreshToken");
+    const user = await User.findByIdAndUpdate(req.user._id, { $set: { profilePicture: '' } }, { new: true }).select("-password -refreshToken");
     return res.status(200).json(new ApiResponse(200, user, "Avatar removed successfully"));
 });
 
@@ -138,64 +166,30 @@ const changePassword = asyncHandler(async (req, res) => {
     return res.status(200).json(new ApiResponse(200, {}, "Password changed successfully."));
 });
 
+const markUserAsWelcomed = asyncHandler(async (req, res) => {
+    const user = await User.findByIdAndUpdate(
+        req.user._id,
+        { $set: { welcomed: true } },
+        { new: true }
+    ).select("-password -refreshToken");
+    
+    // Return the updated user object in the response
+    return res.status(200).json(new ApiResponse(200, user, "User marked as welcomed."));
+});
+
 const getUserProfile = asyncHandler(async (req, res) => {
   const { username } = req.params;
   const user = await User.findOne({ username }).select("-password -refreshToken -role");
   if (!user) throw new ApiError(404, "User not found");
-
   const { earnedBadges, swapsCompleted, skillsOfferedCount } = await calculateBadges(user);
-
   const [skills, bookmarks] = await Promise.all([
     Skill.find({ user: user._id, type: 'OFFER' }).sort({ createdAt: -1 }),
     Skill.find({ bookmarkedBy: user._id }).populate('user', 'username profilePicture').sort({ createdAt: -1 })
   ]);
-  
-  const profileData = {
-    ...user.toObject(),
-    skillsOfferedCount,
-    swapsCompleted,
-    skills,
-    bookmarks,
-    badges: earnedBadges
-  };
-  
+  const profileData = { ...user.toObject(), skillsOfferedCount, swapsCompleted, skills, bookmarks, badges: earnedBadges };
   return res.status(200).json(new ApiResponse(200, profileData, "User profile fetched successfully"));
 });
 
-const updateAccountDetails = asyncHandler(async (req, res) => {
-    const { username, email } = req.body;
-
-    if (!username || !email) {
-        throw new ApiError(400, "Username and email are required.");
-    }
-    
-    // Check if the new username or email is already taken by another user
-    const existingUser = await User.findOne({ 
-        $or: [{ username }, { email }],
-        _id: { $ne: req.user._id } // Exclude the current user from the check
-    });
-
-    if (existingUser) {
-        throw new ApiError(409, "Username or email is already in use by another account.");
-    }
-
-    const updatedUser = await User.findByIdAndUpdate(
-        req.user._id,
-        { $set: { username, email } },
-        { new: true }
-    ).select("-password -refreshToken");
-
-    return res.status(200).json(new ApiResponse(200, updatedUser, "Account details updated successfully."));
-});
 export {
-  registerUser,
-  loginUser,
-  logoutUser,
-  getCurrentUser,
-  updateUserProfile,
-  updateUserAvatar,
-  deleteUserAvatar,
-  changePassword,
-  getUserProfile,
-  updateAccountDetails
+  registerUser, loginUser, logoutUser, getCurrentUser, updateUserProfile, updateAccountDetails, updateUserAvatar, deleteUserAvatar, changePassword, markUserAsWelcomed, getUserProfile
 };
