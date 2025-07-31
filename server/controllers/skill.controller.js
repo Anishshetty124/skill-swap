@@ -247,27 +247,28 @@ const getYoutubePlaceholders = asyncHandler(async (req, res) => {
 
 
 const getRecommendedSkills = asyncHandler(async (req, res) => {
+  const userId = req.user._id;
   let recommendedSkills = [];
-  
-  if (req.user) {
-    const userBookmarks = await Skill.find({ bookmarkedBy: req.user._id }).select('category tags');
 
-    if (userBookmarks.length > 0) {
-      const categories = [...new Set(userBookmarks.map(skill => skill.category))];
-      
-      recommendedSkills = await Skill.find({
-        category: { $in: categories },
-        user: { $ne: req.user._id }
-      })
-      .sort({ createdAt: -1 })
-      .limit(5)
-      .populate('user', 'username');
-    }
+  // Find the user's bookmarked skills
+  const userBookmarks = await Skill.find({ bookmarkedBy: userId }).select('category');
+
+  if (userBookmarks.length > 0) {
+    const categories = [...new Set(userBookmarks.map(skill => skill.category))];
+    
+    // Find other skills in the same categories, excluding the user's own
+    recommendedSkills = await Skill.find({
+      category: { $in: categories },
+      user: { $ne: userId } // Exclude the user's own skills
+    })
+    .sort({ createdAt: -1 })
+    .limit(5)
+    .populate('user', 'username');
   }
 
-  // Fallback: If no recommendations are found (or user is not logged in), get the latest skills
+  // Fallback: If no recommendations are found, get the latest skills from other users
   if (recommendedSkills.length === 0) {
-    recommendedSkills = await Skill.find({ user: { $ne: req.user?._id } })
+    recommendedSkills = await Skill.find({ user: { $ne: userId } })
       .sort({ createdAt: -1 })
       .limit(5)
       .populate('user', 'username');
@@ -277,15 +278,18 @@ const getRecommendedSkills = asyncHandler(async (req, res) => {
 });
 
 const generateSkillDescription = asyncHandler(async (req, res) => {
-  const { title } = req.body;
-  if (!title) {
-    throw new ApiError(400, "A title is required to generate a description.");
+  const { title, type } = req.body; // Get the type from the request
+  if (!title || !type) {
+    throw new ApiError(400, "A title and type are required to generate a description.");
   }
 
   const genAI = new GoogleGenerativeAI(process.env.GOOGLE_API_KEY);
   const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash"});
 
-  const prompt = `Based on the skill title "${title}", generate a friendly and appealing 1-2 sentence description for a skill-swapping website. The user is offering to teach this skill.`;
+  // Dynamically change the prompt based on the skill type
+  const prompt = type === 'OFFER'
+    ? `Based on the skill title "${title}", generate a friendly and appealing 1-2 sentence description for a skill-swapping website. The user is offering to teach this skill.`
+    : `Based on the skill title "${title}", generate a friendly and appealing 1-2 sentence description for a skill-swapping website. The user is requesting to learn this skill.`;
 
   const result = await model.generateContent(prompt);
   const response = await result.response;
@@ -293,6 +297,7 @@ const generateSkillDescription = asyncHandler(async (req, res) => {
 
   return res.status(200).json(new ApiResponse(200, { description }, "Description generated successfully"));
 });
+
 export {
   createSkill,
   getAllSkills,

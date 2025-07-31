@@ -50,7 +50,11 @@ const CreateSkillPage = () => {
     }
     setIsGenerating(true);
     try {
-      const response = await apiClient.post('/skills/generate-description', { title: formData.title });
+      // Send both the title and the type to the backend
+      const response = await apiClient.post('/skills/generate-description', { 
+        title: formData.title,
+        type: formData.type 
+      });
       setFormData(prev => ({ ...prev, description: response.data.data.description }));
     } catch (error) {
       toast.error("Failed to generate description.");
@@ -79,7 +83,7 @@ const CreateSkillPage = () => {
       <form onSubmit={handleSubmit} className="space-y-6">
         <div>
           <label className="block text-sm font-medium mb-1">I want to:</label>
-          <select name="type" value={formData.type} onChange={handleChange} className="w-full px-3 py-2 mt-1 bg-white dark:bg-slate-700 text-slate-800 dark:text-slate-200 border rounded-md">
+          <select name="type" value={formData.type} onChange={handleChange} className="w-full px-3 py-2 mt-1 bg-white dark:bg-slate-700 rounded-md">
             <option value="OFFER">Offer a Skill</option>
             <option value="REQUEST">Request a Skill</option>
           </select>
@@ -87,12 +91,12 @@ const CreateSkillPage = () => {
         
         <div>
           <label className="block text-sm font-medium mb-1">Title</label>
-          <input type="text" name="title" value={formData.title} onChange={handleChange} required className="w-full px-3 py-2 mt-1 bg-white dark:bg-slate-700 text-slate-800 dark:text-slate-200 border rounded-md"/>
+          <input type="text" name="title" value={formData.title} onChange={handleChange} required className="w-full px-3 py-2 mt-1 bg-white dark:bg-slate-700 rounded-md"/>
         </div>
 
         <div>
           <label className="block text-sm font-medium mb-1">Category</label>
-          <select name="category" value={formData.category} onChange={handleChange} required className="w-full px-3 py-2 mt-1 bg-white dark:bg-slate-700 text-slate-800 dark:text-slate-200 border rounded-md">
+          <select name="category" value={formData.category} onChange={handleChange} required className="w-full px-3 py-2 mt-1 bg-white dark:bg-slate-700 rounded-md">
             <option value="">-- Select a Category --</option>
             {skillCategories.map(cat => <option key={cat} value={cat}>{cat}</option>)}
           </select>
@@ -111,7 +115,7 @@ const CreateSkillPage = () => {
               {isGenerating ? 'Generating...' : 'Generate with AI'}
             </button>
           </div>
-          <textarea name="description" value={formData.description} onChange={handleChange} rows="4" className="w-full px-3 py-2 mt-1 bg-white dark:bg-slate-700 text-slate-800 dark:text-slate-200 border rounded-md"></textarea>
+          <textarea name="description" value={formData.description} onChange={handleChange} rows="4" className="w-full px-3 py-2 mt-1 bg-white dark:bg-slate-700 rounded-md"></textarea>
         </div>
         
         {formData.type === 'OFFER' && (
@@ -124,7 +128,7 @@ const CreateSkillPage = () => {
                 value={formData.desiredSkill} 
                 onChange={handleChange} 
                 placeholder="e.g., Help with a logo, guitar lessons..."
-                className="w-full px-3 py-2 mt-1 bg-white dark:bg-slate-700 text-slate-800 dark:text-slate-200 border rounded-md"
+                className="w-full px-3 py-2 mt-1 bg-white dark:bg-slate-700 rounded-md"
               />
             </div>
 
@@ -136,7 +140,7 @@ const CreateSkillPage = () => {
                 value={formData.costInCredits} 
                 onChange={handleChange} 
                 min="0"
-                className="w-full px-3 py-2 mt-1 bg-white dark:bg-slate-700 text-slate-800 dark:text-slate-200 border rounded-md"
+                className="w-full px-3 py-2 mt-1 bg-white dark:bg-slate-700 rounded-md"
               />
             </div>
           </>
@@ -144,7 +148,7 @@ const CreateSkillPage = () => {
         
         <div>
           <label className="block text-sm font-medium mb-1">Skill Level</label>
-          <select name="level" value={formData.level} onChange={handleChange} className="w-full px-3 py-2 mt-1 bg-white dark:bg-slate-700 text-slate-800 dark:text-slate-200 border rounded-md">
+          <select name="level" value={formData.level} onChange={handleChange} className="w-full px-3 py-2 mt-1 bg-white dark:bg-slate-700 rounded-md">
             <option>Beginner</option>
             <option>Intermediate</option>
             <option>Expert</option>

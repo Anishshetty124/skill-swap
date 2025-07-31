@@ -12,31 +12,36 @@ import {
   rateSkill,
   getLocationSuggestions,
   getKeywordSuggestions,
-  getYoutubeTutorials,
   getYoutubePlaceholders,
+  getAllSkillsUnpaginated,
   getRecommendedSkills,
-  generateSkillDescription,
+  generateSkillDescription
 } from '../controllers/skill.controller.js';
 import { verifyJWT } from '../middlewares/auth.middleware.js';
 
 const router = Router();
 
-router.route('/keyword-suggestions').get(getKeywordSuggestions); 
+// --- Public Routes ---
+router.route('/all').get(getAllSkillsUnpaginated);
+router.route('/keyword-suggestions').get(getKeywordSuggestions);
 router.route('/locations').get(getLocationSuggestions);
 router.route('/youtube-placeholders').get(getYoutubePlaceholders);
-router.route('/youtube-tutorials').get(getYoutubeTutorials); 
-router.route('/recommendations').get(getRecommendedSkills);
 router.route('/nearby').get(getNearbySkills);
 router.route('/').get(getAllSkills);
-router.route('/:skillId').get(getSkillById);
 
-// --- Secured Routes --- (Requires a logged-in user)
-router.use(verifyJWT); // Middleware is applied to all routes defined BELOW this line
-router.route('/').post(createSkill);
+// --- Secured Routes ---
+router.use(verifyJWT); // All routes below this line are protected
+
+// Specific secured routes
+router.route('/recommendations').get(getRecommendedSkills);
 router.route('/generate-description').post(generateSkillDescription);
-router.route('/:skillId').patch(updateSkill).delete(deleteSkill);
+router.route('/').post(createSkill);
+
+// Dynamic routes (public and secured) must be last
+router.route('/:skillId').get(getSkillById); // Public GET for a single skill
+router.route('/:skillId').patch(updateSkill).delete(deleteSkill); // Secured PATCH/DELETE
 router.route('/:skillId/matches').get(getMatchingSkills);
 router.route('/:skillId/bookmark').post(bookmarkSkill).delete(unbookmarkSkill);
-router.route('/:skillId/rate').post(rateSkill); // Add this line
+router.route('/:skillId/rate').post(rateSkill);
 
 export default router;
