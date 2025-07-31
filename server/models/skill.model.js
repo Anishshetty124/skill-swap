@@ -24,6 +24,11 @@ const skillSchema = new Schema({
     default: 1,
     min: 0
   },
+  creditsOffered: {
+    type: Number,
+    default: 1,
+    min: 0
+  },
   desiredSkill: { type: String, trim: true },
 }, { timestamps: true });
 

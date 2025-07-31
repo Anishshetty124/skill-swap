@@ -17,6 +17,7 @@ const CreateSkillPage = () => {
     level: 'Intermediate',
     locationString: 'Remote',
     costInCredits: 1,
+    creditsOffered: 1,
     desiredSkill: '',
   });
   const [loading, setLoading] = useState(false);
@@ -31,7 +32,8 @@ const CreateSkillPage = () => {
         category: skillToClone.category,
         level: skillToClone.level,
         locationString: skillToClone.locationString,
-        costInCredits: skillToClone.costInCredits,
+        costInCredits: skillToClone.costInCredits || 1,
+        creditsOffered: skillToClone.creditsOffered || 1,
         desiredSkill: skillToClone.desiredSkill
       });
     }
@@ -51,11 +53,11 @@ const CreateSkillPage = () => {
     setIsGenerating(true);
     try {
       const response = await apiClient.post('/skills/ai-generate', { 
-        context: 'generate-description', 
+        context: 'generate-description',
         title: formData.title,
         type: formData.type 
       });
-      setFormData(prev => ({ ...prev, description: response.data.data.response })); 
+      setFormData(prev => ({ ...prev, description: response.data.data.response }));
     } catch (error) {
       toast.error("Failed to generate description.");
     } finally {
@@ -78,7 +80,7 @@ const CreateSkillPage = () => {
   };
 
   return (
-    <div className="max-w-2xl mx-auto p-8 bg-white dark:bg-slate-800 rounded-lg shadow-md">
+    <div className="max-w-2xl mx-auto p-8 bg-gray-200 dark:bg-slate-800 rounded-lg shadow-md">
       <h1 className="text-3xl font-bold text-center mb-6">Post a Skill</h1>
       <form onSubmit={handleSubmit} className="space-y-6">
         <div>
@@ -118,7 +120,7 @@ const CreateSkillPage = () => {
           <textarea name="description" value={formData.description} onChange={handleChange} rows="4" className="w-full px-3 py-2 mt-1 bg-white dark:bg-slate-700 rounded-md"></textarea>
         </div>
         
-        {formData.type === 'OFFER' && (
+        {formData.type === 'OFFER' ? (
           <>
             <div>
               <label className="block text-sm font-medium mb-1">What I Want in Return (Optional)</label>
@@ -144,6 +146,18 @@ const CreateSkillPage = () => {
               />
             </div>
           </>
+        ) : (
+          <div>
+            <label className="block text-sm font-medium mb-1">Credits I'm Offering</label>
+            <input 
+              type="number" 
+              name="creditsOffered"
+              value={formData.creditsOffered} 
+              onChange={handleChange} 
+              min="0"
+              className="w-full px-3 py-2 mt-1 bg-white dark:bg-slate-700 rounded-md"
+            />
+          </div>
         )}
         
         <div>
@@ -155,7 +169,7 @@ const CreateSkillPage = () => {
           </select>
         </div>
 
-        <button type="submit" disabled={loading} className="w-full px-4 py-3 font-bold text-white bg-accent-600 rounded-md hover:bg-accent-700 disabled:opacity-50">
+        <button type="submit" disabled={loading} className="w-full px-4 py-3 font-bold text-white bg-blue-600 rounded-md hover:bg-accent-700 disabled:opacity-50">
           {loading ? 'Posting...' : 'Post Skill'}
         </button>
       </form>

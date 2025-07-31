@@ -390,3 +390,18 @@ When a user's profile is loaded (getUserProfile), to display their current badge
 When a proposal is accepted (respondToProposal), to check if a new badge has just been earned and send a real-time notification via Socket.IO if it has.
 
 Frontend: The /client/src/pages/ProfilePage.jsx receives the array of badge names from the backend. It then maps over this array, rendering a reusable /client/src/components/profile/Badge.jsx component for each badge. The Badge.jsx component contains a dictionary that maps badge names to specific colors and icons from the Heroicons library for a visually appealing display.
+
+✨ AI-Powered Features & Smart Tagging
+This project integrates modern AI and Natural Language Processing (NLP) to enhance user experience and search functionality.
+
+🤖 Generative AI Integration (Google Gemini)
+AI Skill Assistant: A floating chat widget allows users to have a conversation with a Gemini-powered AI. The AI is prompted to be a helpful guide for learning new skills, providing encouragement and information. It is also programmed to reject off-topic questions, keeping the conversation focused.
+
+AI Description Generation: When posting a new skill, users can click a button to have the AI automatically write a friendly and appealing description based on the skill's title and type (Offer/Request). This saves the user time and improves the quality of listings.
+
+Backend Implementation: All AI calls are handled securely through a dedicated backend endpoint (/api/v1/skills/ai-generate). This protects the GOOGLE_API_KEY and allows for complex, context-aware prompts to be sent to the Gemini 1.5 Flash model.
+
+🏷️ Automatic Skill Tagging (NLP)
+How it Works: When a user creates a new skill, the backend uses the natural NLP library to analyze the title and description. It performs a TF-IDF (Term Frequency-Inverse Document Frequency) analysis to identify the most important and relevant keywords.
+
+Benefits: The top 5 keywords are automatically saved as "tags" for the skill. This significantly improves the search functionality, allowing users to find relevant skills even if their search query doesn't exactly match the title.

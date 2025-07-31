@@ -60,7 +60,7 @@ const Dashboard = () => {
         </button>
       </div>
 
-      <div className="p-6 bg-white dark:bg-slate-800 rounded-b-md rounded-r-md">
+      <div className="p-6 bg-gray-200 dark:bg-slate-800 rounded-b-md rounded-r-md">
         {loading ? (
           <p className="text-center">Loading proposals...</p>
         ) : error ? (

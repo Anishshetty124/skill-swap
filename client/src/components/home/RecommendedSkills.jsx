@@ -10,6 +10,11 @@ const RecommendedSkills = () => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    const token = localStorage.getItem('accessToken');
+  if (!isAuthenticated || !token) {
+    setLoading(false);
+    return;
+  }
     setLoading(true);
     apiClient.get('/skills/recommendations')
       .then(response => {

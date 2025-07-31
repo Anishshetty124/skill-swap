@@ -144,9 +144,10 @@ const Navbar = () => {
             isMenuOpen ? "block" : "hidden"
           }`}
         >
-          <div className="flex flex-col items-stretch space-y-2 p-4">
-            {mobileNavLinks}
-          </div>
+         <div className="flex flex-col items-stretch divide-y divide-slate-300 dark:divide-slate-700 p-2">
+  {mobileNavLinks}
+</div>
+
         </div>
       </div>
     </header>

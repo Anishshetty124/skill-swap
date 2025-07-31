@@ -17,19 +17,53 @@ const categorySubtopics = {
   Writing: ["Creative Writing Prompts", "How to Write a Novel", "Screenwriting for Beginners", "Copywriting Tips", "Better Storytelling", "Poetry for Beginners", "Writing a Blog Post", "Editing Your Own Work", "Building Fictional Worlds", "Character Development", "Technical Writing Basics", "Freelance Writing Guide", "How to Overcome Writer's Block", "Journaling for Clarity", "Writing Dialogue"],
 };
 
+const generateTags = (text) => {
+  if (!text) return [];
+  const tokenizer = new WordTokenizer();
+  const tfidf = new TfIdf();
+  tfidf.addDocument(text.toLowerCase());
+  return tfidf.listTerms(0).slice(0, 5).map(item => item.term);
+};
+
 const createSkill = asyncHandler(async (req, res) => {
-  const { type, title, description, category, level, locationString, desiredSkill, costInCredits } = req.body;
+  const { type, title, description, category, level, availability, locationString, desiredSkill, costInCredits, creditsOffered } = req.body;
+  
   if (!type || !title || !category) {
     throw new ApiError(400, 'Type, title, and category are required');
   }
+
+  const tags = generateTags(`${title} ${description}`);
+  
   const skillData = { 
-    user: req.user._id, type, title, description, category, level, 
-    locationString, desiredSkill, costInCredits 
+    user: req.user._id, 
+    type, 
+    title, 
+    description, 
+    category, 
+    level, 
+    availability, 
+    tags, 
+    locationString, 
+    desiredSkill, 
+    costInCredits, 
+    creditsOffered 
   };
+
+  if (locationString && locationString.toLowerCase() !== 'remote') {
+    try {
+      const geoData = await opencage.geocode({ q: locationString, limit: 1, key: process.env.OPENCAGE_API_KEY });
+      if (geoData.results.length > 0) {
+        const { lng, lat } = geoData.results[0].geometry;
+        skillData.geoCoordinates = { type: 'Point', coordinates: [lng, lat] };
+      }
+    } catch (error) {
+      console.error("Geocoding failed for skill:", error.message);
+    }
+  }
+
   const skill = await Skill.create(skillData);
   return res.status(201).json(new ApiResponse(201, skill, 'Skill posted successfully'));
 });
-
 
 const escapeRegex = (text) => {
   return text.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, '\\$&');
@@ -110,10 +144,32 @@ const getSkillById = asyncHandler(async (req, res) => {
 
 const updateSkill = asyncHandler(async (req, res) => {
     const { skillId } = req.params;
-    const { title, description, category, level, locationString, desiredSkill, costInCredits } = req.body;
-    const updatedData = { title, description, category, level, locationString, desiredSkill, costInCredits };
+    const { title, description, category, level, availability, locationString, desiredSkill, costInCredits, creditsOffered } = req.body;
+    
+    const updatedData = { 
+      title, 
+      description, 
+      category, 
+      level, 
+      availability, 
+      locationString, 
+      desiredSkill, 
+      costInCredits, 
+      creditsOffered 
+    };
+    
+    if (title || description) {
+        const skill = await Skill.findById(skillId);
+        const newText = `${title || skill.title} ${description || skill.description}`;
+        updatedData.tags = generateTags(newText);
+    }
+
     const updatedSkill = await Skill.findByIdAndUpdate(skillId, { $set: updatedData }, { new: true, runValidators: true });
-    if (!updatedSkill) throw new ApiError(404, "Skill not found");
+    
+    if (!updatedSkill) {
+      throw new ApiError(404, "Skill not found");
+    }
+
     return res.status(200).json(new ApiResponse(200, updatedSkill, "Skill updated successfully"));
 });
 
@@ -283,33 +339,40 @@ const getRecommendedSkills = asyncHandler(async (req, res) => {
 });
 
 const generateAiContent = asyncHandler(async (req, res) => {
-  const { context, title, type, query } = req.body;
+  const { context, title, type, query, history } = req.body;
 
   if (!context) {
     throw new ApiError(400, "A context is required.");
   }
 
   const genAI = new GoogleGenerativeAI(process.env.GOOGLE_API_KEY);
-  const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash"});
-  let prompt = '';
+  let model;
+  let prompt;
+  let chatHistory = history || [];
 
   switch (context) {
     case 'generate-description':
       if (!title || !type) throw new ApiError(400, "Title and type are required for description generation.");
+      model = genAI.getGenerativeModel({ model: "gemini-1.5-flash"});
       prompt = type === 'OFFER'
-        ? `Based on the skill title "${title}", generate a friendly and appealing 1-2 sentence description for a skill-swapping website. The user is offering to teach this skill.`
-        : `for learning skill-"${title}", generate a friendly and appealing 1-2 sentence description for a skill-swapping website.where the user is requesting to learn this skill.`;
+      ? `Based on the skill title "${title}", generate a friendly and appealing 1-2 sentence description for a skill-swapping website. The user is offering to teach this skill.`
+      : `for learning skill-"${title}", generate a friendly and appealing 1-2 sentence description for a skill-swapping website.where the user is requesting to learn this skill.`;
       break;
     
     case 'ask-ai':
       if (!query) throw new ApiError(400, "A query is required for the AI chat.");
-      prompt = `
-        You are an assistant for a skill-swapping website called SkillSwap. Your role is to provide helpful and encouraging information about learnable skills.
-        First, determine if the user's query '${query}' is about a learnable skill (like "how to learn guitar", "what is javascript", "best way to learn cooking").
-        - If it IS a learnable skill, provide a helpful, concise, and encouraging answer.
-        - If it is NOT a learnable skill (e.g., questions about politics, cars, specific people, or other off-topic subjects), you MUST politely decline. Respond with only this exact phrase: "I can only answer questions about skills you can learn or trade. Please try another topic!"
-        Do not answer any off-topic questions.
-      `;
+      model = genAI.getGenerativeModel({
+        model: "gemini-1.5-flash",
+        // --- NEW, IMPROVED SYSTEM PROMPT ---
+        systemInstruction: `
+          You are "SkillBot", a friendly and encouraging AI assistant for a skill-swapping website.
+          Your primary purpose is to answer questions about learnable skills.
+          - **Formatting is crucial.** Always use Markdown for your responses. Use bullet points for lists, bold text for emphasis,give space between points subcontents and properly formatted code blocks for any code examples.
+          - Maintain the context of the conversation. If the user asks a follow-up question, understand it relates to the previous topic.
+          - If the user asks a question that is clearly NOT about a learnable skill (e.g., politics, celebrities), you MUST politely decline with this exact phrase: "I can only answer questions about skills. Please try another topic!"
+        `,
+      });
+      prompt = query;
       break;
 
     default:
@@ -317,7 +380,8 @@ const generateAiContent = asyncHandler(async (req, res) => {
   }
 
   try {
-    const result = await model.generateContent(prompt);
+    const chat = model.startChat({ history: chatHistory });
+    const result = await chat.sendMessage(prompt);
     const response = await result.response;
     const text = response.text();
     return res.status(200).json(new ApiResponse(200, { response: text }, "AI response generated successfully"));
