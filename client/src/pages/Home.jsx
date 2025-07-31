@@ -24,6 +24,9 @@ const Home = () => {
   const [youtubePlaceholders, setYoutubePlaceholders] = useState([]);
   const [showAllSkills, setShowAllSkills] = useState(false);
   const [searchedKeyword, setSearchedKeyword] = useState('');
+  const [aiQuery, setAiQuery] = useState('');
+  const [aiResponse, setAiResponse] = useState('');
+  const [isAiLoading, setIsAiLoading] = useState(false);
 
   const SKILLS_LIMIT = 6;
 
@@ -186,6 +189,27 @@ const Home = () => {
     const value = e.target.value;
     setLocationQuery(value);
     debouncedLocationFetch(value);
+  };
+
+
+  const handleAiSubmit = async (e) => {
+    e.preventDefault();
+    if (!aiQuery) return;
+    setIsAiLoading(true);
+    setAiResponse('');
+
+    try {
+      const response = await apiClient.post('/skills/ai-generate', { 
+        context: 'ask-ai', 
+        query: aiQuery 
+      });
+      setAiResponse(response.data.data.response); 
+    } catch (error) {
+      console.error("AI Error:", error);
+      setAiResponse(error.response?.data?.message || "Sorry, I'm having trouble connecting to the AI. Please try again later.");
+    } finally {
+      setIsAiLoading(false);
+    }
   };
 
   const skillCategories = ['Tech', 'Art', 'Music', 'Writing', 'Marketing', 'Language', 'Fitness', 'Cooking', 'Crafts'];
@@ -361,6 +385,41 @@ const Home = () => {
 </div>
       </div>
        <RecommendedSkills />
+
+        {/* --- ASK AI SECTION --- */}
+      <div className="mt-16 text-center">
+        <h2 className="text-3xl font-bold mb-4">Ask AI About Skills</h2>
+        <p className="mb-8 text-slate-600 dark:text-slate-400">Curious about a skill? Ask our AI assistant!</p>
+        <form onSubmit={handleAiSubmit} className="max-w-xl mx-auto flex gap-2">
+          <input 
+            type="text" 
+            value={aiQuery}
+            onChange={(e) => setAiQuery(e.target.value)}
+            placeholder="e.g., What's the best way to start learning guitar?"
+            className="w-full px-4 py-3 bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-700 border rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-accent-500"
+          />
+          <button 
+            type="submit" 
+            disabled={isAiLoading}
+            className="px-6 py-3 bg-gradient-to-r from-blue-600 to-cyan-500 text-white font-semibold rounded-lg shadow-md hover:scale-105 transition-transform duration-300 disabled:opacity-50 disabled:scale-100"
+          >
+            {isAiLoading ? 'Thinking...' : 'Ask'}
+          </button>
+        </form>
+
+        {isAiLoading && (
+          <div className="mt-8 text-center">
+            <p className="text-slate-500">Our AI is thinking...</p>
+          </div>
+        )}
+
+        {aiResponse && (
+          <div className="mt-8 max-w-xl mx-auto p-6 bg-white dark:bg-slate-800 rounded-lg shadow-lg text-left">
+            <p className="whitespace-pre-wrap">{aiResponse}</p>
+          </div>
+        )}
+      </div>
+
       
       <div className="mt-16 text-center">
           <h2 className="text-3xl font-bold mb-8">How SkillSwap Works</h2>

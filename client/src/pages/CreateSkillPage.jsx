@@ -50,12 +50,12 @@ const CreateSkillPage = () => {
     }
     setIsGenerating(true);
     try {
-      // Send both the title and the type to the backend
-      const response = await apiClient.post('/skills/generate-description', { 
+      const response = await apiClient.post('/skills/ai-generate', { 
+        context: 'generate-description', 
         title: formData.title,
         type: formData.type 
       });
-      setFormData(prev => ({ ...prev, description: response.data.data.description }));
+      setFormData(prev => ({ ...prev, description: response.data.data.response })); 
     } catch (error) {
       toast.error("Failed to generate description.");
     } finally {

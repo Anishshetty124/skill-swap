@@ -15,7 +15,6 @@ const categorySubtopics = {
   Art: ["Digital Painting for Beginners", "Character Design Tips", "Perspective Drawing Basics", "Color Theory Explained", "How to Use Procreate", "Watercolor Techniques", "3D Modeling in Blender", "Sketching Fundamentals", "Pixel Art Tutorial", "Understanding Composition", "Creating Digital Illustrations", "Abstract Art Techniques", "Clay Sculpting Basics", "Figure Drawing", "Concept Art for Games"],
   Music: ["Beginner Guitar Chords", "How to Read Sheet Music", "Music Theory 101", "Singing Lessons for Beginners", "Making a Beat in FL Studio", "Piano Basics", "Ukulele First Lesson", "How to Use a DAW", "Songwriting for Beginners", "Drumming Fundamentals", "Music Production Basics", "Mixing and Mastering", "Learn to DJ", "Violin for Beginners", "Bass Guitar Basics"],
   Writing: ["Creative Writing Prompts", "How to Write a Novel", "Screenwriting for Beginners", "Copywriting Tips", "Better Storytelling", "Poetry for Beginners", "Writing a Blog Post", "Editing Your Own Work", "Building Fictional Worlds", "Character Development", "Technical Writing Basics", "Freelance Writing Guide", "How to Overcome Writer's Block", "Journaling for Clarity", "Writing Dialogue"],
-  // Add other categories here
 };
 
 const createSkill = asyncHandler(async (req, res) => {
@@ -31,18 +30,24 @@ const createSkill = asyncHandler(async (req, res) => {
   return res.status(201).json(new ApiResponse(201, skill, 'Skill posted successfully'));
 });
 
+
+const escapeRegex = (text) => {
+  return text.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, '\\$&');
+};
+
 const getAllSkills = asyncHandler(async (req, res) => {
   const { page = 1, limit = 6, category, keywords, userId, location, level } = req.query;
   const query = {};
 
   if (category) query.category = category;
   if (keywords) {
-    query.title = { $regex: new RegExp(keywords, 'i') };
+    const regex = new RegExp(escapeRegex(keywords), 'i'); // Use the escaped regex
+    query.title = { $regex: regex };
   }
   if (userId) query.user = userId;
   if (level) query.level = level;
   if (location) {
-    query.locationString = { $regex: new RegExp(location, 'i') };
+    query.locationString = { $regex: new RegExp(escapeRegex(location), 'i') };
   }
 
   const skills = await Skill.find(query)
@@ -277,25 +282,49 @@ const getRecommendedSkills = asyncHandler(async (req, res) => {
   return res.status(200).json(new ApiResponse(200, recommendedSkills, "Recommended skills fetched successfully"));
 });
 
-const generateSkillDescription = asyncHandler(async (req, res) => {
-  const { title, type } = req.body; // Get the type from the request
-  if (!title || !type) {
-    throw new ApiError(400, "A title and type are required to generate a description.");
+const generateAiContent = asyncHandler(async (req, res) => {
+  const { context, title, type, query } = req.body;
+
+  if (!context) {
+    throw new ApiError(400, "A context is required.");
   }
 
   const genAI = new GoogleGenerativeAI(process.env.GOOGLE_API_KEY);
   const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash"});
+  let prompt = '';
 
-  // Dynamically change the prompt based on the skill type
-  const prompt = type === 'OFFER'
-    ? `Based on the skill title "${title}", generate a friendly and appealing 1-2 sentence description for a skill-swapping website. The user is offering to teach this skill.`
-    : `Based on the skill title "${title}", generate a friendly and appealing 1-2 sentence description for a skill-swapping website. The user is requesting to learn this skill.`;
+  switch (context) {
+    case 'generate-description':
+      if (!title || !type) throw new ApiError(400, "Title and type are required for description generation.");
+      prompt = type === 'OFFER'
+        ? `Based on the skill title "${title}", generate a friendly and appealing 1-2 sentence description for a skill-swapping website. The user is offering to teach this skill.`
+        : `for learning skill-"${title}", generate a friendly and appealing 1-2 sentence description for a skill-swapping website.where the user is requesting to learn this skill.`;
+      break;
+    
+    case 'ask-ai':
+      if (!query) throw new ApiError(400, "A query is required for the AI chat.");
+      prompt = `
+        You are an assistant for a skill-swapping website called SkillSwap. Your role is to provide helpful and encouraging information about learnable skills.
+        First, determine if the user's query '${query}' is about a learnable skill (like "how to learn guitar", "what is javascript", "best way to learn cooking").
+        - If it IS a learnable skill, provide a helpful, concise, and encouraging answer.
+        - If it is NOT a learnable skill (e.g., questions about politics, cars, specific people, or other off-topic subjects), you MUST politely decline. Respond with only this exact phrase: "I can only answer questions about skills you can learn or trade. Please try another topic!"
+        Do not answer any off-topic questions.
+      `;
+      break;
 
-  const result = await model.generateContent(prompt);
-  const response = await result.response;
-  const description = response.text();
+    default:
+      throw new ApiError(400, "Invalid AI context provided.");
+  }
 
-  return res.status(200).json(new ApiResponse(200, { description }, "Description generated successfully"));
+  try {
+    const result = await model.generateContent(prompt);
+    const response = await result.response;
+    const text = response.text();
+    return res.status(200).json(new ApiResponse(200, { response: text }, "AI response generated successfully"));
+  } catch (error) {
+    console.error("Google AI Error:", error);
+    throw new ApiError(500, "The AI service is currently unavailable.");
+  }
 });
 
 export {
@@ -315,5 +344,5 @@ export {
   getYoutubeTutorials,
   getYoutubePlaceholders,
   getRecommendedSkills,
-  generateSkillDescription
+  generateAiContent
 };

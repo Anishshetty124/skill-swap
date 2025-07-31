@@ -12,34 +12,41 @@ import {
   rateSkill,
   getLocationSuggestions,
   getKeywordSuggestions,
+  getYoutubeTutorials,
   getYoutubePlaceholders,
   getAllSkillsUnpaginated,
   getRecommendedSkills,
-  generateSkillDescription
+  generateAiContent
 } from '../controllers/skill.controller.js';
 import { verifyJWT } from '../middlewares/auth.middleware.js';
 
 const router = Router();
 
-// --- Public Routes ---
+// --- PUBLIC ROUTES ---
+// All specific, non-dynamic routes must come first.
 router.route('/all').get(getAllSkillsUnpaginated);
 router.route('/keyword-suggestions').get(getKeywordSuggestions);
 router.route('/locations').get(getLocationSuggestions);
+router.route('/youtube-tutorials').get(getYoutubeTutorials); // This was causing the error
 router.route('/youtube-placeholders').get(getYoutubePlaceholders);
 router.route('/nearby').get(getNearbySkills);
 router.route('/').get(getAllSkills);
 
-// --- Secured Routes ---
-router.use(verifyJWT); // All routes below this line are protected
+// --- SECURED ROUTES ---
+// The JWT verification middleware is applied here.
+router.use(verifyJWT);
 
-// Specific secured routes
+// Specific secured routes must come before dynamic secured routes.
+router.route('/ai-generate').post(generateAiContent);
 router.route('/recommendations').get(getRecommendedSkills);
-router.route('/generate-description').post(generateSkillDescription);
 router.route('/').post(createSkill);
 
-// Dynamic routes (public and secured) must be last
-router.route('/:skillId').get(getSkillById); // Public GET for a single skill
-router.route('/:skillId').patch(updateSkill).delete(deleteSkill); // Secured PATCH/DELETE
+// --- DYNAMIC ROUTES (MUST BE LAST) ---
+router.route('/:skillId')
+  .get(getSkillById) // Public GET for a single skill
+  .patch(updateSkill) // Secured PATCH
+  .delete(deleteSkill); // Secured DELETE
+
 router.route('/:skillId/matches').get(getMatchingSkills);
 router.route('/:skillId/bookmark').post(bookmarkSkill).delete(unbookmarkSkill);
 router.route('/:skillId/rate').post(rateSkill);
