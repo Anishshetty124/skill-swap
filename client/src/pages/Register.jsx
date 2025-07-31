@@ -85,7 +85,7 @@ const Register = () => {
             </div>
           </div>
           
-          <button type="submit" className="w-full px-4 py-2 font-bold text-white bg-accent-600 rounded-md hover:bg-accent-700">Register</button>
+          <button type="submit" className="w-full px-4 py-2 font-bold text-white bg-blue-500 rounded-md hover:bg-accent-700">Register</button>
         </form>
 
         {error && <p className="text-sm text-center text-red-500">{error}</p>}

@@ -250,38 +250,11 @@ const getYoutubeTutorials = asyncHandler(async (req, res) => {
 const getYoutubePlaceholders = asyncHandler(async (req, res) => {
   const allTopics = Object.values(categorySubtopics).flat();
   const shuffled = allTopics.sort(() => 0.5 - Math.random());
-  const selected = shuffled.slice(0, 8);
+  const selected = shuffled.slice(0, 12);
   return res.status(200).json(new ApiResponse(200, selected, "YouTube placeholders fetched"));
 });
 
-const getPersonalizedYoutubePlaceholders = asyncHandler(async (req, res) => {
-  const userId = req.user._id;
-  const [postedSkills, bookmarkedSkills] = await Promise.all([
-    Skill.find({ user: userId }).select('category'),
-    Skill.find({ bookmarkedBy: userId }).select('category')
-  ]);
-  const allCategories = [...postedSkills, ...bookmarkedSkills].map(s => s.category);
-  let personalizedTopics = [];
-  if (allCategories.length > 0) {
-    const categoryCounts = allCategories.reduce((acc, cat) => {
-      acc[cat] = (acc[cat] || 0) + 1;
-      return acc;
-    }, {});
-    const topCategories = Object.keys(categoryCounts).sort((a, b) => categoryCounts[b] - categoryCounts[a]);
-    topCategories.forEach(cat => {
-      if (categorySubtopics[cat]) {
-        personalizedTopics.push(...categorySubtopics[cat]);
-      }
-    });
-  }
-  if (personalizedTopics.length < 15) {
-    const allTopics = Object.values(categorySubtopics).flat();
-    const shuffled = allTopics.sort(() => 0.5 - Math.random());
-    personalizedTopics = [...new Set([...personalizedTopics, ...shuffled])];
-  }
-  const selected = personalizedTopics.slice(0, 15);
-  return res.status(200).json(new ApiResponse(200, selected, "Personalized YouTube placeholders fetched"));
-});
+
 
 
 export {
@@ -300,5 +273,4 @@ export {
   rateSkill,
   getYoutubeTutorials,
   getYoutubePlaceholders,
-  getPersonalizedYoutubePlaceholders
 };

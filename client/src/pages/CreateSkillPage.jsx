@@ -128,7 +128,7 @@ const CreateSkillPage = () => {
           </select>
         </div>
 
-        <button type="submit" disabled={loading} className="w-full px-4 py-3 font-bold text-white bg-accent-600 rounded-md hover:bg-accent-700 disabled:opacity-50">
+        <button type="submit" disabled={loading} className="w-full px-4 py-3 font-bold text-white bg-blue-500 rounded-md hover:bg-accent-700 disabled:opacity-50">
           {loading ? 'Posting...' : 'Post Skill'}
         </button>
       </form>

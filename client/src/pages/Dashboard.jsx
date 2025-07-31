@@ -45,7 +45,7 @@ const Dashboard = () => {
 
   const tabClass = (tabName) => 
     `px-4 py-2 font-semibold rounded-t-md transition-colors duration-200 ${activeTab === tabName 
-      ? 'bg-accent-600 text-white' 
+      ? 'bg-blue-500 text-white' 
       : 'bg-slate-200 dark:bg-slate-700 text-slate-800 dark:text-slate-300 hover:bg-slate-300 dark:hover:bg-slate-600'}`;
 
   return (

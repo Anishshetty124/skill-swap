@@ -162,9 +162,7 @@ const Home = () => {
    const fetchYoutubeContent = async (keyword = '') => {
     setYoutubeLoading(true);
     try {
-      // Assuming 'isAuthenticated' is a prop or context value available here
-      // For this example, I'll assume it's always false or needs to be passed in
-      const isAuthenticated = false; // Placeholder for actual authentication check
+      const isAuthenticated = false; 
       if (keyword) {
         const response = await apiClient.get(`/skills/youtube-tutorials?keyword=${encodeURIComponent(keyword)}`);
         console.log("📺 YouTube API response:", response.data); 
@@ -195,7 +193,7 @@ const Home = () => {
 
   return (
     <div>
-      <div className="w-full bg-gradient-to-r from-blue-600 to-cyan-500 text-white text-center py-20">
+      <div className="w-full bg-gradient-to-r from-blue-600 to-cyan-500 text-white text-center rounded-lg py-20">
         <div className="container mx-auto px-4">
           <h1 className="text-5xl font-extrabold mb-4">Trade What You Do, Learn What You Don't</h1>
           <p className="text-xl opacity-90 mb-8">Join a community where skills are the new currency.</p>
@@ -286,7 +284,7 @@ const Home = () => {
     {[...Array(6)].map((_, index) => <SkillCardSkeleton key={index} />)}
   </div>
 ) : error ? (
-  <p className="text-center p-10 text-red-500">{error}</p>
+  <p className="text-center p-10 text-white-500">{error}</p>
 ) : skills.length > 0 ? (
   <>
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -365,21 +363,21 @@ const Home = () => {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
               <div className="flex flex-col items-center">
                   <div className="p-4 bg-white dark:bg-slate-800 rounded-full shadow-lg mb-4">
-                      <SearchIcon className="h-8 w-8 text-accent-500" />
+                      <SearchIcon className="h-8 w-8 text-blue-500" />
                   </div>
                   <h3 className="text-xl font-semibold mb-2">1. Find a Skill</h3>
                   <p className="text-slate-600 dark:text-slate-400">Browse or search for a skill you want to learn from our talented community.</p>
               </div>
               <div className="flex flex-col items-center">
                   <div className="p-4 bg-white dark:bg-slate-800 rounded-full shadow-lg mb-4">
-                      <ArrowsRightLeftIcon className="h-8 w-8 text-accent-500" />
+                      <ArrowsRightLeftIcon className="h-8 w-8 text-blue-500" />
                   </div>
                   <h3 className="text-xl font-semibold mb-2">2. Propose a Swap</h3>
                   <p className="text-slate-600 dark:text-slate-400">Use your Swap Credits to propose an exchange. You earn credits by offering your own skills.</p>
               </div>
               <div className="flex flex-col items-center">
                   <div className="p-4 bg-white dark:bg-slate-800 rounded-full shadow-lg mb-4">
-                      <UserGroupIcon className="h-8 w-8 text-accent-500" />
+                      <UserGroupIcon className="h-8 w-8 text-blue-500" />
                   </div>
                   <h3 className="text-xl font-semibold mb-2">3. Connect & Learn</h3>
                   <p className="text-slate-600 dark:text-slate-400">Once your proposal is accepted, connect with the user to learn your new skill!</p>

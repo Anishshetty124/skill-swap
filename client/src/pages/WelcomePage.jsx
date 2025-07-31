@@ -13,7 +13,7 @@ const WelcomePage = () => {
         <p className="text-slate-500 dark:text-slate-400 mb-6">to your account for free. Use them to acquire new skills from others.</p>
         <Link 
           to="/login"
-          className="w-full inline-block px-6 py-3 bg-accent-600 text-white font-semibold rounded-lg hover:bg-accent-700"
+          className="w-full inline-block px-6 py-3 bg-blue-600 text-white font-semibold rounded-lg hover:bg-accent-700"
         >
           Continue to Login
         </Link>

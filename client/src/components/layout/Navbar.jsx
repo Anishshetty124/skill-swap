@@ -23,12 +23,12 @@ const Navbar = () => {
 
   const navLinks = (
     <>
-      <Link to="/" className="block py-2 md:py-0 text-slate-600 dark:text-slate-300 hover:text-accent-500" onClick={() => setIsMenuOpen(false)}>Home</Link>
+      <Link to="/" className="block py-2 md:py-0 text-slate-600 dark:text-slate-300 hover:text-blue-500" onClick={() => setIsMenuOpen(false)}>Home</Link>
       {isAuthenticated ? (
         <>
-          <Link to="/my-skills" className="block py-2 md:py-0 text-slate-600 dark:text-slate-300 hover:text-accent-500" onClick={() => setIsMenuOpen(false)}>My Skills</Link>
-          <Link to="/skills/new" className="block py-2 md:py-0 text-slate-600 dark:text-slate-300 hover:text-accent-500" onClick={() => setIsMenuOpen(false)}>Post Skill</Link>
-          <Link to="/dashboard" className="block py-2 md:py-0 text-slate-600 dark:text-slate-300 hover:text-accent-500" onClick={() => setIsMenuOpen(false)}>Dashboard</Link>
+          <Link to="/my-skills" className="block py-2 md:py-0 text-slate-600 dark:text-slate-300 hover:text-blue-500" onClick={() => setIsMenuOpen(false)}>My Skills</Link>
+          <Link to="/skills/new" className="block py-2 md:py-0 text-slate-600 dark:text-slate-300 hover:text-blue-500" onClick={() => setIsMenuOpen(false)}>Post Skill</Link>
+          <Link to="/dashboard" className="block py-2 md:py-0 text-slate-600 dark:text-slate-300 hover:text-blue-500" onClick={() => setIsMenuOpen(false)}>Dashboard</Link>
           <button onClick={() => { logout(); setIsMenuOpen(false); }} className="w-full md:w-auto text-center py-2 md:py-2 md:px-4 bg-red-500 text-white rounded-md hover:bg-red-600">Logout</button>
         </>
       ) : (

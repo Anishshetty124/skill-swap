@@ -132,7 +132,7 @@ const EditProfilePage = () => {
             </div>
           </div>
           
-          <button type="submit" disabled={loading} className="w-full px-4 py-3 font-bold text-white bg-accent-600 rounded-md hover:bg-accent-700 disabled:bg-accent-400">
+          <button type="submit" disabled={loading} className="w-full px-4 py-3 font-bold text-white bg-blue-500 rounded-md hover:bg-accent-700 disabled:bg-accent-400">
             {loading ? 'Saving...' : 'Save Profile Changes'}
           </button>
         </form>

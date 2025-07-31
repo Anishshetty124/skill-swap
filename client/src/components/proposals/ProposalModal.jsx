@@ -98,7 +98,7 @@ const ProposalModal = ({ isOpen, onClose, requestedSkill }) => {
 
           <div className="flex justify-end space-x-4 mt-6">
             <button type="button" onClick={onClose} className="px-4 py-2 rounded-md text-slate-700 bg-slate-200 hover:bg-slate-300">Cancel</button>
-            <button type="submit" disabled={(!canAfford && proposalType === 'credits') || !!success} className="px-4 py-2 rounded-md font-semibold text-white bg-accent-600 hover:bg-accent-700 disabled:bg-slate-400 disabled:cursor-not-allowed">
+            <button type="submit" disabled={(!canAfford && proposalType === 'credits') || !!success} className="px-4 py-2 rounded-md font-semibold text-white bg-blue-500 hover:bg-accent-700 disabled:bg-slate-400 disabled:cursor-not-allowed">
               {success ? 'Sent!' : 'Send Proposal'}
             </button>
           </div>

@@ -27,7 +27,7 @@ const ShareContactModal = ({ isOpen, onClose, onSubmit }) => {
           </div>
           <div className="flex justify-end space-x-4">
             <button type="button" onClick={onClose} className="px-4 py-2 rounded-md text-slate-700 bg-slate-200 hover:bg-slate-300">Skip</button>
-            <button type="submit" className="px-4 py-2 rounded-md font-semibold text-white bg-accent-600 hover:bg-accent-700">Accept & Share</button>
+            <button type="submit" className="px-4 py-2 rounded-md font-semibold text-white bg-blue-500 hover:bg-accent-700">Accept & Share</button>
           </div>
         </form>
       </div>
