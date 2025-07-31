@@ -37,30 +37,36 @@ const EditProfilePage = () => {
     }
   };
 
-  const handleSubmit = async (e) => {
+ const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
-    let updatedUser = { ...user };
+
     try {
+      const profileUpdateRes = await apiClient.patch('/users/me', { bio, locationString, socials });
+      const accountUpdateRes = await apiClient.patch('/users/me/details', { username, email });
+      
+      const textBasedUpdates = { 
+        ...profileUpdateRes.data.data, 
+        ...accountUpdateRes.data.data 
+      };
+      
+      updateUserState(textBasedUpdates);
+      toast.success('Profile updated successfully!');
+      
+      navigate('/');
+
       if (avatarFile) {
         const formData = new FormData();
         formData.append('file', avatarFile);
         formData.append('upload_preset', import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET);
+        
         const cloudinaryRes = await fetch(`https://api.cloudinary.com/v1_1/${import.meta.env.VITE_CLOUDINARY_CLOUD_NAME}/image/upload`, { method: 'POST', body: formData });
         const cloudinaryData = await cloudinaryRes.json();
+        
         const avatarUpdateRes = await apiClient.patch('/users/me/avatar', { avatarUrl: cloudinaryData.secure_url });
-        updatedUser = avatarUpdateRes.data.data;
+        
+        updateUserState(avatarUpdateRes.data.data);
       }
-      
-      // Combine all text-based updates into single requests
-      const profileUpdateRes = await apiClient.patch('/users/me', { bio, locationString, socials });
-      const accountUpdateRes = await apiClient.patch('/users/me/details', { username, email });
-      
-      updatedUser = { ...profileUpdateRes.data.data, ...accountUpdateRes.data.data };
-      
-      login({ user: updatedUser });
-      toast.success('Profile updated successfully!');
-      navigate('/');
     } catch (err) {
       toast.error(err.response?.data?.message || 'Failed to update profile.');
     } finally {

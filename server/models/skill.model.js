@@ -1,84 +1,33 @@
 import mongoose, { Schema } from 'mongoose';
 
-const skillSchema = new Schema(
-  {
-    user: {
-      type: Schema.Types.ObjectId,
-      ref: 'User',
-      required: true,
-    },
-    type: {
-      type: String,
-      enum: ['OFFER', 'REQUEST'],
-      required: true,
-    },
-    title: {
-      type: String,
-      required: true,
-      trim: true,
-      index: true,
-    },
-    description: {
-      type: String,
-      required: true,
-    },
-    category: {
-      type: String,
-      required: true,
-      trim: true,
-      index: true,
-    },
-    level: {
-      type: String,
-      enum: ['Beginner', 'Intermediate', 'Expert'],
-      default: 'Intermediate',
-    },
-    availability: {
-      type: String,
-      default: 'Flexible',
-    },
-    locationString: { // For user's text input
-      type: String,
-      default: 'Remote'
-    },
-    geoCoordinates: { // For GeoJSON data
-      type: {
-        type: String,
-        enum: ['Point'],
-      },
-      coordinates: {
-        type: [Number], // [longitude, latitude]
-      }
-    },
-    status: {
-      type: String,
-      enum: ['active', 'in_progress', 'completed'],
-      default: 'active',
-    },
-    tags: {
-      type: [String],
-      index: true
-    },
-    bookmarkedBy: [{ type: Schema.Types.ObjectId, ref: 'User' }],
-    ratings: [{
-      user: { type: Schema.Types.ObjectId, ref: 'User' },
-      rating: { type: Number, min: 1, max: 5 }
-    }],
-    costInCredits: {
+const ratingSchema = new Schema({
+  user: { type: Schema.Types.ObjectId, ref: 'User', required: true },
+  rating: { type: Number, required: true, min: 1, max: 5 },
+}, { _id: false });
+
+const skillSchema = new Schema({
+  user: { type: Schema.Types.ObjectId, ref: 'User', required: true },
+  type: { type: String, enum: ['OFFER', 'REQUEST'], required: true },
+  title: { type: String, required: true, trim: true },
+  description: { type: String, trim: true },
+  category: { type: String, required: true },
+  level: { type: String, enum: ['Beginner', 'Intermediate', 'Expert'], default: 'Intermediate' },
+  availability: { type: String, default: 'Flexible' },
+  locationString: { type: String, default: 'Remote' },
+  geoCoordinates: { type: { type: String, enum: ['Point'] }, coordinates: { type: [Number] } },
+  tags: [String],
+  status: { type: String, enum: ['active', 'in_progress', 'completed'], default: 'active' },
+  ratings: [ratingSchema],
+  bookmarkedBy: [{ type: Schema.Types.ObjectId, ref: 'User' }],
+  costInCredits: {
     type: Number,
     default: 1,
     min: 0
   },
-  desiredSkill: {
-    type: String,
-    trim: true,
-  }
-  },
-  { timestamps: true }
-);
+  desiredSkill: { type: String, trim: true },
+}, { timestamps: true });
 
-// Add necessary indexes
+skillSchema.index({ title: 'text', description: 'text', tags: 'text' });
 skillSchema.index({ geoCoordinates: '2dsphere' });
-skillSchema.index({ title: 'text', description: 'text' });
 
 export const Skill = mongoose.model('Skill', skillSchema);

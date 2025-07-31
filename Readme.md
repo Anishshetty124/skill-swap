@@ -689,3 +689,10 @@ When a user's profile is loaded (getUserProfile), to display their current badge
 When a proposal is accepted (respondToProposal), to check if a new badge has just been earned and send a real-time notification via Socket.IO if it has.
 
 Frontend: The /client/src/pages/ProfilePage.jsx receives the array of badge names from the backend. It then maps over this array, rendering a reusable /client/src/components/profile/Badge.jsx component for each badge. The Badge.jsx component contains a dictionary that maps badge names to specific colors and icons from the Heroicons library for a visually appealing display.
+
+
+
+
+
+
+

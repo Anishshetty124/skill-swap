@@ -4,6 +4,7 @@ import SkillCard from '../components/skills/SkillCard';
 import SkillCardSkeleton from '../components/skills/SkillCardSkeleton';
 import { debounce } from 'lodash';
 import { MagnifyingGlassIcon as SearchIcon, UserGroupIcon, ArrowsRightLeftIcon } from '@heroicons/react/24/solid';
+import { Link } from 'react-router-dom';
 
 const Home = () => {
   const [skills, setSkills] = useState([]);
@@ -21,6 +22,7 @@ const Home = () => {
   const [youtubeLoading, setYoutubeLoading] = useState(false);
   const [youtubePlaceholders, setYoutubePlaceholders] = useState([]);
   const [showAllSkills, setShowAllSkills] = useState(false);
+  const [searchedKeyword, setSearchedKeyword] = useState('');
 
   const SKILLS_LIMIT = 6;
 
@@ -82,22 +84,28 @@ const Home = () => {
   }, []);
 
   const handleSearch = (e) => {
-    if (e) e.preventDefault();
-    let searchTerms = [];
-    if (filters.keywords) searchTerms.push(filters.keywords);
-    if (filters.category) searchTerms.push(filters.category);
-    if (filters.level) searchTerms.push(filters.level);
-    if (locationQuery) searchTerms.push(locationQuery);
-    const searchTermDisplay = searchTerms.join(', ');
-    setCurrentSearch(searchTermDisplay || 'all skills');
-    setPage(1);
-    setHasMore(true);
-    setSkills([]);
-    fetchSkills(1, true);
-    setKeywordSuggestions([]);
-    setLocationSuggestions([]);
-  };
+  if (e) e.preventDefault();
+  let searchTerms = [];
+  if (filters.keywords) searchTerms.push(filters.keywords);
+  if (filters.category) searchTerms.push(filters.category);
+  if (filters.level) searchTerms.push(filters.level);
+  if (locationQuery) searchTerms.push(locationQuery);
+  const searchTermDisplay = searchTerms.join(', ');
 
+  setCurrentSearch(searchTermDisplay || 'all skills');
+  setSearchedKeyword(filters.keywords); 
+
+  setPage(1);
+  setHasMore(true);
+  setSkills([]);
+  fetchSkills(1, true);
+
+  fetchYoutubeContent(filters.keywords); 
+  setKeywordSuggestions([]);
+  setLocationSuggestions([]);
+};
+
+  
   const loadMoreSkills = () => {
     const nextPage = page + 1;
     setPage(nextPage);
@@ -107,6 +115,7 @@ const Home = () => {
   const clearSearch = () => {
     const emptyFilters = { keywords: '', category: '', level: '' };
     const emptyLocation = '';
+    
     setFilters(emptyFilters);
     setLocationQuery(emptyLocation);
     setCurrentSearch('');
@@ -114,8 +123,12 @@ const Home = () => {
     setPage(1);
     setHasMore(true);
     setSkills([]);
+    setKeywordSuggestions([]);
+    setLocationSuggestions([]);
     fetchSkills(1, true, emptyFilters, emptyLocation); 
+    
     setYoutubeVideos([]);
+    setSearchedKeyword(''); 
     fetchYoutubePlaceholders();
   };
 
@@ -146,6 +159,30 @@ const Home = () => {
     debouncedKeywordFetch(value);
   };
 
+   const fetchYoutubeContent = async (keyword = '') => {
+    setYoutubeLoading(true);
+    try {
+      // Assuming 'isAuthenticated' is a prop or context value available here
+      // For this example, I'll assume it's always false or needs to be passed in
+      const isAuthenticated = false; // Placeholder for actual authentication check
+      if (keyword) {
+        const response = await apiClient.get(`/skills/youtube-tutorials?keyword=${encodeURIComponent(keyword)}`);
+        console.log("📺 YouTube API response:", response.data); 
+        setYoutubeVideos(response.data.data);
+        setYoutubePlaceholders([]);
+      } else {
+        const endpoint = isAuthenticated ? '/skills/personalized-youtube-placeholders' : '/skills/youtube-placeholders';
+        const response = await apiClient.get(endpoint);
+        setYoutubePlaceholders(response.data.data);
+        setYoutubeVideos([]);
+      }
+    } catch (err) {
+      console.error("Failed to fetch YouTube content", err);
+    } finally {
+      setYoutubeLoading(false);
+    }
+  };
+
   const handleLocationInputChange = (e) => {
     const value = e.target.value;
     setLocationQuery(value);
@@ -157,10 +194,20 @@ const Home = () => {
   const displayedSkills = showAllSkills ? skills : skills.slice(0, 6);
 
   return (
-    <div className="container mx-auto px-4 py-8">
-      <div className="text-center mb-12">
-        <h1 className="text-4xl md:text-5xl font-extrabold text-slate-900 dark:text-white">Discover & Exchange Skills</h1>
-        <p className="mt-4 text-lg text-slate-600 dark:text-slate-400">The premier platform for bartering your talents.</p>
+    <div>
+      <div className="w-full bg-gradient-to-r from-blue-600 to-cyan-500 text-white text-center py-20">
+        <div className="container mx-auto px-4">
+          <h1 className="text-5xl font-extrabold mb-4">Trade What You Do, Learn What You Don't</h1>
+          <p className="text-xl opacity-90 mb-8">Join a community where skills are the new currency.</p>
+          <div className="mt-6">
+            <Link
+            to="/skills/new"
+            className="inline-block px-8 py-3  bg-orange-100 text-blue-600 font-semibold rounded-full shadow-md hover:scale-105 transition-transform duration-300"
+            >
+            🚀 Post Your Skill Now
+            </Link>
+        </div>
+        </div>
       </div>
 
       <form onSubmit={handleSearch} className="mb-8 p-4 bg-white dark:bg-slate-800 rounded-2xl shadow-lg grid grid-cols-1 md:grid-cols-5 gap-4 items-end transition-colors duration-300">
@@ -233,63 +280,84 @@ const Home = () => {
       
       {currentSearch && !loading && ( <h2 className="text-2xl font-bold mb-4">Showing results for: <span className="text-blue-600">{currentSearch}</span></h2> )}
       
+      
       {loading && skills.length === 0 ? (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-          {[...Array(6)].map((_, index) => <SkillCardSkeleton key={index} />)}
-        </div>
-      ) : error ? (
-        <p className="text-center p-10 text-red-500">{error}</p>
-      ) : skills.length > 0 ? (
-        <>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-            {displayedSkills.map((skill) => <SkillCard key={skill._id} skill={skill} />)}
-          </div>
-          {skills.length > 6 && (
-            <div className="text-center mt-8">
-              <button onClick={() => setShowAllSkills(!showAllSkills)} className="px-6 py-2 bg-slate-200 dark:bg-slate-700 font-semibold rounded-md">
-                {showAllSkills ? 'Show Less' : `Show All ${skills.length} Skills`}
-              </button>
-            </div>
-          )}
-        </>
+  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+    {[...Array(6)].map((_, index) => <SkillCardSkeleton key={index} />)}
+  </div>
+) : error ? (
+  <p className="text-center p-10 text-red-500">{error}</p>
+) : skills.length > 0 ? (
+  <>
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+      {skills.map((skill) => <SkillCard key={skill._id} skill={skill} />)}
+    </div>
+    
+    {/* Button Logic */}
+    <div className="text-center mt-8">
+      {hasMore ? (
+        <button 
+          onClick={loadMoreSkills} 
+          disabled={loading} 
+          className="px-6 py-2 bg-slate-200 dark:bg-slate-700 font-semibold rounded-md disabled:opacity-50"
+        >
+          {loading ? 'Loading...' : 'Load More Skills'}
+        </button>
       ) : (
-        <p className="text-center p-10 text-slate-500">{currentSearch ? "No skills found matching your criteria." : "No skills have been posted yet. Be the first!"}</p>
+        skills.length > 6 &&
+        <button 
+          onClick={clearSearch} // clearSearch now also resets to the first page
+          className="px-6 py-2 bg-slate-200 dark:bg-slate-700 font-semibold rounded-md"
+        >
+          Show Less
+        </button>
       )}
-
+    </div>
+  </>
+) : (
+  <p className="text-center p-10 text-slate-500">{currentSearch ? "No skills found." : "No skills posted yet."}</p>
+)}
       <div className="mt-12">
-        <div className="flex items-center justify-between mb-4">
-            <h2 className="text-2xl font-bold">
-                {filters.keywords ? `Tutorials for "${filters.keywords}"` : "Explore Skills with YouTube"}
-            </h2>
-            {filters.keywords && (
-                <button onClick={() => fetchYoutubeVideos(filters.keywords)} className="px-4 py-2 text-sm bg-red-600 text-white font-semibold rounded-md hover:bg-red-700">
-                    Search YouTube
-                </button>
-            )}
-        </div>
-
-        {youtubeLoading ? ( <p>Loading tutorials...</p> ) : 
-         youtubeVideos.length > 0 ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-            {youtubeVideos.map(video => (
-              <a key={video.id.videoId || video.id} href={`https://www.youtube.com/watch?v=${video.id.videoId || video.id}`} target="_blank" rel="noopener noreferrer" className="block bg-white dark:bg-slate-800 rounded-lg shadow-lg overflow-hidden group">
-                <img src={video.snippet.thumbnails.high.url} alt={video.snippet.title} className="w-full h-48 object-cover"/>
-                <div className="p-4">
-                  <h3 className="font-bold text-slate-800 dark:text-white group-hover:text-accent-500">{video.snippet.title}</h3>
-                  <p className="text-sm text-slate-500 dark:text-slate-400">{video.snippet.channelTitle}</p>
-                </div>
-              </a>
-            ))}
+       <div className="mt-12">
+  <h2 className="text-2xl font-bold mb-4">
+    {searchedKeyword ? `Tutorials for "${searchedKeyword}"` : "Explore Skills with YouTube"}
+  </h2>
+  {youtubeLoading ? (
+    <p>Loading tutorials...</p>
+  ) : youtubeVideos.length > 0 ? (
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+      {youtubeVideos.map(video => (
+        <a 
+          key={video.id.videoId}
+          href={`https://www.youtube.com/watch?v=${video.id.videoId}`}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="block bg-white dark:bg-slate-800 rounded-lg shadow-lg overflow-hidden group"
+        >
+          <img src={video.snippet.thumbnails.high.url} alt={video.snippet.title} className="w-full h-48 object-cover"/>
+          <div className="p-4">
+            <h3 className="font-bold text-slate-800 dark:text-white group-hover:text-accent-500">{video.snippet.title}</h3>
+            <p className="text-sm text-slate-500 dark:text-slate-400">{video.snippet.channelTitle}</p>
           </div>
-        ) : (
-          <div className="flex flex-wrap gap-3">
-            {youtubePlaceholders.map((topic, index) => (
-              <a key={index} href={`https://www.youtube.com/results?search_query=${encodeURIComponent(topic)}`} target="_blank" rel="noopener noreferrer" className="px-4 py-2 bg-slate-200 dark:bg-slate-700 text-sm font-semibold rounded-full hover:bg-slate-300 dark:hover:bg-slate-600">
-                {topic}
-              </a>
-            ))}
-          </div>
-        )}
+        </a>
+      ))}
+    </div>
+  ) : (
+    <div className="flex flex-wrap justify-center gap-3">
+      {youtubePlaceholders.map((topic, index) => (
+        <a 
+          key={index} 
+          href={`https://www.youtube.com/results?search_query=${encodeURIComponent(topic)}`} 
+          target="_blank" 
+          rel="noopener noreferrer" 
+          className="px-4 py-2 bg-slate-200 dark:bg-slate-700 text-sm font-semibold rounded-full hover:bg-slate-300 dark:hover:bg-slate-600"
+        >
+          {topic}
+        </a>
+      ))}
+    </div>
+  )}
+</div>
       </div>
       
       <div className="mt-16 text-center">
@@ -321,5 +389,4 @@ const Home = () => {
     </div>
   );
 };
-
 export default Home;
