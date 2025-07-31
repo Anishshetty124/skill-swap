@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import apiClient from '../api/axios';
 import toast from 'react-hot-toast';
+import { SparklesIcon } from '@heroicons/react/24/solid';
 
 const CreateSkillPage = () => {
   const navigate = useNavigate();
@@ -19,6 +20,7 @@ const CreateSkillPage = () => {
     desiredSkill: '',
   });
   const [loading, setLoading] = useState(false);
+  const [isGenerating, setIsGenerating] = useState(false);
   
   useEffect(() => {
     if (skillToClone) {
@@ -39,6 +41,22 @@ const CreateSkillPage = () => {
 
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
+  };
+
+  const handleGenerateDescription = async () => {
+    if (!formData.title) {
+      toast.error("Please enter a title first.");
+      return;
+    }
+    setIsGenerating(true);
+    try {
+      const response = await apiClient.post('/skills/generate-description', { title: formData.title });
+      setFormData(prev => ({ ...prev, description: response.data.data.description }));
+    } catch (error) {
+      toast.error("Failed to generate description.");
+    } finally {
+      setIsGenerating(false);
+    }
   };
 
   const handleSubmit = async (e) => {
@@ -81,14 +99,19 @@ const CreateSkillPage = () => {
         </div>
         
         <div>
-          <label className="block text-sm font-medium mb-1">Description (Optional)</label>
-          <textarea 
-            name="description" 
-            value={formData.description} 
-            onChange={handleChange} 
-            rows="4" 
-            className="w-full px-3 py-2 mt-1 bg-white dark:bg-slate-700 text-slate-800 dark:text-slate-200 border rounded-md"
-          ></textarea>
+          <div className="flex justify-between items-center mb-1">
+            <label className="block text-sm font-medium">Description (Optional)</label>
+            <button 
+              type="button" 
+              onClick={handleGenerateDescription}
+              disabled={isGenerating}
+              className="flex items-center text-xs font-semibold text-accent-500 hover:text-accent-600 disabled:opacity-50"
+            >
+              <SparklesIcon className="h-4 w-4 mr-1"/>
+              {isGenerating ? 'Generating...' : 'Generate with AI'}
+            </button>
+          </div>
+          <textarea name="description" value={formData.description} onChange={handleChange} rows="4" className="w-full px-3 py-2 mt-1 bg-white dark:bg-slate-700 text-slate-800 dark:text-slate-200 border rounded-md"></textarea>
         </div>
         
         {formData.type === 'OFFER' && (
@@ -128,7 +151,7 @@ const CreateSkillPage = () => {
           </select>
         </div>
 
-        <button type="submit" disabled={loading} className="w-full px-4 py-3 font-bold text-white bg-blue-500 rounded-md hover:bg-accent-700 disabled:opacity-50">
+        <button type="submit" disabled={loading} className="w-full px-4 py-3 font-bold text-white bg-accent-600 rounded-md hover:bg-accent-700 disabled:opacity-50">
           {loading ? 'Posting...' : 'Post Skill'}
         </button>
       </form>

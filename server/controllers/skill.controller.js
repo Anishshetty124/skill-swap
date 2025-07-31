@@ -6,7 +6,7 @@ import { Skill } from '../models/skill.model.js';
 import { User } from '../models/user.model.js';
 import { Proposal } from '../models/proposal.model.js';
 import natural from 'natural';
-import opencage from 'opencage-api-client';
+import { GoogleGenerativeAI } from '@google/generative-ai';
 
 const { WordTokenizer, TfIdf } = natural;
 
@@ -16,15 +16,6 @@ const categorySubtopics = {
   Music: ["Beginner Guitar Chords", "How to Read Sheet Music", "Music Theory 101", "Singing Lessons for Beginners", "Making a Beat in FL Studio", "Piano Basics", "Ukulele First Lesson", "How to Use a DAW", "Songwriting for Beginners", "Drumming Fundamentals", "Music Production Basics", "Mixing and Mastering", "Learn to DJ", "Violin for Beginners", "Bass Guitar Basics"],
   Writing: ["Creative Writing Prompts", "How to Write a Novel", "Screenwriting for Beginners", "Copywriting Tips", "Better Storytelling", "Poetry for Beginners", "Writing a Blog Post", "Editing Your Own Work", "Building Fictional Worlds", "Character Development", "Technical Writing Basics", "Freelance Writing Guide", "How to Overcome Writer's Block", "Journaling for Clarity", "Writing Dialogue"],
   // Add other categories here
-};
-
-
-const generateTags = (text) => {
-  if (!text) return [];
-  const tokenizer = new WordTokenizer();
-  const tfidf = new TfIdf();
-  tfidf.addDocument(text.toLowerCase());
-  return tfidf.listTerms(0).slice(0, 5).map(item => item.term);
 };
 
 const createSkill = asyncHandler(async (req, res) => {
@@ -255,8 +246,53 @@ const getYoutubePlaceholders = asyncHandler(async (req, res) => {
 });
 
 
+const getRecommendedSkills = asyncHandler(async (req, res) => {
+  let recommendedSkills = [];
+  
+  if (req.user) {
+    const userBookmarks = await Skill.find({ bookmarkedBy: req.user._id }).select('category tags');
 
+    if (userBookmarks.length > 0) {
+      const categories = [...new Set(userBookmarks.map(skill => skill.category))];
+      
+      recommendedSkills = await Skill.find({
+        category: { $in: categories },
+        user: { $ne: req.user._id }
+      })
+      .sort({ createdAt: -1 })
+      .limit(5)
+      .populate('user', 'username');
+    }
+  }
 
+  // Fallback: If no recommendations are found (or user is not logged in), get the latest skills
+  if (recommendedSkills.length === 0) {
+    recommendedSkills = await Skill.find({ user: { $ne: req.user?._id } })
+      .sort({ createdAt: -1 })
+      .limit(5)
+      .populate('user', 'username');
+  }
+  
+  return res.status(200).json(new ApiResponse(200, recommendedSkills, "Recommended skills fetched successfully"));
+});
+
+const generateSkillDescription = asyncHandler(async (req, res) => {
+  const { title } = req.body;
+  if (!title) {
+    throw new ApiError(400, "A title is required to generate a description.");
+  }
+
+  const genAI = new GoogleGenerativeAI(process.env.GOOGLE_API_KEY);
+  const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash"});
+
+  const prompt = `Based on the skill title "${title}", generate a friendly and appealing 1-2 sentence description for a skill-swapping website. The user is offering to teach this skill.`;
+
+  const result = await model.generateContent(prompt);
+  const response = await result.response;
+  const description = response.text();
+
+  return res.status(200).json(new ApiResponse(200, { description }, "Description generated successfully"));
+});
 export {
   createSkill,
   getAllSkills,
@@ -273,4 +309,6 @@ export {
   rateSkill,
   getYoutubeTutorials,
   getYoutubePlaceholders,
+  getRecommendedSkills,
+  generateSkillDescription
 };

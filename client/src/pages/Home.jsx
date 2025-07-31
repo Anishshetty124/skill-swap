@@ -5,6 +5,7 @@ import SkillCardSkeleton from '../components/skills/SkillCardSkeleton';
 import { debounce } from 'lodash';
 import { MagnifyingGlassIcon as SearchIcon, UserGroupIcon, ArrowsRightLeftIcon } from '@heroicons/react/24/solid';
 import { Link } from 'react-router-dom';
+import RecommendedSkills from '../components/home/RecommendedSkills';
 
 const Home = () => {
   const [skills, setSkills] = useState([]);
@@ -359,6 +360,7 @@ const Home = () => {
   )}
 </div>
       </div>
+       <RecommendedSkills />
       
       <div className="mt-16 text-center">
           <h2 className="text-3xl font-bold mb-8">How SkillSwap Works</h2>

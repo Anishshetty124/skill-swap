@@ -182,7 +182,7 @@ const Navbar = () => {
         </nav>
 
         <div
-          className={`absolute w-full left-0 bg-white/90 dark:bg-slate-800 backdrop-blur-2xl shadow-md md:hidden ${
+          className={`absolute w-full left-0 bg-white dark:bg-slate-800 backdrop-blur-2xl shadow-md md:hidden ${
             isMenuOpen ? "block" : "hidden"
           }`}
         >
