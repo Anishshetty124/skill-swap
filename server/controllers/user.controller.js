@@ -3,8 +3,8 @@ import { ApiError } from '../utils/ApiError.js';
 import { ApiResponse } from '../utils/ApiResponse.js';
 import { User } from '../models/user.model.js';
 import { Skill } from '../models/skill.model.js';
-import opencage from 'opencage-api-client';
 import { calculateBadges } from '../utils/badgeManager.js';
+import opencage from 'opencage-api-client';
 
 const registerUser = asyncHandler(async (req, res) => {
   const { username, email, password } = req.body;
@@ -13,7 +13,6 @@ const registerUser = asyncHandler(async (req, res) => {
     throw new ApiError(400, "All fields are required");
   }
 
-  // --- NEW: Specific Password Validation ---
   if (password.length < 8) {
     throw new ApiError(400, "Password must be at least 8 characters long.");
   }
@@ -47,8 +46,8 @@ const registerUser = asyncHandler(async (req, res) => {
     throw new ApiError(500, "Something went wrong while registering the user");
   }
 
-   return res.status(201).json(
-    new ApiResponse(201, { ...createdUser.toObject(), isNewUser: true }, "User registered successfully")
+  return res.status(201).json(
+    new ApiResponse(201, createdUser, "User registered successfully")
   );
 });
 
@@ -57,30 +56,46 @@ const loginUser = asyncHandler(async (req, res) => {
   if (!username && !email) {
     throw new ApiError(400, "Username or email is required");
   }
+
   const user = await User.findOne({ $or: [{ username }, { email }] }).select("+password");
   if (!user) {
     throw new ApiError(404, "User does not exist");
   }
+
   const isPasswordValid = await user.isPasswordCorrect(password);
   if (!isPasswordValid) {
     throw new ApiError(401, "Invalid user credentials");
   }
   
-  if (!user.welcomed) {
-    const io = req.app.get('io');
-    io.to(user._id.toString()).emit('new_notification', {
-      message: `Welcome! You've received 10 free Swap Credits to get started! 🎁`
-    });
+  const isFirstLogin = !user.welcomed;
+  
+  if (isFirstLogin) {
     user.welcomed = true;
   }
 
   const accessToken = user.generateAccessToken();
   const refreshToken = user.generateRefreshToken();
+  
   user.refreshToken = refreshToken;
   await user.save({ validateBeforeSave: false });
+
   const loggedInUser = await User.findById(user._id).select("-password -refreshToken");
+  
+  const userPayload = { ...loggedInUser.toObject(), isFirstLogin };
+  
   const options = { httpOnly: true, secure: process.env.NODE_ENV === 'production' };
-  return res.status(200).cookie("refreshToken", refreshToken, options).cookie("accessToken", accessToken, options).json(new ApiResponse(200, { user: loggedInUser, accessToken }, "User logged in successfully"));
+  
+  return res
+    .status(200)
+    .cookie("refreshToken", refreshToken, options)
+    .cookie("accessToken", accessToken, options)
+    .json(
+      new ApiResponse(
+        200,
+        { user: userPayload, accessToken },
+        "User logged in successfully"
+      )
+    );
 });
 
 const logoutUser = asyncHandler(async (req, res) => {
@@ -135,18 +150,9 @@ const updateAccountDetails = asyncHandler(async (req, res) => {
 
 const updateUserAvatar = asyncHandler(async (req, res) => {
   const { avatarUrl } = req.body;
-  if (!avatarUrl) {
-    throw new ApiError(400, "Avatar URL is required");
-  }
-
+  if (!avatarUrl) throw new ApiError(400, "Avatar URL is required");
   const optimizedUrl = avatarUrl.replace('/upload/', '/upload/w_200,h_200,c_fill,q_auto/');
-
-  const user = await User.findByIdAndUpdate(
-    req.user._id,
-    { $set: { profilePicture: optimizedUrl } }, // Save the optimized URL
-    { new: true }
-  ).select("-password -refreshToken");
-  
+  const user = await User.findByIdAndUpdate(req.user._id, { $set: { profilePicture: optimizedUrl } }, { new: true }).select("-password -refreshToken");
   return res.status(200).json(new ApiResponse(200, user, "Avatar updated successfully"));
 });
 
@@ -166,16 +172,6 @@ const changePassword = asyncHandler(async (req, res) => {
     return res.status(200).json(new ApiResponse(200, {}, "Password changed successfully."));
 });
 
-const markUserAsWelcomed = asyncHandler(async (req, res) => {
-    const user = await User.findByIdAndUpdate(
-        req.user._id,
-        { $set: { welcomed: true } },
-        { new: true }
-    ).select("-password -refreshToken");
-    
-    // Return the updated user object in the response
-    return res.status(200).json(new ApiResponse(200, user, "User marked as welcomed."));
-});
 
 const getUserProfile = asyncHandler(async (req, res) => {
   const { username } = req.params;
@@ -191,5 +187,5 @@ const getUserProfile = asyncHandler(async (req, res) => {
 });
 
 export {
-  registerUser, loginUser, logoutUser, getCurrentUser, updateUserProfile, updateAccountDetails, updateUserAvatar, deleteUserAvatar, changePassword, markUserAsWelcomed, getUserProfile
+  registerUser, loginUser, logoutUser, getCurrentUser, updateUserProfile, updateAccountDetails, updateUserAvatar, deleteUserAvatar, changePassword, getUserProfile
 };

@@ -23,6 +23,7 @@ router.route('/keyword-suggestions').get(getKeywordSuggestions);
 router.route('/locations').get(getLocationSuggestions);
 router.route('/youtube-placeholders').get(getYoutubePlaceholders);
 router.route('/youtube-tutorials').get(getYoutubeTutorials); 
+router.route('/recommendations').get(getRecommendedSkills);
 router.route('/nearby').get(getNearbySkills);
 router.route('/').get(getAllSkills);
 router.route('/:skillId').get(getSkillById);

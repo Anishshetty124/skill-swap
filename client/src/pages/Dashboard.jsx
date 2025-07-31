@@ -13,20 +13,20 @@ const Dashboard = () => {
   const location = useLocation();
 
   useEffect(() => {
-    const fetchProposals = async () => {
-      try {
-        setLoading(true);
-        setError('');
-        const response = await apiClient.get(`/proposals?type=${activeTab}`);
-        const validProposals = response.data.data.filter(p => p.requestedSkill);
-        setProposals(validProposals);
-      } catch (err) {
-        setError(`Failed to fetch ${activeTab} proposals.`);
-      } finally {
-        setLoading(false);
-      }
-    };
-    if (user) { // Only fetch proposals if the user is loaded
+    if(user) {
+        const fetchProposals = async () => {
+        try {
+            setLoading(true);
+            setError('');
+            const response = await apiClient.get(`/proposals?type=${activeTab}`);
+            const validProposals = response.data.data.filter(p => p.requestedSkill);
+            setProposals(validProposals);
+        } catch (err) {
+            setError(`Failed to fetch ${activeTab} proposals.`);
+        } finally {
+            setLoading(false);
+        }
+        };
         fetchProposals();
     }
   }, [user, activeTab, location.state]);
@@ -37,19 +37,19 @@ const Dashboard = () => {
     );
   };
   
-  const handleProposalDelete = (deletedProposalUnId) => {
+  const handleProposalDelete = (deletedProposalId) => {
     setProposals(prevProposals =>
-      prevProposals.filter(p => p._id !== deletedProposalUnId)
+      prevProposals.filter(p => p._id !== deletedProposalId)
     );
   };
 
   const tabClass = (tabName) => 
     `px-4 py-2 font-semibold rounded-t-md transition-colors duration-200 ${activeTab === tabName 
-      ? 'bg-blue-500 text-white' 
+      ? 'bg-accent-600 text-white' 
       : 'bg-slate-200 dark:bg-slate-700 text-slate-800 dark:text-slate-300 hover:bg-slate-300 dark:hover:bg-slate-600'}`;
 
   return (
-    <div className="max-w-4xl mx-auto">
+    <div className="max-w-4xl mx-auto px-4 py-8">
       <h1 className="text-3xl font-bold mb-6">Your Dashboard</h1>
       <div className="mb-6 flex space-x-2">
         <button onClick={() => setActiveTab('received')} className={tabClass('received')}>

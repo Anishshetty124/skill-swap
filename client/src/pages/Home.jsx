@@ -193,22 +193,24 @@ const Home = () => {
 
   return (
     <div>
-      <div className="w-full bg-gradient-to-r from-blue-600 to-cyan-500 text-white text-center rounded-lg py-20">
-        <div className="container mx-auto px-4">
-          <h1 className="text-5xl font-extrabold mb-4">Trade What You Do, Learn What You Don't</h1>
-          <p className="text-xl opacity-90 mb-8">Join a community where skills are the new currency.</p>
-          <div className="mt-6">
-            <Link
-            to="/skills/new"
-            className="inline-block px-8 py-3  bg-orange-100 text-blue-600 font-semibold rounded-full shadow-md hover:scale-105 transition-transform duration-300"
-            >
-            🚀 Post Your Skill Now
-            </Link>
-        </div>
-        </div>
-      </div>
+     <div className="w-full bg-gradient-to-r dark:from-blue-600 dark:to-cyan-500 from-blue-300 to-cyan-200 text-blue-900 dark:text-white text-center rounded-lg py-20 transition-all duration-300">
+  <div className="container mx-auto px-4">
+    <h1 className="text-5xl font-extrabold mb-4">Trade What You Do, Learn What You Don't</h1>
+    <p className="text-xl opacity-90 mb-8">Join a community where skills are the new currency.</p>
+    <div className="mt-6">
+      <Link
+        to="/skills/new"
+        className="inline-block px-8 py-3 bg-white text-blue-600 font-semibold rounded-full shadow-md hover:scale-105 transition-transform duration-300"
+      >
+        🚀 Post Your Skill Now
+      </Link>
+    </div>
+  </div>
+</div>
 
-      <form onSubmit={handleSearch} className="mb-8 p-4 bg-white dark:bg-slate-800 rounded-2xl shadow-lg grid grid-cols-1 md:grid-cols-5 gap-4 items-end transition-colors duration-300">
+
+
+      <form onSubmit={handleSearch} className="mb-8 p-4 mt-2  bg-slate-100 dark:bg-slate-800 rounded-2xl shadow-lg grid grid-cols-1 md:grid-cols-5 gap-4 items-end transition-colors duration-300">
         <div className="md:col-span-2 relative">
           <label className="block text-sm font-medium mb-1">Search by Keyword</label>
           <input type="text" name="keywords" value={filters.keywords} onChange={handleKeywordChange} placeholder="e.g., Python, Guitar" className="w-full px-3 py-2 mt-1 bg-white dark:bg-slate-700 text-slate-800 dark:text-slate-200 border rounded-md" autoComplete="off" />
@@ -246,7 +248,7 @@ const Home = () => {
         </div>
       </form>
       
-      <div className="mb-8 p-6 bg-white dark:bg-slate-800 rounded-2xl shadow-lg transition-colors duration-300">
+      <div className="mb-8 p-6 bg-slate-100 dark:bg-slate-800 rounded-2xl shadow-lg transition-colors duration-300">
         {!showCitySearch ? (
             <div className="text-center md:text-left">
                 <h2 className="text-xl font-bold mb-2">Looking for skills in a specific area?</h2>
@@ -297,15 +299,15 @@ const Home = () => {
         <button 
           onClick={loadMoreSkills} 
           disabled={loading} 
-          className="px-6 py-2 bg-slate-200 dark:bg-slate-700 font-semibold rounded-md disabled:opacity-50"
+          className="px-6 py-2 bg-white dark:bg-slate-700 font-semibold rounded-md disabled:opacity-50"
         >
           {loading ? 'Loading...' : 'Load More Skills'}
         </button>
       ) : (
         skills.length > 6 &&
         <button 
-          onClick={clearSearch} // clearSearch now also resets to the first page
-          className="px-6 py-2 bg-slate-200 dark:bg-slate-700 font-semibold rounded-md"
+          onClick={clearSearch} 
+          className="px-6 py-2 bg-white dark:bg-slate-700 font-semibold rounded-md"
         >
           Show Less
         </button>
@@ -348,7 +350,7 @@ const Home = () => {
           href={`https://www.youtube.com/results?search_query=${encodeURIComponent(topic)}`} 
           target="_blank" 
           rel="noopener noreferrer" 
-          className="px-4 py-2 bg-slate-200 dark:bg-slate-700 text-sm font-semibold rounded-full hover:bg-slate-300 dark:hover:bg-slate-600"
+          className="px-4 py-2 bg-white dark:bg-slate-700 text-sm font-semibold rounded-full hover:bg-slate-300 dark:hover:bg-slate-600"
         >
           {topic}
         </a>
