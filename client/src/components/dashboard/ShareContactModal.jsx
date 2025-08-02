@@ -1,33 +1,84 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useAuth } from '../../context/AuthContext';
+import { PhoneIcon, EnvelopeIcon, ChatBubbleLeftEllipsisIcon, VideoCameraIcon, CalendarIcon, ShareIcon } from '@heroicons/react/24/outline';
 
 const ShareContactModal = ({ isOpen, onClose, onSubmit }) => {
-  const [phone, setPhone] = useState('');
-  const [note, setNote] = useState('');
+  const { user } = useAuth();
+  const [contactInfo, setContactInfo] = useState({
+    phone: '',
+    email: '',
+    meetingLink: '',
+    meetingTime: '',
+    other: '', // Added new state for 'other'
+    note: ''
+  });
+
+  useEffect(() => {
+    // Pre-fill the phone number if the user has one saved
+    if (isOpen && user?.mobileNumber) {
+      setContactInfo(prev => ({ ...prev, phone: user.mobileNumber }));
+    }
+  }, [isOpen, user]);
+
+  const handleChange = (e) => {
+    setContactInfo({ ...contactInfo, [e.target.name]: e.target.value });
+  };
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    onSubmit({ phone, note });
+    onSubmit(contactInfo);
+    onClose();
   };
-  
+
   if (!isOpen) return null;
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-60 flex justify-center items-center z-50 p-4">
       <div className="bg-white dark:bg-slate-800 p-8 rounded-lg shadow-xl w-full max-w-md">
-        <h2 className="text-2xl font-bold mb-4">Accept & Share Details</h2>
-        <p className="text-sm text-slate-500 dark:text-slate-400 mb-6">Optionally, share your contact details to make the swap easier to coordinate.</p>
-        <form onSubmit={handleSubmit}>
-          <div className="mb-4">
-            <label className="block text-sm font-medium mb-1">Phone Number (Optional)</label>
-            <input type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="e.g., 9876543210" className="w-full px-3 py-2 bg-white dark:bg-slate-700 text-slate-800 dark:text-slate-200 border rounded-md"/>
+        <h2 className="text-2xl font-bold mb-4 text-center">Accept Proposal & Share Info</h2>
+        <p className="text-center text-sm text-slate-500 dark:text-slate-400 mb-6">
+          Share your contact and meeting details so the other user can connect with you.
+        </p>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="relative">
+            <PhoneIcon className="h-5 w-5 text-slate-400 absolute top-3.5 left-4"/>
+            <input type="tel" name="phone" value={contactInfo.phone} onChange={handleChange} placeholder="Phone Number (Optional)" className="w-full pl-12 pr-4 py-3 bg-slate-100 dark:bg-slate-700 rounded-lg"/>
           </div>
-          <div className="mb-6">
-            <label className="block text-sm font-medium mb-1">Note (Optional)</label>
-            <textarea value={note} onChange={(e) => setNote(e.target.value)} rows="3" placeholder="e.g., 'Best to call after 5 PM.'" className="w-full px-3 py-2 bg-white dark:bg-slate-700 text-slate-800 dark:text-slate-200 border rounded-md"></textarea>
+          <div className="relative">
+            <EnvelopeIcon className="h-5 w-5 text-slate-400 absolute top-3.5 left-4"/>
+            <input type="email" name="email" value={contactInfo.email} onChange={handleChange} placeholder="Email Address (Optional)" className="w-full pl-12 pr-4 py-3 bg-slate-100 dark:bg-slate-700 rounded-lg"/>
           </div>
-          <div className="flex justify-end space-x-4">
-            <button type="button" onClick={onClose} className="px-4 py-2 rounded-md text-slate-700 bg-slate-200 hover:bg-slate-300">Skip</button>
-            <button type="submit" className="px-4 py-2 rounded-md font-semibold text-white bg-blue-500 hover:bg-accent-700">Accept & Share</button>
+          <div className="relative">
+            <VideoCameraIcon className="h-5 w-5 text-slate-400 absolute top-3.5 left-4"/>
+            <input type="url" name="meetingLink" value={contactInfo.meetingLink} onChange={handleChange} placeholder="Zoom/Google Meet Link (Optional)" className="w-full pl-12 pr-4 py-3 bg-slate-100 dark:bg-slate-700 rounded-lg"/>
+          </div>
+          <div className="relative">
+            <CalendarIcon className="h-5 w-5 text-slate-400 absolute top-3.5 left-4"/>
+            <input type="datetime-local" name="meetingTime" value={contactInfo.meetingTime} onChange={handleChange} placeholder="Suggested Meeting Time (Optional)" className="w-full pl-12 pr-4 py-3 bg-slate-100 dark:bg-slate-700 rounded-lg"/>
+          </div>
+          {/* New "Other" Input Field */}
+          <div className="relative">
+            <ShareIcon className="h-5 w-5 text-slate-400 absolute top-3.5 left-4"/>
+            <input
+              type="text"
+              name="other"
+              value={contactInfo.other}
+              onChange={handleChange}
+              placeholder="Other (e.g., Discord, Instagram)"
+              className="w-full pl-12 pr-4 py-3 bg-slate-100 dark:bg-slate-700 rounded-lg"
+            />
+          </div>
+          <div className="relative">
+             <ChatBubbleLeftEllipsisIcon className="h-5 w-5 text-slate-400 absolute top-3.5 left-4"/>
+            <textarea name="note" value={contactInfo.note} onChange={handleChange} placeholder="Add a short note..." rows="3" className="w-full pl-12 pr-4 py-3 bg-slate-100 dark:bg-slate-700 rounded-lg"></textarea>
+          </div>
+          <div className="flex justify-end space-x-4 pt-4">
+            <button type="button" onClick={onClose} className="px-6 py-2 rounded-md text-slate-700 bg-slate-200 hover:bg-slate-300">
+              Cancel
+            </button>
+            <button type="submit" className="px-6 py-2 rounded-md font-semibold text-white bg-accent-600 hover:bg-accent-700">
+              Accept & Share
+            </button>
           </div>
         </form>
       </div>

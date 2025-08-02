@@ -69,7 +69,7 @@ const getProposals = asyncHandler(async (req, res) => {
     .populate({ path: 'proposer', select: 'username profilePicture' })
     .populate({ path: 'receiver', select: 'username profilePicture' })
     .populate({ path: 'requestedSkill', select: 'title category costInCredits' })
-    .populate({ path: 'offeredSkill', select: 'title category' }) // Populate offeredSkill as well
+    .populate({ path: 'offeredSkill', select: 'title category' })
     .sort({ createdAt: -1 });
 
   return res
@@ -94,7 +94,6 @@ const respondToProposal = asyncHandler(async (req, res) => {
   if (!proposal.receiver.equals(userId)) throw new ApiError(403, 'You are not authorized to respond.');
   if (proposal.status !== 'pending') throw new ApiError(400, `This proposal has already been ${proposal.status}.`);
 
-  // Save the contact info if it exists
   if (status === 'accepted' && contactInfo) {
     proposal.contactInfo = contactInfo;
   }
@@ -103,10 +102,24 @@ const respondToProposal = asyncHandler(async (req, res) => {
   await proposal.save({ validateBeforeSave: false });
 
   if (status === 'accepted') {
+    const io = req.app.get('io');
+    const proposerId = proposal.proposer.toString();
+    const receiverId = proposal.receiver.toString();
+    const receiverUsername = req.user.username;
+
+    // --- THIS IS THE CORRECTED LOGIC ---
     if (proposal.proposalType === 'credits') {
       const cost = proposal.costInCredits;
       await User.findByIdAndUpdate(proposal.proposer, { $inc: { swapCredits: -cost } });
       await User.findByIdAndUpdate(proposal.receiver, { $inc: { swapCredits: cost } });
+      
+      // Send credit-specific notifications
+      io.to(proposerId).emit('new_notification', { message: `Your proposal was accepted! You spent ${cost} credits.` });
+      io.to(receiverId).emit('new_notification', { message: `You accepted the proposal and earned ${cost} credits!` });
+    } else {
+      // Send a generic acceptance notification for skill-for-skill swaps
+      io.to(proposerId).emit('new_notification', { message: `Your skill swap with ${receiverUsername} was accepted!` });
+      // We don't send a notification to the receiver here because they initiated the action
     }
     
     const skillsToUpdate = [proposal.requestedSkill._id];
@@ -115,28 +128,13 @@ const respondToProposal = asyncHandler(async (req, res) => {
     }
     await Skill.updateMany({ _id: { $in: skillsToUpdate } }, { $set: { status: 'in_progress' } });
     
-    const io = req.app.get('io');
-    const proposerId = proposal.proposer.toString();
-    const receiverId = proposal.receiver.toString();
-    const receiverUsername = req.user.username;
-
-    // Send notifications about credit/swap acceptance
-    if (proposal.proposalType === 'credits') {
-      io.to(proposerId).emit('new_notification', { message: `Your proposal was accepted! You spent ${proposal.costInCredits} credits.` });
-      io.to(receiverId).emit('new_notification', { message: `You accepted the proposal and earned ${proposal.costInCredits} credits!` });
-    } else {
-      io.to(proposerId).emit('new_notification', { message: `Your skill swap with ${receiverUsername} was accepted!` });
-    }
-
-    // Send contact info if shared
-    if (contactInfo && (contactInfo.phone || contactInfo.note)) {
+    if (contactInfo && (contactInfo.phone || contactInfo.email || contactInfo.note)) {
         io.to(proposerId).emit('contact_info_received', {
             message: `${receiverUsername} has shared their contact details with you.`,
             details: contactInfo
         });
     }
 
-    // Check for new badges for both users
     const usersInvolved = await User.find({ _id: { $in: [proposal.proposer, proposal.receiver] } });
     for (const user of usersInvolved) {
       const oldBadges = new Set(user.badges || []);
@@ -171,4 +169,39 @@ const deleteProposal = asyncHandler(async (req, res) => {
   return res.status(200).json(new ApiResponse(200, {}, "Proposal deleted successfully"));
 });
 
-export { createProposal, getProposals, respondToProposal, deleteProposal };
+
+const updateContactInfo = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const { contactInfo } = req.body;
+  const userId = req.user._id;
+
+  const proposal = await Proposal.findById(id);
+
+  if (!proposal) {
+    throw new ApiError(404, "Proposal not found");
+  }
+
+  // Ensure only the proposer or receiver can edit the contact info
+  if (!proposal.proposer.equals(userId) && !proposal.receiver.equals(userId)) {
+    throw new ApiError(403, "You are not authorized to edit this information.");
+  }
+
+  if (proposal.status !== 'accepted') {
+    throw new ApiError(400, "Contact info can only be edited for accepted proposals.");
+  }
+
+  proposal.contactInfo = contactInfo;
+  await proposal.save({ validateBeforeSave: false });
+
+  // Notify the other user that the details have been updated
+  const io = req.app.get('io');
+  const otherUserId = proposal.proposer.equals(userId) ? proposal.receiver.toString() : proposal.proposer.toString();
+  
+  io.to(otherUserId).emit('new_notification', {
+    message: `${req.user.username} has updated the contact/meeting details for your swap.`
+  });
+
+  return res.status(200).json(new ApiResponse(200, proposal, "Contact information updated successfully."));
+});
+
+export { createProposal, getProposals, respondToProposal, deleteProposal, updateContactInfo };

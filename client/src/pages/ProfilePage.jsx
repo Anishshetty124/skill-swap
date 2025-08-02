@@ -44,7 +44,7 @@ const ProfilePage = () => {
 
   return (
     <div className="container mx-auto px-4 py-8">
-      <div className="bg-white dark:bg-slate-800 p-6 md:p-8 rounded-lg shadow-md mb-8">
+      <div className="bg-gray-100 dark:bg-slate-800 p-6 md:p-8 rounded-lg shadow-md mb-8">
         <div className="flex flex-col md:flex-row md:justify-between items-center md:items-start gap-4">
           <div className="flex flex-col md:flex-row items-center text-center md:text-left gap-6">
             {profile.profilePicture ? (

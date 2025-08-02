@@ -7,27 +7,17 @@ import { calculateBadges } from '../utils/badgeManager.js';
 import opencage from 'opencage-api-client';
 
 const registerUser = asyncHandler(async (req, res) => {
-  const { username, email, password } = req.body;
+  const { firstName, lastName, username, email, password } = req.body;
 
-  if ([username, email, password].some((field) => field?.trim() === "")) {
+  if ([firstName, lastName, username, email, password].some((field) => field?.trim() === "")) {
     throw new ApiError(400, "All fields are required");
   }
-
-  if (password.length < 8) {
-    throw new ApiError(400, "Password must be at least 8 characters long.");
-  }
-  if (!/[a-z]/.test(password)) {
-    throw new ApiError(400, "Password must contain at least one lowercase letter.");
-  }
-  if (!/[A-Z]/.test(password)) {
-    throw new ApiError(400, "Password must contain at least one uppercase letter.");
-  }
-  if (!/\d/.test(password)) {
-    throw new ApiError(400, "Password must contain at least one number.");
-  }
-  if (!/[@$!%*?&]/.test(password)) {
-    throw new ApiError(400, "Password must contain at least one special character (@$!%*?&).");
-  }
+  
+  if (password.length < 8) throw new ApiError(400, "Password must be at least 8 characters long.");
+  if (!/[a-z]/.test(password)) throw new ApiError(400, "Password must contain at least one lowercase letter.");
+  if (!/[A-Z]/.test(password)) throw new ApiError(400, "Password must contain at least one uppercase letter.");
+  if (!/\d/.test(password)) throw new ApiError(400, "Password must contain at least one number.");
+  if (!/[@$!%*?&]/.test(password)) throw new ApiError(400, "Password must contain at least one special character (@$!%*?&).");
 
   const existedUser = await User.findOne({ $or: [{ username }, { email }] });
   if (existedUser) {
@@ -35,6 +25,8 @@ const registerUser = asyncHandler(async (req, res) => {
   }
 
   const user = await User.create({
+    firstName,
+    lastName,
     username: username.toLowerCase(),
     email,
     password,
@@ -128,14 +120,15 @@ const updateUserProfile = asyncHandler(async (req, res) => {
       console.error("Geocoding failed:", error.message);
     }
   }
+  
   const user = await User.findByIdAndUpdate(req.user._id, { $set: updateData }, { new: true, runValidators: true }).select("-password -refreshToken");
   return res.status(200).json(new ApiResponse(200, user, "Profile updated successfully"));
 });
 
 const updateAccountDetails = asyncHandler(async (req, res) => {
-    const { username, email } = req.body;
-    if (!username || !email) {
-        throw new ApiError(400, "Username and email are required.");
+    const { username, email, firstName, lastName, mobileNumber } = req.body;
+    if (!username || !email || !firstName || !lastName) {
+        throw new ApiError(400, "First name, last name, username and email are required.");
     }
     const existingUser = await User.findOne({ 
         $or: [{ username }, { email }],
@@ -144,7 +137,11 @@ const updateAccountDetails = asyncHandler(async (req, res) => {
     if (existingUser) {
         throw new ApiError(409, "Username or email is already in use by another account.");
     }
-    const updatedUser = await User.findByIdAndUpdate(req.user._id, { $set: { username, email } }, { new: true }).select("-password -refreshToken");
+    const updatedUser = await User.findByIdAndUpdate(
+        req.user._id, 
+        { $set: { username, email, firstName, lastName, mobileNumber } }, 
+        { new: true }
+    ).select("-password -refreshToken");
     return res.status(200).json(new ApiResponse(200, updatedUser, "Account details updated successfully."));
 });
 
@@ -172,12 +169,19 @@ const changePassword = asyncHandler(async (req, res) => {
     return res.status(200).json(new ApiResponse(200, {}, "Password changed successfully."));
 });
 
-
 const getUserProfile = asyncHandler(async (req, res) => {
   const { username } = req.params;
   const user = await User.findOne({ username }).select("-password -refreshToken -role");
   if (!user) throw new ApiError(404, "User not found");
-  const { earnedBadges, swapsCompleted, skillsOfferedCount } = await calculateBadges(user);
+  
+  let { earnedBadges, swapsCompleted, skillsOfferedCount } = await calculateBadges(user);
+
+  // New Member badge logic
+  const accountAgeInHours = (new Date() - user.createdAt) / (1000 * 60 * 60);
+  if (accountAgeInHours > 24) {
+    earnedBadges = earnedBadges.filter(badge => badge !== "New Member");
+  }
+
   const [skills, bookmarks] = await Promise.all([
     Skill.find({ user: user._id, type: 'OFFER' }).sort({ createdAt: -1 }),
     Skill.find({ bookmarkedBy: user._id }).populate('user', 'username profilePicture').sort({ createdAt: -1 })

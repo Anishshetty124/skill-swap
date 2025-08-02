@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import apiClient from '../api/axios';
-import toast from 'react-hot-toast';
+import { toast } from 'react-toastify';
 import { SparklesIcon } from '@heroicons/react/24/solid';
 
 const CreateSkillPage = () => {
@@ -39,7 +39,7 @@ const CreateSkillPage = () => {
     }
   }, [skillToClone]);
 
-  const skillCategories = ['Tech', 'Art', 'Music', 'Writing', 'Marketing', 'Language', 'Fitness', 'Cooking', 'Crafts'];
+  const skillCategories = ['Tech', 'Art', 'Music', 'Writing', 'Marketing', 'Language', 'Fitness', 'Cooking', 'Crafts', 'other'];
 
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });

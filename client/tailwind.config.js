@@ -1,4 +1,3 @@
-
 /** @type {import('tailwindcss').Config} */
 export default {
   darkMode: 'class',
@@ -10,8 +9,8 @@ export default {
     extend: {
       colors: {
         'accent': {
-          '500': '#14b8a6', // teal-500
-          '600': '#0d9488', // teal-600
+          '500': '#3b82f6', // A vibrant blue for primary actions
+          '600': '#2563eb', // A darker blue for hover states
         }
       },
     },

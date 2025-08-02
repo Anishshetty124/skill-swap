@@ -12,21 +12,20 @@ import {
   rateSkill,
   getLocationSuggestions,
   getKeywordSuggestions,
-  getYoutubeTutorials,
   getYoutubePlaceholders,
   getAllSkillsUnpaginated,
-  getRecommendedSkills,
-  generateAiContent
+  generateAiContent,
+  getRecommendedSkills
 } from '../controllers/skill.controller.js';
 import { verifyJWT } from '../middlewares/auth.middleware.js';
 
 const router = Router();
 
 // --- PUBLIC ROUTES ---
+// All specific, non-dynamic routes must come first.
 router.route('/all').get(getAllSkillsUnpaginated);
 router.route('/keyword-suggestions').get(getKeywordSuggestions);
 router.route('/locations').get(getLocationSuggestions);
-router.route('/youtube-tutorials').get(getYoutubeTutorials); 
 router.route('/youtube-placeholders').get(getYoutubePlaceholders);
 router.route('/nearby').get(getNearbySkills);
 router.route('/').get(getAllSkills);
@@ -34,10 +33,11 @@ router.route('/').get(getAllSkills);
 // --- SECURED ROUTES ---
 router.use(verifyJWT);
 
-// Specific secured routes must come before dynamic secured routes.
+// Specific secured routes must come before any dynamic routes.
 router.route('/ai-generate').post(generateAiContent);
 router.route('/recommendations').get(getRecommendedSkills);
 router.route('/').post(createSkill);
+
 
 // --- DYNAMIC ROUTES (MUST BE LAST) ---
 router.route('/:skillId')

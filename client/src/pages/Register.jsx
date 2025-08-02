@@ -4,11 +4,17 @@ import apiClient from '../api/axios';
 import { EyeIcon, EyeSlashIcon, CheckCircleIcon } from '@heroicons/react/24/solid';
 
 const Register = () => {
-  const [formData, setFormData] = useState({ username: '', email: '', password: '' });
+  const [formData, setFormData] = useState({ 
+    firstName: '', 
+    lastName: '', 
+    username: '', 
+    email: '', 
+    password: '' 
+  });
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
-  const [showPassword, setShowPassword] = useState(false);
   const navigate = useNavigate();
+  const [showPassword, setShowPassword] = useState(false);
 
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -22,6 +28,8 @@ const Register = () => {
       const response = await apiClient.post('/users/register', formData);
       setSuccess(response.data.message + " Redirecting...");
 
+      // This logic was simplified in a previous step, restoring it
+      // to handle the backend's response properly.
       if (response.data.data.isNewUser) {
         navigate('/welcome');
       } else {
@@ -33,9 +41,10 @@ const Register = () => {
   };
 
   const features = [
+    "get free 10 Swap Credits on registering",
+    "AI Assistant to guide your learning journey",
     "Trade skills, not money.",
     "Earn credits for your expertise.",
-    "Connect with a local & global community.",
     "Learn something new today."
   ];
 
@@ -50,54 +59,68 @@ const Register = () => {
             Join our community and start swapping skills today.
           </p>
 
-          <form onSubmit={handleSubmit} className="space-y-6">
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div className="flex flex-col sm:flex-row gap-4">
+                <input
+                    type="text"
+                    name="firstName"
+                    value={formData.firstName}
+                    onChange={handleChange}
+                    placeholder="First Name"
+                    required
+                    className="w-full px-4 py-2 bg-slate-100 dark:bg-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent-500"
+                />
+                <input
+                    type="text"
+                    name="lastName"
+                    value={formData.lastName}
+                    onChange={handleChange}
+                    placeholder="Last Name"
+                    required
+                    className="w-full px-4 py-2 bg-slate-100 dark:bg-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent-500"
+                />
+            </div>
             <div>
-              <label className="block text-sm font-medium mb-1">Username</label>
               <input
                 type="text"
                 name="username"
                 value={formData.username}
                 onChange={handleChange}
+                placeholder="Username"
                 required
-                className="w-full px-4 py-2 border border-slate-400 bg-slate-100 dark:bg-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent-500"
+                className="w-full px-4 py-2 bg-slate-100 dark:bg-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent-500"
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium mb-1">Email</label>
               <input
                 type="email"
                 name="email"
                 value={formData.email}
                 onChange={handleChange}
+                placeholder="Email"
                 required
-                className="w-full px-4 py-2 border border-slate-400 bg-slate-100 dark:bg-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent-500"
+                className="w-full px-4 py-2 bg-slate-100 dark:bg-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent-500"
               />
             </div>
 
-            <div>
-              <label className="block text-sm font-medium mb-1">Password</label>
-              <div className="relative">
-                <input
-                  type={showPassword ? 'text' : 'password'}
-                  name="password"
-                  value={formData.password}
-                  onChange={handleChange}
-                  required
-                  style={{ WebkitTextSecurity: showPassword ? 'none' : 'disc' }}
-                  className="w-full px-4 py-2 border border-slate-400 bg-slate-100 dark:bg-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent-500"
-                />
-                <button
-                 style={{ WebkitTextSecurity: showPassword ? 'none' : 'disc' }}
-                  type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  className="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-500"
-                  tabIndex={-1}
-                >
-                  <EyeIcon className={`h-5 w-5 transition-opacity duration-200 ${showPassword ? 'opacity-0' : 'opacity-100'}`} />
-                  <EyeSlashIcon className={`h-5 w-5 absolute right-3 transition-opacity duration-200 ${showPassword ? 'opacity-100' : 'opacity-0'}`} />
-                </button>
-              </div>
+            <div className="relative">
+              <input
+                type={showPassword ? 'text' : 'password'}
+                name="password"
+                value={formData.password}
+                onChange={handleChange}
+                placeholder="Password"
+                required
+                className="w-full px-4 py-2 bg-slate-100 dark:bg-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent-500"
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-500"
+              >
+                {showPassword ? <EyeSlashIcon className="h-5 w-5"/> : <EyeIcon className="h-5 w-5"/>}
+              </button>
             </div>
 
             <button

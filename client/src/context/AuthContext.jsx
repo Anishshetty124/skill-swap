@@ -1,9 +1,8 @@
 import React, { createContext, useState, useContext, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { io } from 'socket.io-client';
-import toast from 'react-hot-toast';
+import { toast } from 'react-toastify'; 
 import apiClient from '../api/axios';
-import WelcomeCreditsModal from '../components/common/WelcomeCreditsModal';
 
 const AuthContext = createContext(null);
 
@@ -42,7 +41,7 @@ export const AuthProvider = ({ children }) => {
       
       socket.off('new_notification');
       socket.on('new_notification', (data) => {
-        toast.success(data.message, { duration: 5000 });
+        toast.success(data.message);
       });
 
       return () => {

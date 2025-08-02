@@ -9,6 +9,7 @@ const SkillCard = ({ skill, hideUser = false }) => {
   const borderColor = skill.type === 'OFFER' ? 'border-blue-500' : 'border-green-500';
 
   return (
+    
     <div className={`bg-gray-100 hover:bg-white dark:bg-gray-800 rounded-lg shadow-xl hover:shadow-2xl overflow-hidden border-l-4 ${borderColor} transition-transform duration-300 hover:scale-105`}>
       <div className="p-6 flex flex-col h-full">
         <div className="flex justify-between items-start mb-2">
@@ -25,7 +26,7 @@ const SkillCard = ({ skill, hideUser = false }) => {
           )}
         </div>
 
-        <p className="text-gray-600 dark:text-gray-400 mb-4 h-16 overflow-hidden">
+        <p className="text-left text-gray-600 dark:text-gray-400 mb-4 h-16 overflow-hidden">
           {skill.description?.substring(0, 100)}{skill.description?.length > 100 && '...'}
         </p>
 

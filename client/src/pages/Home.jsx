@@ -191,7 +191,7 @@ const Home = () => {
 
 
   
-  const skillCategories = ['Tech', 'Art', 'Music', 'Writing', 'Marketing', 'Language', 'Fitness', 'Cooking', 'Crafts'];
+  const skillCategories = ['Tech', 'Art', 'Music', 'Writing', 'Marketing', 'Language', 'Fitness', 'Cooking', 'Crafts','others'];
   const isAnyFilterActive = filters.keywords || filters.category || filters.level || locationQuery;
   const displayedSkills = showAllSkills ? skills : skills.slice(0, 6);
 
@@ -199,12 +199,12 @@ const Home = () => {
     <div>
      <div className="w-full bg-gradient-to-r dark:from-blue-600 dark:to-cyan-500 from-blue-300 to-cyan-200 text-blue-900 dark:text-white text-center rounded-lg py-20 transition-all duration-300">
   <div className="container mx-auto px-4">
-    <h1 className="text-5xl font-extrabold mb-4">Trade What You Do, Learn What You Don't</h1>
-    <p className="text-xl opacity-90 mb-8">Join a community where skills are the new currency.</p>
+    <h1 className="text-5xl font-extrabold mb-4">Share What You Know, Learn What You Crave.</h1>
+    <p className="text-xl opacity-90 mb-8">Join a vibrant community where your skills become currency, your passion fuels progress,<br/> and every connection is a chance to grow , teach , and thrive together.</p>
     <div className="mt-6">
       <Link
         to="/skills/new"
-        className="inline-block px-8 py-3 bg-white text-blue-600 font-semibold rounded-full shadow-md hover:scale-105 transition-transform duration-300"
+        className="inline-block px-8 py-3 bg-white text-blue-600 font-semibold shadow-xl rounded-full hover:scale-105 transition-transform duration-300"
       >
         🚀 Post Your Skill Now
       </Link>
@@ -254,11 +254,18 @@ const Home = () => {
       
       <div className="mb-8 p-6 bg-slate-100 dark:bg-slate-800 rounded-2xl shadow-lg transition-colors duration-300">
         {!showCitySearch ? (
-            <div className="text-center md:text-left">
-                <h2 className="text-xl font-bold mb-2">Looking for skills in a specific area?</h2>
-                <button onClick={() => setShowCitySearch(true)} className="px-6 py-2 bg-blue-600 text-white font-semibold rounded-md hover:bg-blue-700">Search by City</button>
-            </div>
-        ) : (
+  <div className="md:flex md:items-center md:justify-evenly">
+    <h2 className="text-xl font-bold mb-2 md:mb-0">
+      Looking to discover skilled individuals or talents in a specific city or location?
+    </h2>
+    <button
+      onClick={() => setShowCitySearch(true)}
+      className="px-6 py-2 bg-blue-600 text-white font-semibold rounded-md hover:bg-blue-700"
+    >
+      Search by City
+    </button>
+  </div>
+) :  (
           <form onSubmit={handleSearch} className="relative">
             <label className="block text-sm font-medium mb-1">Search by City Name</label>
             <div className="flex flex-col sm:flex-row gap-2">

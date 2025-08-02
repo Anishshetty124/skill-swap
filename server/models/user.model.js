@@ -3,31 +3,22 @@ import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 
 const userSchema = new mongoose.Schema({
+  firstName: { type: String, trim: true },
+  lastName: { type: String, trim: true },
+  mobileNumber: { type: String, trim: true, default: '' },
   username: { type: String, required: true, unique: true, lowercase: true, trim: true, index: true },
   email: { type: String, required: true, unique: true, lowercase: true, trim: true },
   password: { type: String, required: true },
   role: { type: String, enum: ['user', 'admin'], default: 'user' },
   profilePicture: { type: String, default: '' },
   bio: { type: String, default: '' },
-  socials: {
-    github: { type: String, default: '' },
-    linkedin: { type: String, default: '' },
-    website: { type: String, default: '' },
-  },
+  socials: { github: { type: String, default: '' }, linkedin: { type: String, default: '' }, website: { type: String, default: '' } },
   locationString: { type: String, default: '' },
-  location: {
-    type: { type: String, enum: ['Point'] },
-    coordinates: { type: [Number] } // [longitude, latitude]
-  },
-   badges: {
-    type: [String],
-    default: []
-  },
+  location: { type: { type: String, enum: ['Point'] }, coordinates: { type: [Number] } },
   refreshToken: { type: String },
-  swapCredits: {
-    type: Number,
-    default: 10 // New users start with 10 credits
-  }
+  swapCredits: { type: Number, default: 10 },
+  welcomed: { type: Boolean, default: false },
+  badges: { type: [String], default: [] }
 }, { timestamps: true });
 
 userSchema.index({ location: '2dsphere' });

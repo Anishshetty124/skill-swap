@@ -4,7 +4,7 @@ import apiClient from '../api/axios';
 import { useAuth } from '../context/AuthContext';
 import ProposalModal from '../components/proposals/ProposalModal';
 import SkillCard from '../components/skills/SkillCard';
-import toast from 'react-hot-toast';
+import { toast } from 'react-toastify';
 
 const StarRating = ({ rating }) => {
   const stars = [];
@@ -173,7 +173,7 @@ const SingleSkillPage = () => {
         <div className="mt-8 flex justify-center items-center gap-4">
           {canPropose && (<button onClick={() => setIsModalOpen(true)} className="px-8 py-3 text-lg font-bold text-white bg-indigo-600 rounded-lg hover:bg-indigo-700">Propose a Swap</button>)}
           {isOwner && (<button onClick={handleDelete} disabled={deleting} className="px-6 py-2 font-semibold text-white bg-red-600 rounded-lg hover:bg-red-700 disabled:bg-red-400">{deleting ? 'Deleting...' : 'Delete Skill'}</button>)}
-          {!isAuthenticated && !isOwner && (<p className="text-sm text-gray-500 italic">Please log in to propose a swap.</p>)}
+          {!isAuthenticated && !isOwner && (<p className="text-md text-gray-300 italic">Please log in to propose a swap.</p>)}
         </div>
       </div>
 
