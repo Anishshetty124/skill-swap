@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import apiClient from '../api/axios';
 import { useNavigate } from 'react-router-dom';
-import { toast } from 'react-toastify';import ResetPasswordModal from '../components/profile/ResetPasswordModal';
+import { toast } from 'react-toastify';
 
 const EditProfilePage = () => {
   const { user, updateUserState } = useAuth();
@@ -17,23 +17,33 @@ const EditProfilePage = () => {
   const [locationString, setLocationString] = useState(user?.locationString || '');
   const [socials, setSocials] = useState(user?.socials || { github: '', linkedin: '', website: '' });
   const [avatarFile, setAvatarFile] = useState(null);
+  const [isAvatarMarkedForDeletion, setIsAvatarMarkedForDeletion] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [isModalOpen, setIsModalOpen] = useState(false);
 
-  const handleFileChange = (e) => setAvatarFile(e.target.files[0]);
+  const handleFileChange = (e) => {
+    setAvatarFile(e.target.files[0]);
+    setIsAvatarMarkedForDeletion(false);
+  };
 
   const handleSocialsChange = (e) => {
     setSocials({ ...socials, [e.target.name]: e.target.value });
   };
 
-  const handleRemoveAvatar = async () => {
-    if (window.confirm('Are you sure you want to remove your profile picture?')) {
+  const handleRemoveAvatar = () => {
+    if (window.confirm('Are you sure you want to remove your profile picture? This will be saved when you submit your changes.')) {
+      setIsAvatarMarkedForDeletion(true);
+      setAvatarFile(null);
+    }
+  };
+
+  const handleChangePasswordClick = async () => {
+    if (window.confirm('A password reset code will be sent to your email. Do you want to continue?')) {
       try {
-        const response = await apiClient.delete('/users/me/avatar');
-        updateUserState(response.data.data);
-        toast.success('Profile picture removed.');
-      } catch (error) {
-        toast.error('Failed to remove profile picture.');
+        await apiClient.post('/users/forgot-password', { email: user.email });
+        toast.success("Password reset OTP sent to your email.");
+        navigate('/reset-password', { state: { email: user.email } });
+      } catch (err) {
+        toast.error("Failed to send reset email. Please try again.");
       }
     }
   };
@@ -41,7 +51,6 @@ const EditProfilePage = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
-    let toastId;
 
     try {
       const profileData = { bio, locationString, socials };
@@ -52,13 +61,23 @@ const EditProfilePage = () => {
         apiClient.patch('/users/me/details', accountData)
       ]);
       
-      let finalUserData = { 
+      const textBasedUpdates = { 
         ...profileUpdateRes.data.data, 
         ...accountUpdateRes.data.data 
       };
       
-      if (avatarFile) {
-        toastId = toast.loading('Uploading profile picture...');
+      updateUserState(textBasedUpdates);
+      toast.success('Profile details saved!');
+      
+      const updatedUsername = accountUpdateRes.data.data.username;
+      navigate(`/profile/${updatedUsername}`);
+
+      if (isAvatarMarkedForDeletion) {
+        const response = await apiClient.delete('/users/me/avatar');
+        updateUserState(response.data.data);
+        toast.success('Profile picture removed.');
+      } else if (avatarFile) {
+        const toastId = toast.loading('Uploading profile picture...');
         const formData = new FormData();
         formData.append('file', avatarFile);
         formData.append('upload_preset', import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET);
@@ -71,21 +90,20 @@ const EditProfilePage = () => {
         }
 
         const avatarUpdateRes = await apiClient.patch('/users/me/avatar', { avatarUrl: cloudinaryData.secure_url });
-        finalUserData = { ...finalUserData, ...avatarUpdateRes.data.data };
+        updateUserState(avatarUpdateRes.data.data);
+        toast.success('Profile picture updated!', { id: toastId });
       }
-      
-      updateUserState(finalUserData);
-      toast.dismiss(toastId);
-      toast.success('Profile updated successfully!');
-      navigate(`/profile/${username}`);
-
     } catch (err) {
-      toast.dismiss(toastId);
-      const errorMessage = err.response?.data?.message || 'An unknown error occurred while updating the profile.';
-      toast.error(errorMessage);
+      toast.error(err.response?.data?.message || 'Failed to update profile.');
     } finally {
       setLoading(false);
     }
+  };
+
+  const getAvatarPreview = () => {
+    if (avatarFile) return URL.createObjectURL(avatarFile);
+    if (isAvatarMarkedForDeletion) return `https://api.dicebear.com/8.x/initials/svg?seed=${firstName} ${lastName}`;
+    return user?.profilePicture || `https://api.dicebear.com/8.x/initials/svg?seed=${firstName} ${lastName}`;
   };
 
   return (
@@ -96,13 +114,13 @@ const EditProfilePage = () => {
           <div className="flex items-center space-x-6">
             <img 
               className="w-24 h-24 rounded-full object-cover"
-              src={avatarFile ? URL.createObjectURL(avatarFile) : user?.profilePicture || `https://api.dicebear.com/8.x/initials/svg?seed=${user?.firstName} ${user?.lastName}`}
+              src={getAvatarPreview()}
               alt="Profile Preview"
             />
             <div className="flex flex-col gap-4">
               <label htmlFor="avatar-upload" className="cursor-pointer bg-slate-200 dark:bg-slate-700 text-slate-800 dark:text-slate-200 px-4 py-2 rounded-md hover:bg-slate-300 dark:hover:bg-slate-600 text-center">Change Picture</label>
               <input id="avatar-upload" type="file" accept="image/*" onChange={handleFileChange} className="hidden" />
-              {user?.profilePicture && (
+              {(user?.profilePicture || avatarFile) && !isAvatarMarkedForDeletion && (
                 <button type="button" onClick={handleRemoveAvatar} className="bg-red-500 text-white text-sm px-4 py-2 rounded-md hover:bg-red-600">Remove</button>
               )}
             </div>
@@ -126,8 +144,8 @@ const EditProfilePage = () => {
             <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required className="w-full px-3 py-2 mt-1 bg-white dark:bg-slate-700 rounded-md"/>
           </div>
           <div>
-            <label className="block text-sm font-medium">Mobile Number (Optional)</label>
-            <input type="tel" value={mobileNumber} onChange={(e) => setMobileNumber(e.target.value)} placeholder="e.g., +91 1234567890" className="w-full px-3 py-2 mt-1 bg-white dark:bg-slate-700 rounded-md"/>
+            <label className="block text-sm font-medium">Mobile Number</label>
+            <input type="tel" value={mobileNumber} onChange={(e) => setMobileNumber(e.target.value)} placeholder="10-digit mobile number" required pattern="[0-9]{10}" className="w-full px-3 py-2 mt-1 bg-white dark:bg-slate-700 rounded-md"/>
           </div>
           <div>
             <label className="block text-sm font-medium">Bio</label>
@@ -160,15 +178,15 @@ const EditProfilePage = () => {
         </form>
         <div className="mt-8 border-t dark:border-slate-700 pt-6">
           <h2 className="text-xl font-semibold mb-4">Account Management</h2>
-          <button type="button" onClick={() => setIsModalOpen(true)} className="w-full px-4 py-2 font-bold text-white bg-slate-600 rounded-md hover:bg-slate-700">
+          <button
+            type="button"
+            onClick={handleChangePasswordClick}
+            className="w-full px-4 py-2 font-bold text-white bg-slate-600 rounded-md hover:bg-slate-700"
+          >
             Change Password
           </button>
         </div>
       </div>
-      <ResetPasswordModal 
-        isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
-      />
     </div>
   );
 };

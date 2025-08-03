@@ -85,7 +85,7 @@ const ShareContactModal = ({ isOpen, onClose, onSubmit, existingContactInfo }) =
           </div>
           <div className="relative">
             <CalendarIcon className="h-5 w-5 text-slate-400 absolute top-3.5 left-4"/>
-            <input type="datetime-local" name="meetingTime" value={contactInfo.meetingTime} onChange={handleChange} placeholder="Suggested Meeting Time (Optional)" className="w-full pl-12 pr-4 py-3 bg-slate-100 dark:bg-slate-700 rounded-lg"/>
+            <input type="text" name="meetingTime" value={contactInfo.meetingTime} onChange={handleChange} placeholder="dd-mm-yyyy time am/pm (Optional)"  className="w-full pl-12 pr-4 py-3 bg-slate-100 dark:bg-slate-700 rounded-lg"/>
           </div>
           <div className="relative">
             <ShareIcon className="h-5 w-5 text-slate-400 absolute top-3.5 left-4"/>

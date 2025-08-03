@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useLocation, useNavigate, Link } from 'react-router-dom';
 import apiClient from '../api/axios';
 import { toast } from 'react-toastify';
@@ -10,13 +10,23 @@ const VerifyOtpPage = () => {
   const [resendLoading, setResendLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
+  const [timer, setTimer] = useState(0);
   
   const navigate = useNavigate();
   const location = useLocation();
   const email = location.state?.email;
 
+  useEffect(() => {
+    let interval;
+    if (timer > 0) {
+      interval = setInterval(() => {
+        setTimer(prev => prev - 1);
+      }, 1000);
+    }
+    return () => clearInterval(interval);
+  }, [timer]);
+
   if (!email) {
-    // Redirect to register page if email is not available in state
     navigate('/register');
     return null;
   }
@@ -26,6 +36,7 @@ const VerifyOtpPage = () => {
     try {
       const response = await apiClient.post('/users/resend-verification', { email });
       toast.success(response.data.message);
+      setTimer(30); // Start the 10-second timer
     } catch (err) {
       toast.error(err.response?.data?.message || "Failed to resend OTP.");
     } finally {
@@ -74,7 +85,7 @@ const VerifyOtpPage = () => {
                   onChange={(e) => setOtp(e.target.value)}
                   maxLength="6"
                   required
-                  className="w-full px-4 py-3 text-center text-2xl tracking-[1em] bg-slate-100 dark:bg-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent-500"
+                  className="w-full px-4 py-2 text-center text-2xl tracking-[1em] bg-slate-100 dark:bg-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent-500"
                 />
               </div>
               
@@ -94,10 +105,10 @@ const VerifyOtpPage = () => {
                 Didn't receive a code?{' '}
                 <button 
                   onClick={handleResendOtp}
-                  disabled={resendLoading}
-                  className="font-semibold text-accent-500 hover:underline disabled:opacity-50"
+                  disabled={resendLoading || timer > 0}
+                  className="font-semibold text-accent-500 hover:underline disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  {resendLoading ? 'Sending...' : 'Resend OTP'}
+                  {resendLoading ? 'Sending...' : timer > 0 ? `Resend again in ${timer}s` : 'Resend OTP'}
                 </button>
               </p>
             </div>

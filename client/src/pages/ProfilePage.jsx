@@ -148,7 +148,11 @@ const ProfilePage = () => {
                 </div>
               )}
             </>
-          ) : (<p className="text-slate-500 italic">This user hasn't offered any skills yet.</p>)
+          ) : (
+            <p className="text-slate-500 italic">
+              {isOwner ? "You haven't offered any skills yet." : "This user hasn't offered any skills yet."}
+            </p>
+          )
         )}
         {activeTab === 'bookmarks' && (
           profile.bookmarks?.length > 0 ? (

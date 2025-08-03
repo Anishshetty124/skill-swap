@@ -215,16 +215,24 @@ const getLocationSuggestions = asyncHandler(async (req, res) => {
 });
 
 const getKeywordSuggestions = asyncHandler(async (req, res) => {
-    const { search } = req.query;
-    if (!search) return res.status(200).json(new ApiResponse(200, [], "No search query provided"));
-    const skills = await Skill.aggregate([
-        { $match: { title: { $regex: new RegExp(search, 'i') } } },
-        { $group: { _id: '$title' } },
-        { $limit: 5 },
-        { $project: { _id: 0, title: '$_id' } }
-    ]);
-    return res.status(200).json(new ApiResponse(200, skills, "Keyword suggestions fetched"));
+  const { search } = req.query;
+  if (!search || search.length < 2) {
+    return res.status(200).json(new ApiResponse(200, [], "Query too short"));
+  }
+
+  const allTitles = await Skill.distinct('title');
+
+  const suggestions = allTitles.map(title => {
+    const similarity = natural.JaroWinklerDistance(search.toLowerCase(), title.toLowerCase());
+    return { title, similarity };
+  })
+  .filter(item => item.similarity > 0.8)
+  .sort((a, b) => b.similarity - a.similarity)
+  .slice(0, 5);
+
+  return res.status(200).json(new ApiResponse(200, suggestions, "Keyword suggestions fetched"));
 });
+
 
 const getMatchingSkills = asyncHandler(async (req, res) => {
   const { skillId } = req.params;
@@ -279,25 +287,6 @@ const rateSkill = asyncHandler(async (req, res) => {
   return res.status(200).json(new ApiResponse(200, updatedSkill.ratings, "Thank you for your rating!"));
 });
 
-const getYoutubeTutorials = asyncHandler(async (req, res) => {
-  let { keyword } = req.query;
-  if (!keyword) {
-    return res.status(200).json(new ApiResponse(200, [], "No keyword provided for Youtube."));
-  }
-  const youtubeApiUrl = `https://www.googleapis.com/youtube/v3/search?part=snippet&q=${encodeURIComponent(keyword)}%20tutorial&type=video&maxResults=6&key=${process.env.YOUTUBE_API_KEY}`;
-  try {
-    const response = await fetch(youtubeApiUrl);
-    const data = await response.json();
-    if (data.error) {
-      console.error("YouTube API Error:", data.error.message);
-      throw new ApiError(500, "Failed to fetch videos from YouTube due to an API error.");
-    }
-    return res.status(200).json(new ApiResponse(200, data.items || [], "YouTube videos fetched"));
-  } catch (error) {
-    console.error("Fetch Error:", error);
-    throw new ApiError(500, "Failed to fetch videos from YouTube.");
-  }
-});
 
 const getYoutubePlaceholders = asyncHandler(async (req, res) => {
   const allTopics = Object.values(categorySubtopics).flat();
@@ -310,7 +299,7 @@ const getYoutubePlaceholders = asyncHandler(async (req, res) => {
 const getRecommendedSkills = asyncHandler(async (req, res) => {
   const userId = req.user._id;
   let recommendedSkills = [];
-
+  
   // Find the user's bookmarked skills
   const userBookmarks = await Skill.find({ bookmarkedBy: userId }).select('category');
 
@@ -399,6 +388,57 @@ const generateAiContent = asyncHandler(async (req, res) => {
     throw new ApiError(500, "The AI service is currently unavailable.");
   }
 });
+
+const getYoutubeTutorials = asyncHandler(async (req, res) => {
+  const { keyword } = req.query;
+  if (!keyword) {
+    return res.status(200).json(new ApiResponse(200, [], "No keyword provided."));
+  }
+
+  // --- AI Safety Check ---
+  const genAI = new GoogleGenerativeAI(process.env.GOOGLE_API_KEY);
+  const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash"});
+
+  const safetyPrompt = `
+    Analyze the following user search query: "${keyword}".
+    Is this query about a legitimate, safe-for-work, learnable skill or topic?
+    Examples of good queries: "learn guitar", "how to cook pasta", "javascript tutorial".
+    Examples of bad queries: anything offensive, hateful, dangerous, or completely off-topic.
+    Respond with only the word "YES" if it is a good query, and only the word "NO" if it is a bad query.
+  `;
+
+  try {
+    const safetyResult = await model.generateContent(safetyPrompt);
+    const safetyResponse = await safetyResult.response;
+    const decision = safetyResponse.text().trim().toUpperCase();
+
+    if (decision !== 'YES') {
+      // If the AI says "NO", block the search by returning an empty array.
+      return res.status(200).json(new ApiResponse(200, [], "Query blocked by safety filter."));
+    }
+  } catch (error) {
+    console.error("AI Safety Check Error:", error);
+    // If the safety check fails, we'll block the search to be safe.
+    return res.status(500).json(new ApiResponse(500, [], "Could not process the request."));
+  }
+  
+  // --- If the safety check passes, proceed to fetch videos ---
+  const youtubeApiUrl = `https://www.googleapis.com/youtube/v3/search?part=snippet&q=${encodeURIComponent(keyword)}%20tutorial&type=video&maxResults=6&key=${process.env.YOUTUBE_API_KEY}`;
+  try {
+    const response = await fetch(youtubeApiUrl);
+    const data = await response.json();
+    if (data.error) {
+      console.error("YouTube API Error:", data.error.message);
+      throw new ApiError(500, "Failed to fetch videos from YouTube.");
+    }
+    return res.status(200).json(new ApiResponse(200, data.items || [], "YouTube videos fetched"));
+  } catch (error) {
+    console.error("Fetch Error:", error);
+    throw new ApiError(500, "Failed to fetch videos from YouTube.");
+  }
+});
+
+
 
 export {
   createSkill,

@@ -4,11 +4,10 @@ import { ApiResponse } from '../utils/ApiResponse.js';
 import { User } from '../models/user.model.js';
 import { Skill } from '../models/skill.model.js';
 import { calculateBadges } from '../utils/badgeManager.js';
-import sgMail from '@sendgrid/mail'; // Use SendGrid
+import sgMail from '@sendgrid/mail';
 import jwt from 'jsonwebtoken';
 import opencage from 'opencage-api-client';
 
-// --- SendGrid Setup ---
 sgMail.setApiKey(process.env.SENDGRID_API_KEY);
 
 const registerUser = asyncHandler(async (req, res) => {
@@ -29,9 +28,7 @@ const registerUser = asyncHandler(async (req, res) => {
     throw new ApiError(409, "User with this email or username already exists");
   }
 
-  // Generate a 6-digit OTP
   const otp = Math.floor(100000 + Math.random() * 900000).toString();
-  // Set OTP to expire in 10 minutes
   const otpExpiry = new Date(Date.now() + 10 * 60 * 1000);
 
   const user = await User.create({
@@ -81,7 +78,6 @@ const loginUser = asyncHandler(async (req, res) => {
     throw new ApiError(404, "User does not exist");
   }
 
-  // This check is still very important
   if (!user.isVerified) {
     throw new ApiError(403, "Please verify your email before logging in.");
   }
@@ -189,16 +185,6 @@ const deleteUserAvatar = asyncHandler(async (req, res) => {
     return res.status(200).json(new ApiResponse(200, user, "Avatar removed successfully"));
 });
 
-const changePassword = asyncHandler(async (req, res) => {
-    const { newPassword } = req.body;
-    if (!newPassword || newPassword.length < 6) {
-        throw new ApiError(400, "Password must be at least 6 characters long.");
-    }
-    const user = await User.findById(req.user._id);
-    user.password = newPassword;
-    await user.save();
-    return res.status(200).json(new ApiResponse(200, {}, "Password changed successfully."));
-});
 
 const getUserProfile = asyncHandler(async (req, res) => {
   const { username } = req.params;
@@ -216,8 +202,8 @@ const getUserProfile = asyncHandler(async (req, res) => {
     Skill.find({ user: user._id, type: 'OFFER' }).sort({ createdAt: -1 }),
     Skill.find({ bookmarkedBy: user._id }).populate('user', 'username profilePicture').sort({ createdAt: -1 })
   ]);
-   
- const calculateAvgRating = (skillList) => {
+  
+  const calculateAvgRating = (skillList) => {
     return skillList.map(skill => {
       let averageRating = 0;
       if (skill.ratings && skill.ratings.length > 0) {
@@ -231,10 +217,9 @@ const getUserProfile = asyncHandler(async (req, res) => {
   const skillsWithAvgRating = calculateAvgRating(skills);
   const bookmarksWithAvgRating = calculateAvgRating(bookmarks);
 
-  const profileData = { ...user.toObject(), skillsOfferedCount, swapsCompleted, skills: skillsWithAvgRating, bookmarks: bookmarksWithAvgRating, badges: earnedBadges };
-  return res.status(200).json(new ApiResponse(200, profileData, "User profile fetched successfully"));
+  const profileData = { ...user.toObject(), skillsOfferedCount, swapsCompleted, skills: skillsWithAvgRating, bookmarks: bookmarksWithAvgRating, badges: earnedBadges };
+  return res.status(200).json(new ApiResponse(200, profileData, "User profile fetched successfully"));
 });
-
 
 const verifyOtp = asyncHandler(async (req, res) => {
   const { email, otp } = req.body;
@@ -246,7 +231,7 @@ const verifyOtp = asyncHandler(async (req, res) => {
   const user = await User.findOne({ 
     email,
     verificationOtp: otp,
-    verificationOtpExpiry: { $gt: Date.now() } // Check if OTP is not expired
+    verificationOtpExpiry: { $gt: Date.now() }
   });
 
   if (!user) {
@@ -269,7 +254,6 @@ const resendVerificationEmail = asyncHandler(async (req, res) => {
 
   const user = await User.findOne({ email });
   if (!user) {
-    // For security, don't reveal if the user exists.
     return res.status(200).json(new ApiResponse(200, {}, "If an account with this email exists, a new verification code has been sent."));
   }
 
@@ -306,6 +290,75 @@ const resendVerificationEmail = asyncHandler(async (req, res) => {
   }
 });
 
+const forgotPassword = asyncHandler(async (req, res) => {
+  const { email } = req.body;
+  if (!email) {
+    throw new ApiError(400, "Email is required.");
+  }
+
+  const user = await User.findOne({ email });
+  if (!user) {
+    // For security, don't reveal if a user exists or not.
+    return res.status(200).json(new ApiResponse(200, {}, "If an account with this email exists, a password reset OTP has been sent."));
+  }
+
+  // Generate a 6-digit OTP
+  const otp = Math.floor(100000 + Math.random() * 900000).toString();
+  // Set OTP to expire in 10 minutes
+  const otpExpiry = new Date(Date.now() + 10 * 60 * 1000);
+
+  user.passwordResetOtp = otp;
+  user.passwordResetOtpExpiry = otpExpiry;
+  await user.save({ validateBeforeSave: false });
+
+  const msg = {
+    to: user.email,
+    from: 'codex.5342@gmail.com', // Use your verified SendGrid email
+    subject: 'Your SkillSwap Password Reset Code',
+    html: `
+      <div style="font-family: sans-serif; padding: 20px; color: #333;">
+        <h2>Password Reset Request</h2>
+        <p>Your password reset code is:</p>
+        <p style="font-size: 24px; font-weight: bold; letter-spacing: 2px; background: #f0f0f0; padding: 10px; border-radius: 5px;">${otp}</p>
+        <p style="font-size: 12px; color: #777;">This code will expire in 10 minutes.</p>
+      </div>
+    `,
+  };
+
+  try {
+    await sgMail.send(msg);
+    return res.status(200).json(new ApiResponse(200, { email: user.email }, "Password reset OTP sent to your email."));
+  } catch (error) {
+    console.error("SendGrid Error:", error);
+    throw new ApiError(500, "Could not send password reset email. Please try again later.");
+  }
+});
+
+const resetPassword = asyncHandler(async (req, res) => {
+  const { email, otp, newPassword } = req.body;
+
+  if (!email || !otp || !newPassword) {
+    throw new ApiError(400, "Email, OTP, and new password are required.");
+  }
+
+  const user = await User.findOne({
+    email,
+    passwordResetOtp: otp,
+    passwordResetOtpExpiry: { $gt: Date.now() }
+  });
+
+  if (!user) {
+    throw new ApiError(400, "Invalid OTP or OTP has expired.");
+  }
+
+  user.password = newPassword;
+  user.passwordResetOtp = undefined;
+  user.passwordResetOtpExpiry = undefined;
+  await user.save();
+
+  return res.status(200).json(new ApiResponse(200, {}, "Password has been reset successfully. You can now log in."));
+});
+
 export {
   registerUser,
   verifyOtp,
@@ -316,7 +369,8 @@ export {
   updateAccountDetails,
   updateUserAvatar,
   deleteUserAvatar,
-  changePassword,
   getUserProfile,
-  resendVerificationEmail
+  resendVerificationEmail,
+  forgotPassword,
+  resetPassword,
 };

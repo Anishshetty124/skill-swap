@@ -10,7 +10,8 @@ import Dashboard from './pages/Dashboard';
 import ProfilePage from './pages/ProfilePage';
 import EditProfilePage from './pages/EditProfilePage';
 import MySkillsPage from './pages/MySkillsPage';
-import VerifyOtpPage from './pages/VerifyOtpPage'; 
+import VerifyOtpPage from './pages/VerifyOtpPage';
+import ResetPasswordPage from './pages/ResetPasswordPage'; 
 import ProtectedRoute from './components/auth/ProtectedRoute';
 
 function App() {
@@ -21,7 +22,8 @@ function App() {
           <Route index element={<Home />} />
           <Route path="login" element={<Login />} />
           <Route path="register" element={<Register />} />
-          <Route path="verify-otp" element={<VerifyOtpPage />} /> 
+          <Route path="verify-otp" element={<VerifyOtpPage />} />
+          <Route path="reset-password" element={<ResetPasswordPage />} /> 
           <Route path="skills/:skillId" element={<SingleSkillPage />} />
           <Route path="profile/:username" element={<ProfilePage />} />
           

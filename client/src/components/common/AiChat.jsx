@@ -5,11 +5,12 @@ import {
   XMarkIcon,
 } from "@heroicons/react/24/solid";
 import apiClient from "../../api/axios";
-import ReactMarkdown from "react-markdown"; 
+import ReactMarkdown from "react-markdown";
+import { useAuth } from "../../context/AuthContext"; // 👈 1. Import useAuth
 
 const AiChat = () => {
+  const { chatMessages, updateChatMessages } = useAuth(); // 👈 2. Use state from context
   const [isOpen, setIsOpen] = useState(false);
-  const [messages, setMessages] = useState([]);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const messagesEndRef = useRef(null);
@@ -18,19 +19,21 @@ const AiChat = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   };
 
-  useEffect(scrollToBottom, [messages]);
+  useEffect(scrollToBottom, [chatMessages]);
 
   const handleSend = async (e) => {
     e.preventDefault();
     if (!input.trim() || isLoading) return;
 
     const userMessage = { sender: "user", text: input };
-    const newMessages = [...messages, userMessage];
-    setMessages(newMessages);
+    
+    // 👈 3. Update context state, which saves to sessionStorage
+    updateChatMessages((prev) => [...prev, userMessage]);
+    
     setInput("");
     setIsLoading(true);
 
-    const history = messages.map((msg) => ({
+    const history = chatMessages.map((msg) => ({
       role: msg.sender === "user" ? "user" : "model",
       parts: [{ text: msg.text }],
     }));
@@ -42,7 +45,8 @@ const AiChat = () => {
         history: history,
       });
       const aiMessage = { sender: "ai", text: response.data.data.response };
-      setMessages((prev) => [...prev, aiMessage]);
+      // 👈 4. Update context state with AI response
+      updateChatMessages((prev) => [...prev, aiMessage]);
     } catch (error) {
       const errorMessage = {
         sender: "ai",
@@ -50,10 +54,15 @@ const AiChat = () => {
           error.response?.data?.message ||
           "Sorry, I'm having trouble connecting. Please try again later.",
       };
-      setMessages((prev) => [...prev, errorMessage]);
+      updateChatMessages((prev) => [...prev, errorMessage]);
     } finally {
       setIsLoading(false);
     }
+  };
+  
+  // Function to clear chat history from context and sessionStorage
+  const handleClearChat = () => {
+    updateChatMessages([]);
   };
 
   return (
@@ -68,35 +77,34 @@ const AiChat = () => {
 
       {/* Chat Window */}
       {isOpen && (
-        <div className="fixed bottom-24 right-6 w-full max-w-sm h-[70vh] bg-gray-500 border border-slate-100 dark:bg-slate-800 rounded-2xl shadow-2xl flex flex-col z-50">
+        <div className="fixed bottom-24 right-6 w-full max-w-sm h-[70vh] bg-white border border-slate-200 dark:bg-slate-800 rounded-2xl shadow-2xl flex flex-col z-50">
           {/* Header */}
           <div className="p-4 border-b dark:border-slate-700 flex justify-between items-center">
-  <h3 className="font-bold text-lg text-blue-700 bg-slate-200 dark:bg-slate-800 px-2 rounded-md">AI Skill Assistant</h3>
-  <div className="flex gap-2 items-center">
-    <button
-      onClick={() => setMessages([])}
-      className="text-sm px-3 py-1 bg-red-800 text-white rounded-full hover:bg-red-200 dark:bg-red dark:text-white dark:hover:bg-red-700 transition"
-    >
-      Clear
-    </button>
-    <button
-      onClick={() => setIsOpen(false)}
-      className="p-1 rounded-full hover:bg-slate-100 dark:hover:bg-slate-700"
-    >
-      <XMarkIcon className="h-6 w-6" />
-    </button>
-  </div>
-</div>
-
+            <h3 className="font-bold text-lg text-slate-800 dark:text-white px-2 rounded-md">AI Skill Assistant</h3>
+            <div className="flex gap-2 items-center">
+              <button
+                onClick={handleClearChat} // Use the new clear function
+                className="text-sm px-3 py-1 bg-red-600 text-white rounded-full hover:bg-red-700 transition"
+              >
+                Clear
+              </button>
+              <button
+                onClick={() => setIsOpen(false)}
+                className="p-1 rounded-full hover:bg-slate-100 dark:hover:bg-slate-700"
+              >
+                <XMarkIcon className="h-6 w-6" />
+              </button>
+            </div>
+          </div>
 
           {/* Messages */}
           <div className="flex-1 p-4 overflow-y-auto">
-            {messages.length === 0 && (
+            {chatMessages.length === 0 && (
               <div className="text-center text-sm text-slate-500">
                 Ask me anything about a skill you'd like to learn!
               </div>
             )}
-            {messages.map((msg, index) => (
+            {chatMessages.map((msg, index) => (
               <div
                 key={index}
                 className={`flex mb-4 ${
@@ -104,10 +112,10 @@ const AiChat = () => {
                 }`}
               >
                 <div
-                  className={`prose dark:prose-invert px-4 py-2 rounded-2xl max-w-sm break-words whitespace-pre-wrap overflow-hidden ${
+                  className={`prose dark:prose-invert px-4 py-2 rounded-2xl max-w-xs break-words whitespace-pre-wrap overflow-hidden ${
                     msg.sender === "user"
-                      ? "bg-blue-400 dark:text-white dark:bg-blue-700 bold shadow-md text-black"
-                      : "bg-green-400 dark:bg-green-700 bold shadow-md"
+                      ? "bg-blue-500 text-white shadow-md"
+                      : "bg-slate-200 dark:bg-slate-700 shadow-md"
                   }`}
                 >
                   <div className="break-words whitespace-pre-wrap [&_pre]:break-words [&_pre]:whitespace-pre-wrap [&_pre]:overflow-auto [&_code]:break-words">

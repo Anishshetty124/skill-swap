@@ -373,47 +373,49 @@ const Home = () => {
 ) : (
   <p className="text-center p-10 text-slate-500">{currentSearch ? "No skills found." : "No skills posted yet."}</p>
 )}
-      <div className="mt-12">
-       <div className="mt-12">
-  <h2 className="text-2xl font-bold mb-4">
-    {searchedKeyword ? `Tutorials for "${searchedKeyword}"` : "Explore Skills with YouTube"}
+
+    
+      <div className="mt-16 text-center">
+        {(searchedKeyword || (!searchedKeyword && youtubeVideos.length === 0 && youtubePlaceholders.length > 0)) && (
+  <h2 className="text-3xl font-bold mb-8">
+    {searchedKeyword
+      ? `Tutorials for "${searchedKeyword}"`
+      : "Explore Skills with YouTube"}
   </h2>
-  {youtubeLoading ? (
-    <p>Loading tutorials...</p>
-  ) : youtubeVideos.length > 0 ? (
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-      {youtubeVideos.map(video => (
-        <a 
-          key={video.id.videoId}
-          href={`https://www.youtube.com/watch?v=${video.id.videoId}`}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="block bg-white dark:bg-slate-800 rounded-lg shadow-lg overflow-hidden group"
-        >
-          <img src={video.snippet.thumbnails.high.url} alt={video.snippet.title} className="w-full h-48 object-cover"/>
-          <div className="p-4">
-            <h3 className="font-bold text-slate-800 dark:text-white group-hover:text-accent-500">{video.snippet.title}</h3>
-            <p className="text-sm text-slate-500 dark:text-slate-400">{video.snippet.channelTitle}</p>
+)}
+
+        
+        {youtubeLoading ? (
+            <p>Loading tutorials...</p>
+        ) : youtubeVideos.length > 0 ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+              {/* This part maps and displays the video cards */}
+              {youtubeVideos.map(video => (
+                <a key={video.id.videoId || video.id} href={`https://www.youtube.com/watch?v=${video.id.videoId || video.id}`} target="_blank" rel="noopener noreferrer" className="block bg-white dark:bg-slate-800 rounded-lg shadow-lg overflow-hidden group">
+                  <img src={video.snippet.thumbnails.high.url} alt={video.snippet.title} className="w-full h-48 object-cover"/>
+                  <div className="p-4">
+                    <h3 className="font-bold text-slate-800 dark:text-white group-hover:text-accent-500">{video.snippet.title}</h3>
+                    <p className="text-sm text-slate-500 dark:text-slate-400">{video.snippet.channelTitle}</p>
+                  </div>
+                </a>
+              ))}
+            </div>
+        ) : (
+          <div className="flex flex-wrap justify-center gap-3">
+            {/* --- THIS IS THE CORRECTED LOGIC --- */}
+            {searchedKeyword ? (
+              // If a search was made but there are no videos, show this message
+              <p className="text-slate-500 italic">No tutorials found for this topic. It may be an invalid or inappropriate search.</p>
+            ) : (
+              // Otherwise, show the placeholder topics
+              youtubePlaceholders.map((topic, index) => (
+                <a key={index} href={`https://www.youtube.com/results?search_query=${encodeURIComponent(topic)}`} target="_blank" rel="noopener noreferrer" className="px-4 py-2 bg-slate-200 dark:bg-slate-700 text-sm font-semibold rounded-full hover:bg-slate-300 dark:hover:bg-slate-600">
+                  {topic}
+                </a>
+              ))
+            )}
           </div>
-        </a>
-      ))}
-    </div>
-  ) : (
-    <div className="flex flex-wrap justify-center gap-3">
-      {youtubePlaceholders.map((topic, index) => (
-        <a 
-          key={index} 
-          href={`https://www.youtube.com/results?search_query=${encodeURIComponent(topic)}`} 
-          target="_blank" 
-          rel="noopener noreferrer" 
-          className="px-4 py-2 bg-white dark:bg-slate-700 text-sm font-semibold rounded-full hover:bg-slate-300 dark:hover:bg-slate-600"
-        >
-          {topic}
-        </a>
-      ))}
-    </div>
-  )}
-</div>
+        )}
       </div>
        <RecommendedSkills />
 

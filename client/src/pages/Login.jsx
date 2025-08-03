@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { EyeIcon, EyeSlashIcon } from '@heroicons/react/24/solid';
 import apiClient from '../api/axios';
 import { toast } from 'react-toastify';
@@ -11,7 +11,20 @@ const Login = () => {
   const { login } = useAuth();
   const [showPassword, setShowPassword] = useState(false);
   const [showResendButton, setShowResendButton] = useState(false);
+  const [showForgotPassword, setShowForgotPassword] = useState(false);
   const [resendLoading, setResendLoading] = useState(false);
+  const [timer, setTimer] = useState(0);
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    let interval;
+    if (timer > 0) {
+      interval = setInterval(() => {
+        setTimer(prev => prev - 1);
+      }, 1000);
+    }
+    return () => clearInterval(interval);
+  }, [timer]);
 
   const handleChange = (e) => {
     setCredentials({ ...credentials, [e.target.name]: e.target.value });
@@ -26,9 +39,29 @@ const Login = () => {
     try {
       const response = await apiClient.post('/users/resend-verification', { email: credentials.email });
       toast.success(response.data.message);
-      setShowResendButton(false);
+      
+      navigate('/verify-otp', { state: { email: credentials.email } });
+
+      setTimer(30); 
     } catch (err) {
       toast.error(err.response?.data?.message || "Failed to resend email.");
+    } finally {
+      setResendLoading(false);
+    }
+  };
+
+  const handleForgotPassword = async () => {
+    if (!credentials.email) {
+      toast.error("Please enter your email or username to reset your password.");
+      return;
+    }
+    setResendLoading(true);
+    try {
+      const response = await apiClient.post('/users/forgot-password', { email: credentials.email });
+      toast.success("Password reset OTP sent to your email.");
+      navigate('/reset-password', { state: { email: credentials.email } });
+    } catch (err) {
+      toast.error(err.response?.data?.message || "Failed to send reset email.");
     } finally {
       setResendLoading(false);
     }
@@ -38,13 +71,16 @@ const Login = () => {
     e.preventDefault();
     setError('');
     setShowResendButton(false);
+    setShowForgotPassword(false);
     try {
       await login(credentials);
     } catch (err) {
-      const errorMessage = err.response?.data?.message || 'Failed to login. Please check your credentials.';
+      const errorMessage = err.response?.data?.message || 'Failed to login.';
       setError(errorMessage);
       if (errorMessage.includes("Please verify your email")) {
         setShowResendButton(true);
+      } else if (errorMessage.includes("Invalid user credentials")) {
+        setShowForgotPassword(true);
       }
     }
   };
@@ -58,26 +94,28 @@ const Login = () => {
           <p className="mb-8 max-w-sm text-slate-600 dark:text-slate-400">Log in to continue your skill-swapping journey.</p>
           <form onSubmit={handleSubmit} className="space-y-6">
             <div>
-              <label className="block text-sm font-medium mb-1">Email or Username</label>
-              <input type="text" name="email" value={credentials.email} onChange={handleChange} required className="w-full px-4 py-2 bg-slate-100 dark:bg-slate-700 rounded-lg"/>
+              <input 
+                type="text" 
+                name="email" 
+                value={credentials.email} 
+                onChange={handleChange} 
+                required 
+                placeholder="Email or Username"
+                className="w-full px-4 py-2 bg-slate-100 dark:bg-slate-700 rounded-lg"/>
             </div>
             <div className="relative">
-                <input
-                  type={showPassword ? 'text' : 'password'}
-                  name="password"
-                  value={credentials.password}
-                  onChange={handleChange}
-                  required
-                  className="w-full px-4 py-2 border border-gray-400 dark:border-slate-600 bg-slate-100 dark:bg-slate-700 border-transparent rounded-lg focus:outline-none focus:ring-2 focus:ring-accent-500"
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  className="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-500"
-                >
-                  {showPassword ? <EyeSlashIcon className="h-5 w-5"/> : <EyeIcon className="h-5 w-5"/>}
-                </button>
-              </div>
+              <input 
+                type={showPassword ? 'text' : 'password'} 
+                name="password" 
+                value={credentials.password} 
+                onChange={handleChange} 
+                required 
+                placeholder="Password"
+                className="w-full px-4 py-2 bg-slate-100 dark:bg-slate-700 rounded-lg"/>
+              <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-500">
+                {showPassword ? <EyeSlashIcon className="h-5 w-5"/> : <EyeIcon className="h-5 w-5"/>}
+              </button>
+            </div>
             <button type="submit" className="w-full py-3 font-semibold text-white bg-gradient-to-r from-cyan-500 to-blue-500 rounded-lg shadow-lg hover:shadow-blue-500/50 transition-all duration-300 transform hover:scale-105">Log In</button>
           </form>
 
@@ -87,10 +125,22 @@ const Login = () => {
             <div className="text-center mt-4">
               <button 
                 onClick={handleResendVerification}
+                disabled={resendLoading || timer > 0}
+                className="text-sm font-semibold text-accent-500 hover:underline disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {resendLoading ? 'Sending...' : timer > 0 ? `Resend again in ${timer}s` : 'Resend verification email'}
+              </button>
+            </div>
+          )}
+
+          {showForgotPassword && (
+            <div className="text-center mt-4">
+              <button 
+                onClick={handleForgotPassword}
                 disabled={resendLoading}
                 className="text-sm font-semibold text-accent-500 hover:underline disabled:opacity-50"
               >
-                {resendLoading ? 'Sending...' : 'Resend verification email'}
+                {resendLoading ? 'Sending...' : 'Forgot Password?'}
               </button>
             </div>
           )}
@@ -99,7 +149,6 @@ const Login = () => {
             <p className="text-sm text-slate-500">Don't have an account? <Link to="/register" className="font-semibold text-accent-500 hover:underline">Register now</Link></p>
           </div>
         </div>
-        
         {/* Right Side (Decorative) */}
         <div className="w-1/2 p-12 bg-gradient-to-br from-blue-600 to-cyan-500 hidden md:flex flex-col justify-center items-center text-white text-center">
             <svg width="64" height="64" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
