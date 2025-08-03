@@ -335,7 +335,16 @@ const getRecommendedSkills = asyncHandler(async (req, res) => {
       .populate('user', 'username');
   }
   
-  return res.status(200).json(new ApiResponse(200, recommendedSkills, "Recommended skills fetched successfully"));
+   const skillsWithAvgRating = recommendedSkills.map(skill => {
+    let averageRating = 0;
+    if (skill.ratings && skill.ratings.length > 0) {
+      const totalRating = skill.ratings.reduce((acc, r) => acc + r.rating, 0);
+      averageRating = (totalRating / skill.ratings.length).toFixed(1);
+    }
+    return { ...skill.toObject(), averageRating };
+  });
+
+  return res.status(200).json(new ApiResponse(200, skillsWithAvgRating, "Recommended skills fetched successfully"));
 });
 
 const generateAiContent = asyncHandler(async (req, res) => {

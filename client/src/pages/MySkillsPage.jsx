@@ -14,7 +14,6 @@ const MySkillsPage = () => {
       const fetchMySkills = async () => {
         try {
           setLoading(true);
-          // Use the existing endpoint to fetch skills by userId
           const response = await apiClient.get(`/skills?userId=${user._id}`);
           setMySkills(response.data.data.skills);
         } catch (err) {

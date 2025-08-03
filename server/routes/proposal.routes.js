@@ -4,7 +4,7 @@ import {
   getProposals,
   respondToProposal,
   deleteProposal,
-  updateContactInfo 
+  updateContactInfo
 } from '../controllers/proposal.controller.js';
 import { verifyJWT } from '../middlewares/auth.middleware.js';
 

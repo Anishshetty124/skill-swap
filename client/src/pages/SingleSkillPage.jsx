@@ -77,7 +77,7 @@ const SingleSkillPage = () => {
         await apiClient.delete(`/skills/${skillId}`);
         toast.success('Skill deleted successfully!');
         // Navigate to dashboard and pass a state to indicate a refresh is needed
-        navigate('/dashboard', { state: { refresh: true } });
+        navigate('/my-skills', { state: { refresh: true } });
       } catch (err) {
         toast.error(err.response?.data?.message || 'Failed to delete skill.');
         setDeleting(false);

@@ -58,7 +58,6 @@ const AiChat = () => {
 
   return (
     <>
-      {/* Floating Action Button */}
       <button
         onClick={() => setIsOpen(true)}
         className="fixed bottom-6 right-6 bg-gradient-to-r from-blue-600 to-cyan-500 text-white p-4 rounded-full shadow-lg hover:scale-110 transition-transform duration-300 z-40"
@@ -69,7 +68,7 @@ const AiChat = () => {
 
       {/* Chat Window */}
       {isOpen && (
-        <div className="fixed bottom-24 right-6 w-full max-w-sm h-[70vh] bg-gray-500 dark:bg-slate-800 rounded-2xl shadow-2xl flex flex-col z-50">
+        <div className="fixed bottom-24 right-6 w-full max-w-sm h-[70vh] bg-gray-500 border border-slate-100 dark:bg-slate-800 rounded-2xl shadow-2xl flex flex-col z-50">
           {/* Header */}
           <div className="p-4 border-b dark:border-slate-700 flex justify-between items-center">
   <h3 className="font-bold text-lg text-blue-700 bg-slate-200 dark:bg-slate-800 px-2 rounded-md">AI Skill Assistant</h3>

@@ -2,23 +2,34 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { PhoneIcon, EnvelopeIcon, ChatBubbleLeftEllipsisIcon, VideoCameraIcon, CalendarIcon, ShareIcon } from '@heroicons/react/24/outline';
 
-const ShareContactModal = ({ isOpen, onClose, onSubmit }) => {
+const ShareContactModal = ({ isOpen, onClose, onSubmit, existingContactInfo }) => {
   const { user } = useAuth();
   const [contactInfo, setContactInfo] = useState({
     phone: '',
     email: '',
     meetingLink: '',
     meetingTime: '',
-    other: '', // Added new state for 'other'
+    other: '',
     note: ''
   });
 
   useEffect(() => {
-    // Pre-fill the phone number if the user has one saved
-    if (isOpen && user?.mobileNumber) {
-      setContactInfo(prev => ({ ...prev, phone: user.mobileNumber }));
+    if (isOpen) {
+      if (existingContactInfo) {
+        setContactInfo(existingContactInfo);
+      } else {
+        // Pre-fill phone and email if available
+        setContactInfo(prev => ({ 
+          ...prev, 
+          phone: user?.mobileNumber || '',
+          email: user?.email || '' 
+        }));
+      }
+    } else {
+      // Reset form when closed
+      setContactInfo({ phone: '', email: '', meetingLink: '', meetingTime: '', other: '', note: '' });
     }
-  }, [isOpen, user]);
+  }, [isOpen, existingContactInfo, user]);
 
   const handleChange = (e) => {
     setContactInfo({ ...contactInfo, [e.target.name]: e.target.value });
@@ -35,18 +46,38 @@ const ShareContactModal = ({ isOpen, onClose, onSubmit }) => {
   return (
     <div className="fixed inset-0 bg-black bg-opacity-60 flex justify-center items-center z-50 p-4">
       <div className="bg-white dark:bg-slate-800 p-8 rounded-lg shadow-xl w-full max-w-md">
-        <h2 className="text-2xl font-bold mb-4 text-center">Accept Proposal & Share Info</h2>
+        <h2 className="text-2xl font-bold mb-4 text-center">
+          {existingContactInfo ? 'Edit Contact Info' : 'Accept Proposal & Share Info'}
+        </h2>
         <p className="text-center text-sm text-slate-500 dark:text-slate-400 mb-6">
           Share your contact and meeting details so the other user can connect with you.
         </p>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="relative">
             <PhoneIcon className="h-5 w-5 text-slate-400 absolute top-3.5 left-4"/>
-            <input type="tel" name="phone" value={contactInfo.phone} onChange={handleChange} placeholder="Phone Number (Optional)" className="w-full pl-12 pr-4 py-3 bg-slate-100 dark:bg-slate-700 rounded-lg"/>
+            <input 
+              type="tel" 
+              name="phone" 
+              value={contactInfo.phone} 
+              onChange={handleChange} 
+              placeholder="10-Digit Mobile Number" 
+              required 
+              pattern="[0-9]{10}"
+              title="Please enter a valid 10-digit mobile number"
+              className="w-full pl-12 pr-4 py-3 bg-slate-100 dark:bg-slate-700 rounded-lg"
+            />
           </div>
           <div className="relative">
             <EnvelopeIcon className="h-5 w-5 text-slate-400 absolute top-3.5 left-4"/>
-            <input type="email" name="email" value={contactInfo.email} onChange={handleChange} placeholder="Email Address (Optional)" className="w-full pl-12 pr-4 py-3 bg-slate-100 dark:bg-slate-700 rounded-lg"/>
+            <input 
+              type="email" 
+              name="email" 
+              value={contactInfo.email} 
+              onChange={handleChange} 
+              placeholder="Email Address" 
+              required
+              className="w-full pl-12 pr-4 py-3 bg-slate-100 dark:bg-slate-700 rounded-lg"
+            />
           </div>
           <div className="relative">
             <VideoCameraIcon className="h-5 w-5 text-slate-400 absolute top-3.5 left-4"/>
@@ -56,7 +87,6 @@ const ShareContactModal = ({ isOpen, onClose, onSubmit }) => {
             <CalendarIcon className="h-5 w-5 text-slate-400 absolute top-3.5 left-4"/>
             <input type="datetime-local" name="meetingTime" value={contactInfo.meetingTime} onChange={handleChange} placeholder="Suggested Meeting Time (Optional)" className="w-full pl-12 pr-4 py-3 bg-slate-100 dark:bg-slate-700 rounded-lg"/>
           </div>
-          {/* New "Other" Input Field */}
           <div className="relative">
             <ShareIcon className="h-5 w-5 text-slate-400 absolute top-3.5 left-4"/>
             <input
@@ -77,7 +107,7 @@ const ShareContactModal = ({ isOpen, onClose, onSubmit }) => {
               Cancel
             </button>
             <button type="submit" className="px-6 py-2 rounded-md font-semibold text-white bg-accent-600 hover:bg-accent-700">
-              Accept & Share
+              {existingContactInfo ? 'Save Changes' : 'Accept & Share'}
             </button>
           </div>
         </form>

@@ -85,53 +85,65 @@ const Home = () => {
     fetchYoutubePlaceholders();
   }, []);
 
-  const handleSearch = (e) => {
-  if (e) e.preventDefault();
-  let searchTerms = [];
-  if (filters.keywords) searchTerms.push(filters.keywords);
-  if (filters.category) searchTerms.push(filters.category);
-  if (filters.level) searchTerms.push(filters.level);
-  if (locationQuery) searchTerms.push(locationQuery);
-  const searchTermDisplay = searchTerms.join(', ');
+   const handleMainSearch = (e, currentFilters = filters, currentLocQuery = locationQuery) => {
+    if (e) e.preventDefault();
+    let searchTerms = [];
+    if (currentFilters.keywords) searchTerms.push(currentFilters.keywords);
+    if (currentFilters.category) searchTerms.push(currentFilters.category);
+    if (currentFilters.level) searchTerms.push(currentFilters.level);
+    if (currentLocQuery) searchTerms.push(currentLocQuery);
+    const searchTermDisplay = searchTerms.join(', ');
+    
+    setCurrentSearch(searchTermDisplay); 
+    
+    setPage(1);
+    setHasMore(true);
+    setSkills([]);
+    fetchSkills(1, true, currentFilters, currentLocQuery);
+    
+    setSearchedKeyword(currentFilters.keywords);
+    fetchYoutubeContent(currentFilters.keywords);
+    
+    setKeywordSuggestions([]);
+    setLocationSuggestions([]);
+  };
 
-  setCurrentSearch(searchTermDisplay || 'all skills');
-  setSearchedKeyword(filters.keywords); 
+  const handleCitySearch = (e, currentFilters = filters, currentLocQuery = locationQuery) => {
+    if (e) e.preventDefault();
+    let searchTerms = [];
+    if (currentFilters.keywords) searchTerms.push(currentFilters.keywords);
+    if (currentFilters.category) searchTerms.push(currentFilters.category);
+    if (currentFilters.level) searchTerms.push(currentFilters.level);
+    if (currentLocQuery) searchTerms.push(currentLocQuery);
+    const searchTermDisplay = searchTerms.join(', ');
+    
+    setCurrentSearch(searchTermDisplay); 
+    
+    setPage(1);
+    setHasMore(true);
+    setSkills([]);
+    fetchSkills(1, true, currentFilters, currentLocQuery);
+    
+    // Note: No calls to setSearchedKeyword or fetchYoutubeContent
+    setLocationSuggestions([]);
+  };
 
-  setPage(1);
-  setHasMore(true);
-  setSkills([]);
-  fetchSkills(1, true);
-
-  fetchYoutubeContent(filters.keywords); 
-  setKeywordSuggestions([]);
-  setLocationSuggestions([]);
-};
-
-  
   const loadMoreSkills = () => {
     const nextPage = page + 1;
     setPage(nextPage);
     fetchSkills(nextPage, false);
   };
 
-  const clearSearch = () => {
-    const emptyFilters = { keywords: '', category: '', level: '' };
-    const emptyLocation = '';
-    
-    setFilters(emptyFilters);
-    setLocationQuery(emptyLocation);
-    setCurrentSearch('');
-    setShowCitySearch(false);
-    setPage(1);
-    setHasMore(true);
-    setSkills([]);
-    setKeywordSuggestions([]);
-    setLocationSuggestions([]);
-    fetchSkills(1, true, emptyFilters, emptyLocation); 
-    
-    setYoutubeVideos([]);
-    setSearchedKeyword(''); 
-    fetchYoutubePlaceholders();
+  const clearMainFilters = () => {
+    setFilters({ keywords: '', category: '', level: '' });
+    setSearchedKeyword('');
+    handleMainSearch(null, { keywords: '', category: '', level: '' }, locationQuery);
+  };
+
+   const clearCityFilter = () => {
+    setLocationQuery('');
+    setShowCitySearch(false); 
+    handleCitySearch(null, filters, '');
   };
 
   const fetchKeywordSuggestions = async (query) => {
@@ -194,6 +206,7 @@ const Home = () => {
   const skillCategories = ['Tech', 'Art', 'Music', 'Writing', 'Marketing', 'Language', 'Fitness', 'Cooking', 'Crafts','others'];
   const isAnyFilterActive = filters.keywords || filters.category || filters.level || locationQuery;
   const displayedSkills = showAllSkills ? skills : skills.slice(0, 6);
+  const isMainFilterActive = filters.keywords || filters.category || filters.level;
 
   return (
     <div>
@@ -214,7 +227,7 @@ const Home = () => {
 
 
 
-      <form onSubmit={handleSearch} className="mb-8 p-4 mt-2  bg-slate-100 dark:bg-slate-800 rounded-2xl shadow-lg grid grid-cols-1 md:grid-cols-5 gap-4 items-end transition-colors duration-300">
+      <form onSubmit={handleMainSearch} className="mb-8 p-4 mt-2  bg-slate-100 dark:bg-slate-800 rounded-2xl shadow-lg grid grid-cols-1 md:grid-cols-5 gap-4 items-end transition-colors duration-300">
         <div className="md:col-span-2 relative">
           <label className="block text-sm font-medium mb-1">Search by Keyword</label>
           <input type="text" name="keywords" value={filters.keywords} onChange={handleKeywordChange} placeholder="e.g., Python, Guitar" className="w-full px-3 py-2 mt-1 bg-white dark:bg-slate-700 text-slate-800 dark:text-slate-200 border rounded-md" autoComplete="off" />
@@ -245,49 +258,81 @@ const Home = () => {
           </select>
         </div>
         <div className="flex flex-col sm:flex-row justify-end gap-2">
-            <button type="submit" className="w-full sm:w-auto px-6 py-2 bg-blue-600 text-white font-semibold rounded-md hover:bg-blue-700">Filter</button>
-            {isAnyFilterActive && (
-              <button type="button" onClick={clearSearch} className="w-full sm:w-auto px-4 py-2 bg-red-500 text-white font-semibold rounded-md hover:bg-red-600">Clear</button>
-            )}
-        </div>
+    <button type="submit" className="w-full sm:w-auto px-6 py-2 bg-blue-600 text-white font-semibold rounded-md hover:bg-blue-700">Filter</button>
+    {isMainFilterActive && (
+      <button 
+        type="button" 
+        onClick={clearMainFilters} 
+        className="w-full sm:w-auto px-4 py-2 bg-red-500 text-white font-semibold rounded-md hover:bg-red-600"
+      >
+        Clear
+      </button>
+    )}
+</div>
       </form>
       
-      <div className="mb-8 p-6 bg-slate-100 dark:bg-slate-800 rounded-2xl shadow-lg transition-colors duration-300">
-        {!showCitySearch ? (
-  <div className="md:flex md:items-center md:justify-evenly">
-    <h2 className="text-xl font-bold mb-2 md:mb-0">
-      Looking to discover skilled individuals or talents in a specific city or location?
-    </h2>
-    <button
-      onClick={() => setShowCitySearch(true)}
-      className="px-6 py-2 bg-blue-600 text-white font-semibold rounded-md hover:bg-blue-700"
-    >
-      Search by City
-    </button>
-  </div>
-) :  (
-          <form onSubmit={handleSearch} className="relative">
-            <label className="block text-sm font-medium mb-1">Search by City Name</label>
-            <div className="flex flex-col sm:flex-row gap-2">
-              <input type="text" value={locationQuery} onChange={handleLocationInputChange} placeholder="Enter a city or place..." className="flex-grow px-4 py-2 bg-white dark:bg-slate-700 text-slate-800 dark:text-slate-200 border rounded-md" autoComplete="off"/>
-              <button type="submit" className="px-6 py-2 bg-blue-600 text-white font-semibold rounded-md hover:bg-blue-700">Search</button>
-              {locationQuery && (
-                <button type="button" onClick={clearSearch} className="px-4 py-2 bg-red-500 text-white font-semibold rounded-md hover:bg-red-600">Clear</button>
-              )}
-            </div>
-            {locationSuggestions.length > 0 && (
-                <ul className="absolute z-10 w-full bg-white dark:bg-slate-700 border rounded-md mt-1 shadow-lg">
-                    {locationSuggestions.map((s, index) => (
-                        <li key={index} className="px-4 py-2 cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-600"
-                            onClick={() => { setLocationQuery(s.location); setLocationSuggestions([]); }}>
-                            {s.location}
-                        </li>
-                    ))}
-                </ul>
-            )}
-          </form>
+      <div className="mb-8 px-4 py-6 w-full md:w-[80%] mx-auto bg-slate-100 dark:bg-slate-800 rounded-2xl shadow-lg transition-colors duration-300">
+  {!showCitySearch ? (
+    <div className="flex flex-col md:flex-row md:items-center md:justify-evenly gap-4 text-center md:text-left">
+      <h2 className="text-xl font-bold">
+        Looking to discover skills or talents in a specific city or location?
+      </h2>
+      <button
+        onClick={() => setShowCitySearch(true)}
+        className="px-6 py-2 bg-blue-600 text-white font-semibold rounded-md hover:bg-blue-700"
+      >
+        Search by City
+      </button>
+    </div>
+  ) : (
+    <form onSubmit={handleCitySearch} className="relative">
+      <label className="block text-sm font-medium mb-1">Search by City Name</label>
+      <div className="flex flex-col sm:flex-row sm:items-center gap-2 w-full">        
+        <input
+          type="text"
+          value={locationQuery}
+          onChange={handleLocationInputChange}
+          placeholder="Enter a city or place..."
+          className="flex-grow px-4 py-2 bg-white dark:bg-slate-700 text-slate-800 dark:text-slate-200 border rounded-md"
+          autoComplete="off"
+        />
+        <button
+          type="submit"
+          className="px-6 py-2 bg-blue-600 text-white font-semibold rounded-md hover:bg-blue-700"
+        >
+          Search
+        </button>
+        {locationQuery && (
+          <button
+            type="button"
+            onClick={clearCityFilter}
+            className="px-4 py-2 bg-red-500 text-white font-semibold rounded-md hover:bg-red-600"
+          >
+            Clear
+          </button>
         )}
       </div>
+      {locationSuggestions.length > 0 && (
+        <ul className="absolute z-10 w-full bg-white dark:bg-slate-700 border rounded-md mt-1 shadow-lg">
+          {locationSuggestions.map((s, index) => (
+            <li
+              key={index}
+              className="px-4 py-2 cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-600"
+              onClick={() => {
+                setLocationQuery(s.location);
+                setLocationSuggestions([]);
+              }}
+            >
+              {s.location}
+            </li>
+          ))}
+        </ul>
+      )}
+    </form>
+  )}
+</div>
+
+
       
       {currentSearch && !loading && ( <h2 className="text-2xl font-bold mb-4">Showing results for: <span className="text-blue-600">{currentSearch}</span></h2> )}
       

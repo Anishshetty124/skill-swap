@@ -2,8 +2,7 @@ import React, { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import apiClient from '../api/axios';
 import { useNavigate } from 'react-router-dom';
-import { toast } from 'react-toastify';
-import ResetPasswordModal from '../components/profile/ResetPasswordModal';
+import { toast } from 'react-toastify';import ResetPasswordModal from '../components/profile/ResetPasswordModal';
 
 const EditProfilePage = () => {
   const { user, updateUserState } = useAuth();

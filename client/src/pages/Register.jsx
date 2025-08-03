@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import apiClient from '../api/axios';
+import { toast } from 'react-toastify';
 import { EyeIcon, EyeSlashIcon, CheckCircleIcon } from '@heroicons/react/24/solid';
 
 const Register = () => {
@@ -12,7 +13,7 @@ const Register = () => {
     password: '' 
   });
   const [error, setError] = useState('');
-  const [success, setSuccess] = useState('');
+  const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
   const [showPassword, setShowPassword] = useState(false);
 
@@ -22,21 +23,17 @@ const Register = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setLoading(true);
     setError('');
-    setSuccess('');
     try {
       const response = await apiClient.post('/users/register', formData);
-      setSuccess(response.data.message + " Redirecting...");
-
-      // This logic was simplified in a previous step, restoring it
-      // to handle the backend's response properly.
-      if (response.data.data.isNewUser) {
-        navigate('/welcome');
-      } else {
-        navigate('/login');
-      }
+      toast.success(response.data.message);
+      toast.success("Email sent! If you don’t see it in your inbox, please check your spam or junk folder.");
+      navigate('/verify-otp', { state: { email: formData.email } });
     } catch (err) {
       setError(err.response?.data?.message || 'An error occurred during registration.');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -68,7 +65,7 @@ const Register = () => {
                     onChange={handleChange}
                     placeholder="First Name"
                     required
-                    className="w-full px-4 py-2 bg-slate-100 dark:bg-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent-500"
+                    className="w-full px-4 py-2 bg-slate-100 border border-slate-400 dark:border-slate-600 dark:bg-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent-500"
                 />
                 <input
                     type="text"
@@ -77,7 +74,7 @@ const Register = () => {
                     onChange={handleChange}
                     placeholder="Last Name"
                     required
-                    className="w-full px-4 py-2 bg-slate-100 dark:bg-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent-500"
+                    className="w-full px-4 py-2 bg-slate-100 border border-slate-400 dark:border-slate-600 dark:bg-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent-500"
                 />
             </div>
             <div>
@@ -88,7 +85,7 @@ const Register = () => {
                 onChange={handleChange}
                 placeholder="Username"
                 required
-                className="w-full px-4 py-2 bg-slate-100 dark:bg-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent-500"
+                className="w-full px-4 py-2 bg-slate-100 border border-slate-400 dark:border-slate-600 dark:bg-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent-500"
               />
             </div>
 
@@ -100,7 +97,7 @@ const Register = () => {
                 onChange={handleChange}
                 placeholder="Email"
                 required
-                className="w-full px-4 py-2 bg-slate-100 dark:bg-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent-500"
+                className="w-full px-4 py-2 bg-slate-100 border border-slate-400 dark:border-slate-600 dark:bg-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent-500"
               />
             </div>
 
@@ -112,7 +109,7 @@ const Register = () => {
                 onChange={handleChange}
                 placeholder="Password"
                 required
-                className="w-full px-4 py-2 bg-slate-100 dark:bg-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent-500"
+                className="w-full px-4 py-2 bg-slate-100 border border-slate-400 dark:border-slate-600 dark:bg-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent-500"
               />
               <button
                 type="button"
@@ -125,14 +122,14 @@ const Register = () => {
 
             <button
               type="submit"
+              disabled={loading}
               className="w-full py-3 font-semibold text-white bg-gradient-to-r from-cyan-500 to-blue-500 rounded-lg shadow-lg hover:shadow-blue-500/50 transition-all duration-300 transform hover:scale-105"
             >
-              Register
+              {loading ? 'Registering...' : 'Register'}
             </button>
           </form>
 
           {error && <p className="text-sm text-center text-red-500 mt-4">{error}</p>}
-          {success && <p className="text-sm text-center text-green-500 mt-4">{success}</p>}
 
           <div className="text-center mt-6">
             <p className="text-sm text-slate-500">

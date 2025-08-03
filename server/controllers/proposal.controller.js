@@ -66,15 +66,15 @@ const getProposals = asyncHandler(async (req, res) => {
   }
 
   const proposals = await Proposal.find(query)
-    .populate({ path: 'proposer', select: 'username profilePicture' })
-    .populate({ path: 'receiver', select: 'username profilePicture' })
-    .populate({ path: 'requestedSkill', select: 'title category costInCredits' })
-    .populate({ path: 'offeredSkill', select: 'title category' })
-    .sort({ createdAt: -1 });
+    .populate({ path: 'proposer', select: 'username profilePicture' })
+    .populate({ path: 'receiver', select: 'username profilePicture' })
+    .populate({ path: 'requestedSkill', select: 'title category costInCredits type' }) 
+    .populate({ path: 'offeredSkill', select: 'title category type' })
+    .sort({ createdAt: -1 });
 
-  return res
-    .status(200)
-    .json(new ApiResponse(200, proposals, 'Proposals fetched successfully'));
+  return res
+    .status(200)
+    .json(new ApiResponse(200, proposals, 'Proposals fetched successfully'));
 });
 
 const respondToProposal = asyncHandler(async (req, res) => {

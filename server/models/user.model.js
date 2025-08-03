@@ -5,10 +5,23 @@ import jwt from 'jsonwebtoken';
 const userSchema = new mongoose.Schema({
   firstName: { type: String, trim: true },
   lastName: { type: String, trim: true },
-  mobileNumber: { type: String, trim: true, default: '' },
+  mobileNumber: { type: String, trim: true,
+     validate: {
+      validator: function(v) {
+        if (v === null || v === '') {
+            return true;
+        }
+        return /^\d{10}$/.test(v);
+      },
+      message: props => `${props.value} is not a valid 10-digit mobile number!`
+    }
+  },
   username: { type: String, required: true, unique: true, lowercase: true, trim: true, index: true },
   email: { type: String, required: true, unique: true, lowercase: true, trim: true },
   password: { type: String, required: true },
+  isVerified: { type: Boolean, default: false }, 
+  verificationOtp: { type: String }, 
+  verificationOtpExpiry: { type: Date }, 
   role: { type: String, enum: ['user', 'admin'], default: 'user' },
   profilePicture: { type: String, default: '' },
   bio: { type: String, default: '' },

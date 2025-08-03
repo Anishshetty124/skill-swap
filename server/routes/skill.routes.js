@@ -12,6 +12,7 @@ import {
   rateSkill,
   getLocationSuggestions,
   getKeywordSuggestions,
+  getYoutubeTutorials,
   getYoutubePlaceholders,
   getAllSkillsUnpaginated,
   generateAiContent,
@@ -22,10 +23,10 @@ import { verifyJWT } from '../middlewares/auth.middleware.js';
 const router = Router();
 
 // --- PUBLIC ROUTES ---
-// All specific, non-dynamic routes must come first.
 router.route('/all').get(getAllSkillsUnpaginated);
 router.route('/keyword-suggestions').get(getKeywordSuggestions);
 router.route('/locations').get(getLocationSuggestions);
+router.route('/youtube-tutorials').get(getYoutubeTutorials);
 router.route('/youtube-placeholders').get(getYoutubePlaceholders);
 router.route('/nearby').get(getNearbySkills);
 router.route('/').get(getAllSkills);
@@ -33,7 +34,6 @@ router.route('/').get(getAllSkills);
 // --- SECURED ROUTES ---
 router.use(verifyJWT);
 
-// Specific secured routes must come before any dynamic routes.
 router.route('/ai-generate').post(generateAiContent);
 router.route('/recommendations').get(getRecommendedSkills);
 router.route('/').post(createSkill);
