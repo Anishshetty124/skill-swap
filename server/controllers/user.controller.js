@@ -164,13 +164,11 @@ const resetPassword = asyncHandler(async (req, res) => {
     throw new ApiError(400, "Email, OTP, and new password are required.");
   }
 
-  // --- NEW: Password Complexity Validation ---
   if (newPassword.length < 8) throw new ApiError(400, "Password must be at least 8 characters long.");
   if (!/[a-z]/.test(newPassword)) throw new ApiError(400, "Password must contain at least one lowercase letter.");
   if (!/[A-Z]/.test(newPassword)) throw new ApiError(400, "Password must contain at least one uppercase letter.");
   if (!/\d/.test(newPassword)) throw new ApiError(400, "Password must contain at least one number.");
   if (!/[@$!%*?&]/.test(newPassword)) throw new ApiError(400, "Password must contain at least one special character (@$!%*?&).");
-  // -----------------------------------------
 
   const user = await User.findOne({
     email,
@@ -246,7 +244,6 @@ const updateAccountDetails = asyncHandler(async (req, res) => {
     const user = await User.findById(req.user._id);
     if (!user) throw new ApiError(404, "User not found");
 
-    // Update all fields on the single user object
     user.username = username;
     user.firstName = firstName;
     user.lastName = lastName;

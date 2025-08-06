@@ -19,8 +19,8 @@ router.get('/conversations', getConversations);
 router.get('/:id', getMessages);
 router.post('/send/:id', sendMessage);
 router.delete('/message/:messageId', deleteMessage); 
-router.delete('/conversation/:conversationId', clearConversation); // New route to clear a conversation
-router.post('/report/:userIdToReport', reportUser); // New route to report a user
+router.delete('/conversation/:conversationId', clearConversation); 
+router.post('/report/:userIdToReport', reportUser);
 router.route("/read-all").post(markAllAsRead);
 router.route("/read/:id").post(markMessagesAsRead);
 

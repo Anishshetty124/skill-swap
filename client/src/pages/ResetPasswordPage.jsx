@@ -3,11 +3,11 @@ import { useLocation, useNavigate, Link } from 'react-router-dom';
 import apiClient from '../api/axios';
 import { toast } from 'react-toastify';
 import { EyeIcon, EyeSlashIcon, CheckCircleIcon } from '@heroicons/react/24/solid';
-import { useAuth } from '../context/AuthContext'; // Import useAuth
+import { useAuth } from '../context/AuthContext'; 
 import { useEffect } from 'react';
 
 const ResetPasswordPage = () => {
-  const { isAuthenticated, user } = useAuth(); // Get auth status and user info
+  const { isAuthenticated, user } = useAuth();
   const [formData, setFormData] = useState({
     otp: '',
     newPassword: '',
@@ -17,7 +17,7 @@ const ResetPasswordPage = () => {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false); // State for confirm password
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false); 
   const [resendLoading, setResendLoading] = useState(false); 
   const [timer, setTimer] = useState(0); 
   
@@ -80,7 +80,7 @@ const ResetPasswordPage = () => {
     try {
       const response = await apiClient.post('/users/forgot-password', { email });
       toast.success(response.data.message);
-      setTimer(30); // Start the 30-second timer
+      setTimer(30);
     } catch (err) {
       toast.error(err.response?.data?.message || "Failed to resend OTP.");
     } finally {

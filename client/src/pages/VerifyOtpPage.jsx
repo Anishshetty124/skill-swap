@@ -36,7 +36,7 @@ const VerifyOtpPage = () => {
     try {
       const response = await apiClient.post('/users/resend-verification', { email });
       toast.success(response.data.message);
-      setTimer(30); // Start the 10-second timer
+      setTimer(30); 
     } catch (err) {
       toast.error(err.response?.data?.message || "Failed to resend OTP.");
     } finally {

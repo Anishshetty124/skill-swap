@@ -14,8 +14,6 @@ const ProposalCard = ({ proposal, type, onUpdate }) => {
   const [isEditing, setIsEditing] = useState(false);
   const navigate = useNavigate();
 
-  // --- THIS IS THE FIX ---
-  // Check if the participants in the proposal still exist
   if (!proposal.proposer || !proposal.receiver) {
     return (
       <div className="bg-white dark:bg-slate-800 p-4 rounded-lg shadow-md border-l-4 border-slate-400 opacity-60">
@@ -23,7 +21,6 @@ const ProposalCard = ({ proposal, type, onUpdate }) => {
       </div>
     );
   }
-  // -------------------------
 
   const handleResponse = async (status, contactInfo = null) => {
     setLoading(true);

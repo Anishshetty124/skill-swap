@@ -22,7 +22,6 @@ import { verifyJWT } from '../middlewares/auth.middleware.js';
 
 const router = Router();
 
-// --- PUBLIC ROUTES ---
 router.route('/all').get(getAllSkillsUnpaginated);
 router.route('/keyword-suggestions').get(getKeywordSuggestions);
 router.route('/locations').get(getLocationSuggestions);
@@ -31,7 +30,6 @@ router.route('/youtube-placeholders').get(getYoutubePlaceholders);
 router.route('/nearby').get(getNearbySkills);
 router.route('/').get(getAllSkills);
 
-// --- SECURED ROUTES ---
 router.use(verifyJWT);
 
 router.route('/ai-generate').post(generateAiContent);
@@ -39,11 +37,10 @@ router.route('/recommendations').get(getRecommendedSkills);
 router.route('/').post(createSkill);
 
 
-// --- DYNAMIC ROUTES (MUST BE LAST) ---
 router.route('/:skillId')
-  .get(getSkillById) // Public GET for a single skill
-  .patch(updateSkill) // Secured PATCH
-  .delete(deleteSkill); // Secured DELETE
+  .get(getSkillById) 
+  .patch(updateSkill)
+  .delete(deleteSkill); 
 
 router.route('/:skillId/matches').get(getMatchingSkills);
 router.route('/:skillId/bookmark').post(bookmarkSkill).delete(unbookmarkSkill);

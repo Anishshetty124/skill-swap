@@ -124,7 +124,6 @@ const Home = () => {
     setSkills([]);
     fetchSkills(1, true, currentFilters, currentLocQuery);
     
-    // Note: No calls to setSearchedKeyword or fetchYoutubeContent
     setLocationSuggestions([]);
   };
 
@@ -412,10 +411,8 @@ const handleShowLess = () => {
           <div className="flex flex-wrap justify-center gap-3">
             {/* --- THIS IS THE CORRECTED LOGIC --- */}
             {searchedKeyword ? (
-              // If a search was made but there are no videos, show this message
               <p className="text-slate-500 italic">No tutorials found for this topic. It may be an invalid or inappropriate search.</p>
             ) : (
-              // Otherwise, show the placeholder topics
               youtubePlaceholders.map((topic, index) => (
                 <a key={index} href={`https://www.youtube.com/results?search_query=${encodeURIComponent(topic)}`} target="_blank" rel="noopener noreferrer" className="px-4 py-2 bg-slate-200 dark:bg-slate-700 text-sm font-semibold rounded-full hover:bg-slate-300 dark:hover:bg-slate-600">
                   {topic}

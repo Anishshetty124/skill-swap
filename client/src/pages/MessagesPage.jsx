@@ -7,7 +7,6 @@ import { useSocketContext } from '../context/SocketContext';
 import { toast } from 'react-toastify';
 import { format } from 'date-fns';
 
-// --- Helper Hook to detect clicks outside an element ---
 function useOnClickOutside(ref, handler) {
   useEffect(() => {
     const listener = (event) => {
@@ -25,7 +24,6 @@ function useOnClickOutside(ref, handler) {
   }, [ref, handler]);
 }
 
-// --- Helper Component 1: ConversationList ---
 const ConversationList = ({ conversations, onSelectConversation, selectedConversation, onRefresh }) => (
   <div className="border-r border-slate-200 dark:border-slate-700 h-full flex flex-col bg-white dark:bg-slate-800">
     <div className="p-4 border-b border-slate-200 dark:border-slate-700 flex-shrink-0 flex justify-between items-center">
@@ -63,7 +61,6 @@ const ConversationList = ({ conversations, onSelectConversation, selectedConvers
   </div>
 );
 
-// --- Helper Component 2: ChatWindow ---
 const ChatWindow = ({ selectedConversation, onBack, onClearChat, onReportUser }) => {
   const { user } = useAuth();
   const [messages, setMessages] = useState([]);
@@ -260,7 +257,6 @@ const ChatWindow = ({ selectedConversation, onBack, onClearChat, onReportUser })
   );
 };
 
-// --- Main Page Component ---
 const MessagesPage = () => {
   const [conversations, setConversations] = useState([]);
   const [loading, setLoading] = useState(true);

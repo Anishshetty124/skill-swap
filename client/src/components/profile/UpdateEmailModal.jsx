@@ -7,7 +7,7 @@ import { useNavigate } from 'react-router-dom';
 const UpdateEmailModal = ({ isOpen, onClose }) => {
   const { logout } = useAuth();
   const navigate = useNavigate();
-  const [step, setStep] = useState('enter-email'); // 'enter-email' or 'enter-otp'
+  const [step, setStep] = useState('enter-email'); 
   const [newEmail, setNewEmail] = useState('');
   const [otp, setOtp] = useState('');
   const [loading, setLoading] = useState(false);
@@ -35,7 +35,7 @@ const UpdateEmailModal = ({ isOpen, onClose }) => {
     try {
       await apiClient.post('/users/me/verify-email-change', { otp });
       toast.success("Email updated successfully! Please log in again for security.");
-      logout(); // For security, force a re-login after a successful email change
+      logout();
       navigate('/login');
     } catch (err) {
       setError(err.response?.data?.message || 'Invalid OTP or OTP has expired.');
@@ -45,7 +45,6 @@ const UpdateEmailModal = ({ isOpen, onClose }) => {
   };
   
   const handleClose = () => {
-    // Reset state when closing the modal
     setStep('enter-email');
     setNewEmail('');
     setOtp('');

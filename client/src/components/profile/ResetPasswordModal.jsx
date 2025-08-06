@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import apiClient from "../../api/axios";
-import { toast } from "react-toastify"; // 👈 Corrected import
+import { toast } from "react-toastify"; 
 
 const ResetPasswordModal = ({ isOpen, onClose }) => {
   const [newPassword, setNewPassword] = useState("");

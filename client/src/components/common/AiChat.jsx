@@ -6,10 +6,10 @@ import {
 } from "@heroicons/react/24/solid";
 import apiClient from "../../api/axios";
 import ReactMarkdown from "react-markdown";
-import { useAuth } from "../../context/AuthContext"; // 👈 1. Import useAuth
+import { useAuth } from "../../context/AuthContext";
 
 const AiChat = () => {
-  const { chatMessages, updateChatMessages } = useAuth(); // 👈 2. Use state from context
+  const { chatMessages, updateChatMessages } = useAuth(); 
   const [isOpen, setIsOpen] = useState(false);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -27,7 +27,6 @@ const AiChat = () => {
 
     const userMessage = { sender: "user", text: input };
     
-    // 👈 3. Update context state, which saves to sessionStorage
     updateChatMessages((prev) => [...prev, userMessage]);
     
     setInput("");
@@ -45,7 +44,6 @@ const AiChat = () => {
         history: history,
       });
       const aiMessage = { sender: "ai", text: response.data.data.response };
-      // 👈 4. Update context state with AI response
       updateChatMessages((prev) => [...prev, aiMessage]);
     } catch (error) {
       const errorMessage = {
@@ -60,7 +58,6 @@ const AiChat = () => {
     }
   };
   
-  // Function to clear chat history from context and sessionStorage
   const handleClearChat = () => {
     updateChatMessages([]);
   };
@@ -83,7 +80,7 @@ const AiChat = () => {
             <h3 className="font-bold text-lg text-slate-800 dark:text-white px-2 rounded-md">AI Skill Assistant</h3>
             <div className="flex gap-2 items-center">
               <button
-                onClick={handleClearChat} // Use the new clear function
+                onClick={handleClearChat}
                 className="text-sm px-3 py-1 bg-red-600 text-white rounded-full hover:bg-red-700 transition"
               >
                 Clear

@@ -37,9 +37,6 @@ const ProfilePage = () => {
   if (error) return <p className="text-center p-10 text-red-500">{error}</p>;
   if (!profile) return <p className="text-center p-10">User not found.</p>;
 
-  // --- THIS IS THE CORRECTED LOGIC ---
-  // The backend doesn't populate the user on skills, so we manually add it here.
-  // We must include the _id for the bookmark check to work correctly.
   const skillsWithUser = profile.skills.map(skill => ({
     ...skill,
     user: { 
@@ -160,7 +157,6 @@ const ProfilePage = () => {
               {profile.bookmarks.map(skill => <SkillCard key={skill._id} skill={skill} />)}
             </div>
           ) : (
-            // --- THIS IS THE CORRECTED TEXT ---
             <p className="text-slate-500 italic">
               {isOwner ? "You haven't bookmarked any skills yet." : "This user hasn't bookmarked any skills yet."}
             </p>

@@ -25,7 +25,6 @@ const ShareContactModal = ({ isOpen, onClose, onSubmit, existingContactInfo }) =
           note: existingContactInfo.note || ''
         });
       } else {
-        // Pre-fill with the most up-to-date user info from the context
         setContactInfo({ 
           phone: user?.mobileNumber || '',
           email: user?.email || '',

@@ -14,7 +14,6 @@ export const SocketContextProvider = ({ children }) => {
 	const { user } = useAuth();
 
 	useEffect(() => {
-        // Only create a connection if there is a user with an ID
 		if (user?._id) {
 			const newSocket = io(import.meta.env.VITE_API_BASE_URL.replace("/api/v1", ""), {
 				query: {
@@ -28,7 +27,6 @@ export const SocketContextProvider = ({ children }) => {
 				setOnlineUsers(users);
 			});
 
-            // Cleanup function to close the socket when the component unmounts
 			return () => newSocket.close();
 		} else {
 			if (socket) {
@@ -36,7 +34,6 @@ export const SocketContextProvider = ({ children }) => {
 				setSocket(null);
 			}
 		}
-    // The dependency array now uses the stable user ID, which prevents the infinite loop
 	}, [user?._id]);
 
 	return <SocketContext.Provider value={{ socket, onlineUsers }}>{children}</SocketContext.Provider>;

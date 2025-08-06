@@ -39,7 +39,6 @@ const Navbar = () => {
     }
     navigate('/messages');
 };
-  // Links for Desktop View
   const desktopNavLinks = (
     <>
       <Link to="/" className="text-slate-600 dark:text-slate-300 hover:text-blue-500">Home</Link>
@@ -68,7 +67,6 @@ const Navbar = () => {
     </>
   );
 
-  // Links for Mobile View (Button Style)
   const mobileNavLinks = (
     <>
       <Link to="/" className="block w-full text-left py-2 px-3 rounded-md text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700" onClick={() => setIsMenuOpen(false)}>Home</Link>

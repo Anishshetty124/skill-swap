@@ -75,7 +75,7 @@ const getAllSkills = asyncHandler(async (req, res) => {
 
   if (category) query.category = category;
   if (keywords) {
-    const regex = new RegExp(escapeRegex(keywords), 'i'); // Use the escaped regex
+    const regex = new RegExp(escapeRegex(keywords), 'i'); 
     query.title = { $regex: regex };
   }
   if (userId) query.user = userId;
@@ -306,23 +306,20 @@ const getRecommendedSkills = asyncHandler(async (req, res) => {
   const userId = req.user._id;
   let recommendedSkills = [];
   
-  // Find the user's bookmarked skills
   const userBookmarks = await Skill.find({ bookmarkedBy: userId }).select('category');
 
   if (userBookmarks.length > 0) {
     const categories = [...new Set(userBookmarks.map(skill => skill.category))];
     
-    // Find other skills in the same categories, excluding the user's own
     recommendedSkills = await Skill.find({
       category: { $in: categories },
-      user: { $ne: userId } // Exclude the user's own skills
+      user: { $ne: userId } 
     })
     .sort({ createdAt: -1 })
     .limit(5)
     .populate('user', 'username');
   }
 
-  // Fallback: If no recommendations are found, get the latest skills from other users
   if (recommendedSkills.length === 0) {
     recommendedSkills = await Skill.find({ user: { $ne: userId } })
       .sort({ createdAt: -1 })
@@ -367,7 +364,6 @@ const generateAiContent = asyncHandler(async (req, res) => {
       if (!query) throw new ApiError(400, "A query is required for the AI chat.");
       model = genAI.getGenerativeModel({
         model: "gemini-1.5-flash",
-        // --- NEW, IMPROVED SYSTEM PROMPT ---
         systemInstruction: `
           You are "SkillBot", a friendly and encouraging AI assistant for a skill-swapping website.
           Your primary purpose is to answer questions about learnable skills.
@@ -401,7 +397,6 @@ const getYoutubeTutorials = asyncHandler(async (req, res) => {
     return res.status(200).json(new ApiResponse(200, [], "No keyword provided."));
   }
 
-  // --- AI Safety Check ---
   try {
     const genAI = new GoogleGenerativeAI(process.env.GOOGLE_API_KEY);
     const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash"});
@@ -417,7 +412,6 @@ const getYoutubeTutorials = asyncHandler(async (req, res) => {
     const decision = safetyResponse.text().trim().toUpperCase();
 
     if (decision !== 'YES') {
-      // If the AI says "NO", block the search.
       return res.status(200).json(new ApiResponse(200, [], "Query blocked by safety filter."));
     }
   } catch (error) {
