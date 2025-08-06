@@ -8,7 +8,6 @@ export default defineConfig({
     VitePWA({
       registerType: 'autoUpdate',
       workbox: {
-        // This caches API requests
         runtimeCaching: [{
           urlPattern: ({ url }) => url.pathname.startsWith('/api'),
           handler: 'NetworkFirst',
