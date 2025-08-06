@@ -3,7 +3,7 @@ import { Link, useNavigate } from "react-router-dom";
 import apiClient from "../../api/axios";
 import { toast } from 'react-toastify';
 import ShareContactModal from "./ShareContactModal";
-import { PencilIcon } from '@heroicons/react/24/solid';
+import { PencilIcon, ChatBubbleLeftRightIcon } from '@heroicons/react/24/solid';
 import { useAuth } from '../../context/AuthContext';
 
 const ProposalCard = ({ proposal, type, onUpdate }) => {
@@ -11,8 +11,19 @@ const ProposalCard = ({ proposal, type, onUpdate }) => {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [isContactModalOpen, setIsContactModalOpen] = useState(false);
-  const [isEditing, setIsEditing] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
   const navigate = useNavigate();
+
+  // --- THIS IS THE FIX ---
+  // Check if the participants in the proposal still exist
+  if (!proposal.proposer || !proposal.receiver) {
+    return (
+      <div className="bg-white dark:bg-slate-800 p-4 rounded-lg shadow-md border-l-4 border-slate-400 opacity-60">
+        <p className="text-slate-500 italic">This proposal is no longer valid as one of the users involved has deleted their account.</p>
+      </div>
+    );
+  }
+  // -------------------------
 
   const handleResponse = async (status, contactInfo = null) => {
     setLoading(true);
@@ -25,12 +36,13 @@ const ProposalCard = ({ proposal, type, onUpdate }) => {
       onUpdate(response.data.data);
 
       if (status === "accepted") {
-        if (proposal.proposalType === 'credits') {
-          const cost = proposal.requestedSkill?.costInCredits || 0;
-          toast.success(`Proposal accepted! You earned ${cost} credits.`);
-        } else {
-          toast.success("Proposal accepted!");
-        }
+        if (proposal.proposalType === 'credits') {
+          const cost = proposal.requestedSkill?.costInCredits || 0;
+          toast.success(`Proposal accepted! You earned ${cost} credits.`);
+        } else {
+          toast.success("Proposal accepted!");
+        }
+        window.location.reload();
       } else {
         toast.success("Proposal rejected.");
       }
@@ -42,24 +54,24 @@ const ProposalCard = ({ proposal, type, onUpdate }) => {
   };
 
   const handleAccept = (contactInfo) => {
-    setIsEditing(false);
+    setIsEditing(false);
     handleResponse("accepted", contactInfo);
     setIsContactModalOpen(false);
   };
 
-  const handleEditSubmit = async (contactInfo) => {
-    setLoading(true);
-    try {
-      const response = await apiClient.patch(`/proposals/${proposal._id}/contact`, { contactInfo });
-      onUpdate(response.data.data);
-      toast.success("Contact info updated!");
-      setIsContactModalOpen(false);
-    } catch (err) {
-      toast.error("Failed to update contact info.");
-    } finally {
-      setLoading(false);
-    }
-  };
+  const handleEditSubmit = async (contactInfo) => {
+    setLoading(true);
+    try {
+      const response = await apiClient.patch(`/proposals/${proposal._id}/contact`, { contactInfo });
+      onUpdate(response.data.data);
+      toast.success("Contact info updated!");
+      setIsContactModalOpen(false);
+    } catch (err) {
+      toast.error("Failed to update contact info.");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleDelete = async () => {
     const actionText =
@@ -82,14 +94,18 @@ const ProposalCard = ({ proposal, type, onUpdate }) => {
     }
   };
 
+  const handleStartChat = () => {
+    const otherUser = type === 'received' ? proposal.proposer : proposal.receiver;
+    navigate('/messages', { state: { newConversationWith: otherUser } });
+  };
+
   const statusColors = {
     pending: "bg-yellow-500",
     accepted: "bg-green-500",
     rejected: "bg-red-500",
   };
 
-  const requestedSkillTitle =
-    proposal.requestedSkill?.title || "[Deleted Skill]";
+  const requestedSkillTitle = proposal.requestedSkill?.title || "[Deleted Skill]";
   const offeredSkillTitle = proposal.offeredSkill?.title || "[Deleted Skill]";
   const isRequestType = proposal.requestedSkill?.type === 'REQUEST';
 
@@ -109,64 +125,52 @@ const ProposalCard = ({ proposal, type, onUpdate }) => {
           </span>
         </div>
 
-        {type === "received" ? (
-          isRequestType ? (
-            <p className="text-slate-700 dark:text-slate-300">
-              <span className="font-bold">{proposal.proposer.username}</span>{" "}
-              offered to teach you{" "}
-              <span className="font-semibold text-accent-500">{requestedSkillTitle}</span>.
-            </p>
-          ) : (
-            <p className="text-slate-700 dark:text-slate-300">
-              <span className="font-bold">{proposal.proposer.username}</span>{" "}
-              wants to learn{" "}
-              <span className="font-semibold text-accent-500">{requestedSkillTitle}</span>{" "}
-              from you.
-            </p>
-          )
-        ) : ( // type === "sent"
-          isRequestType ? (
-            <p className="text-slate-700 dark:text-slate-300">
-              You offered to teach{" "}
-              <span className="font-bold">{proposal.receiver.username}</span>{" "}
-              their requested skill:{" "}
-              <span className="font-semibold text-accent-500">{requestedSkillTitle}</span>.
-            </p>
-          ) : (
-            <p className="text-slate-700 dark:text-slate-300">
-              You proposed to learn{" "}
-              <span className="font-semibold text-accent-500">{requestedSkillTitle}</span>{" "}
-              from <span className="font-bold">{proposal.receiver.username}</span>.
-            </p>
-          )
-        )}
+        {type === "received" ? (
+          <p className="text-slate-700 dark:text-slate-300">
+            <span className="font-bold">{proposal.proposer.username}</span> wants your skill <span className="font-semibold text-accent-500">{requestedSkillTitle}</span>
+            {proposal.proposalType === "skill" ? (
+              <> in exchange for their skill <span className="font-semibold text-green-500">{offeredSkillTitle}</span>.</>
+            ) : (
+              <> for <span className="font-bold text-amber-500">{proposal.costInCredits} credits</span>.</>
+            )}
+          </p>
+        ) : ( 
+          <p className="text-slate-700 dark:text-slate-300">
+            You proposed to get <span className="font-semibold text-accent-500">{requestedSkillTitle}</span> from <span className="font-bold">{proposal.receiver.username}</span>
+            {proposal.proposalType === "skill" ? (
+              <> in exchange for your skill <span className="font-semibold text-green-500">{offeredSkillTitle}</span>.</>
+            ) : (
+              <> for <span className="font-bold text-amber-500">{proposal.costInCredits} credits</span>.</>
+            )}
+          </p>
+        )}
 
         {proposal.status === "accepted" && proposal.contactInfo && (
           <div className="mt-4 pt-4 border-t border-slate-200 dark:border-slate-700">
             <div className="flex justify-between items-center mb-2">
-              <h4 className="text-sm font-semibold">
-                Contact Details Shared:
-              </h4>
-              {type === 'received' && (
-                <button 
-                  onClick={() => {
-                    setIsEditing(true);
-                    setIsContactModalOpen(true);
-                  }} 
-                  className="text-slate-400 hover:text-accent-500"
-                >
-                  <PencilIcon className="h-4 w-4"/>
-                </button>
-              )}
-            </div>
-            <div className="text-sm text-slate-600 dark:text-slate-400 space-y-1">
-              {proposal.contactInfo.phone && <p><strong>Phone:</strong> {proposal.contactInfo.phone}</p>}
-              {proposal.contactInfo.email && <p><strong>Email:</strong> {proposal.contactInfo.email}</p>}
-              {proposal.contactInfo.meetingLink && <p><strong>Meeting Link:</strong> <a href={proposal.contactInfo.meetingLink} target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:underline">Join Meeting</a></p>}
-              {proposal.contactInfo.meetingTime && <p><strong>Time:</strong> {proposal.contactInfo.meetingTime}</p>}
-              {proposal.contactInfo.other && <p><strong>Other:</strong> {proposal.contactInfo.other}</p>}
-              {proposal.contactInfo.note && <p><strong>Note:</strong> {proposal.contactInfo.note}</p>}
-            </div>
+              <h4 className="text-sm font-semibold">
+                Contact Details Shared:
+              </h4>
+              {type === 'received' && (
+                <button 
+                  onClick={() => {
+                    setIsEditing(true);
+                    setIsContactModalOpen(true);
+                  }} 
+                  className="text-slate-400 hover:text-accent-500"
+                >
+                  <PencilIcon className="h-4 w-4"/>
+                </button>
+              )}
+            </div>
+            <div className="text-sm text-slate-600 dark:text-slate-400 space-y-1">
+              {proposal.contactInfo.phone && <p><strong>Phone:</strong> {proposal.contactInfo.phone}</p>}
+              {proposal.contactInfo.email && <p><strong>Email:</strong> {proposal.contactInfo.email}</p>}
+              {proposal.contactInfo.meetingLink && <p><strong>Meeting Link:</strong> <a href={proposal.contactInfo.meetingLink} target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:underline">Join Meeting</a></p>}
+              {proposal.contactInfo.meetingTime && <p><strong>Time:</strong> {proposal.contactInfo.meetingTime}</p>}
+              {proposal.contactInfo.other && <p><strong>Other:</strong> {proposal.contactInfo.other}</p>}
+              {proposal.contactInfo.note && <p><strong>Note:</strong> {proposal.contactInfo.note}</p>}
+            </div>
           </div>
         )}
 
@@ -175,6 +179,17 @@ const ProposalCard = ({ proposal, type, onUpdate }) => {
             <span className="text-sm italic">Processing...</span>
           ) : (
             <>
+                {proposal.status === 'accepted' && (
+                <button 
+                  onClick={handleStartChat}
+                  className="flex items-center gap-1 text-sm font-semibold text-slate-500 hover:text-accent-500"
+                  title={`Chat with ${type === 'received' ? proposal.proposer.username : proposal.receiver.username}`}
+                >
+                  <ChatBubbleLeftRightIcon className="h-5 w-5" />
+                  Chat
+                </button>
+              )}
+
               {type === "received" && proposal.status === "pending" && (
                 <>
                   <button onClick={() => handleResponse("rejected")} className="px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-md hover:bg-red-700">
@@ -202,7 +217,7 @@ const ProposalCard = ({ proposal, type, onUpdate }) => {
         isOpen={isContactModalOpen}
         onClose={() => setIsContactModalOpen(false)}
         onSubmit={isEditing ? handleEditSubmit : handleAccept}
-        existingContactInfo={isEditing ? proposal.contactInfo : null}
+        existingContactInfo={isEditing ? proposal.contactInfo : null}
       />
     </>
   );

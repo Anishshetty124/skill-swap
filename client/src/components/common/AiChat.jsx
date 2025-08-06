@@ -77,7 +77,7 @@ const AiChat = () => {
 
       {/* Chat Window */}
       {isOpen && (
-        <div className="fixed bottom-24 right-6 w-full max-w-sm h-[70vh] bg-white border border-slate-200 dark:bg-slate-800 rounded-2xl shadow-2xl flex flex-col z-50">
+        <div className="fixed bottom-24 right-6 w-[90%] max-w-sm h-[70vh] bg-white border border-slate-200 dark:bg-slate-800 rounded-2xl shadow-2xl flex flex-col z-50">
           {/* Header */}
           <div className="p-4 border-b dark:border-slate-700 flex justify-between items-center">
             <h3 className="font-bold text-lg text-slate-800 dark:text-white px-2 rounded-md">AI Skill Assistant</h3>

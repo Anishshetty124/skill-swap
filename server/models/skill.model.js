@@ -31,7 +31,7 @@ const skillSchema = new Schema({
   },
   desiredSkill: { type: String, trim: true },
 }, { timestamps: true });
-
+ 
 skillSchema.index({ title: 'text', description: 'text', tags: 'text' });
 skillSchema.index({ geoCoordinates: '2dsphere' });
 

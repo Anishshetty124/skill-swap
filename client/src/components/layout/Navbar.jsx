@@ -1,8 +1,9 @@
 import React from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
 import { SunIcon, MoonIcon } from '@heroicons/react/24/solid';
+import apiClient from '../../api/axios';
 
 const ThemeToggle = () => {
   const { theme, toggleTheme } = useTheme();
@@ -21,9 +22,23 @@ const ThemeToggle = () => {
 };
 
 const Navbar = () => {
-  const { isAuthenticated, user, logout } = useAuth();
+  const { isAuthenticated, user, logout, totalUnreadCount, fetchUnreadCount } = useAuth(); 
   const [isMenuOpen, setIsMenuOpen] = React.useState(false);
+  const navigate = useNavigate(); 
+  const location = useLocation();
 
+  const handleMessagesClick = async () => {
+    setIsMenuOpen(false);
+    if (totalUnreadCount > 0) {
+      try {
+        await apiClient.post('/messages/read-all');
+        fetchUnreadCount(); 
+      } catch (error) {
+        console.error("Failed to mark messages as read", error);
+      }
+    }
+    navigate('/messages');
+};
   // Links for Desktop View
   const desktopNavLinks = (
     <>
@@ -33,6 +48,15 @@ const Navbar = () => {
           <Link to="/my-skills" className="text-slate-600 dark:text-slate-300 hover:text-blue-500">My Skills</Link>
           <Link to="/skills/new" className="text-slate-600 dark:text-slate-300 hover:text-blue-500">Post Skill</Link>
           <Link to="/dashboard" className="text-slate-600 dark:text-slate-300 hover:text-blue-500">Dashboard</Link>
+          <button onClick={handleMessagesClick} className="relative text-slate-600 dark:text-slate-300 hover:text-blue-500">
+            Messages
+            {/* --- THIS IS THE CORRECTED LOGIC --- */}
+            {totalUnreadCount > 0 && location.pathname !== '/messages' && (
+              <span className="absolute -top-1 -right-3 flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-xs text-white">
+                {totalUnreadCount}
+              </span>
+            )}
+          </button>
           <button onClick={logout} className="px-4 py-2 bg-red-500 text-white rounded-md hover:bg-red-600">Logout</button>
         </>
       ) : (
@@ -53,6 +77,19 @@ const Navbar = () => {
           <Link to="/my-skills" className="block w-full text-left py-2 px-3 rounded-md text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700" onClick={() => setIsMenuOpen(false)}>My Skills</Link>
           <Link to="/skills/new" className="block w-full text-left py-2 px-3 rounded-md text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700" onClick={() => setIsMenuOpen(false)}>Post Skill</Link>
           <Link to="/dashboard" className="block w-full text-left py-2 px-3 rounded-md text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700" onClick={() => setIsMenuOpen(false)}>Dashboard</Link>
+            <button 
+            onClick={handleMessagesClick} 
+            className="relative block w-full text-left py-2 px-3 rounded-md text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700"
+          >
+            <div className="flex justify-between items-center">
+              <span>Messages</span>
+              {totalUnreadCount > 0 && location.pathname !== '/messages' && (
+                <span className="flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-xs text-white">
+                  {totalUnreadCount}
+                </span>
+              )}
+            </div>
+          </button>
           <button onClick={() => { logout(); setIsMenuOpen(false); }} className="w-full text-center py-2 px-3 bg-red-500 text-white rounded-md hover:bg-red-600">Logout</button>
         </>
       ) : (

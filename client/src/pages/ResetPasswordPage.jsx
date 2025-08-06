@@ -4,6 +4,7 @@ import apiClient from '../api/axios';
 import { toast } from 'react-toastify';
 import { EyeIcon, EyeSlashIcon, CheckCircleIcon } from '@heroicons/react/24/solid';
 import { useAuth } from '../context/AuthContext'; // Import useAuth
+import { useEffect } from 'react';
 
 const ResetPasswordPage = () => {
   const { isAuthenticated, user } = useAuth(); // Get auth status and user info
@@ -17,10 +18,22 @@ const ResetPasswordPage = () => {
   const [success, setSuccess] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false); // State for confirm password
+  const [resendLoading, setResendLoading] = useState(false); 
+  const [timer, setTimer] = useState(0); 
   
   const navigate = useNavigate();
   const location = useLocation();
   const email = location.state?.email;
+
+  useEffect(() => {
+    let interval;
+    if (timer > 0) {
+      interval = setInterval(() => {
+        setTimer(prev => prev - 1);
+      }, 1000);
+    }
+    return () => clearInterval(interval);
+  }, [timer]);
 
   if (!email) {
     navigate('/login');
@@ -31,7 +44,7 @@ const ResetPasswordPage = () => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
-  const handleSubmit = async (e) => {
+ const handleSubmit = async (e) => {
     e.preventDefault();
     if (formData.newPassword !== formData.confirmPassword) {
       setError("Passwords do not match.");
@@ -46,12 +59,32 @@ const ResetPasswordPage = () => {
         newPassword: formData.newPassword 
       });
       setSuccess(true);
-      toast.success("Password reset successfully! Please log in with your new password.");
-      setTimeout(() => navigate('/login'), 3000);
+      toast.success("Password reset successfully!");
+
+      if (isAuthenticated) {
+        toast.info("Redirecting to your profile...");
+        setTimeout(() => navigate(`/profile/${user.username}`), 3000);
+      } else {
+        toast.info("Redirecting to the login page...");
+        setTimeout(() => navigate('/login'), 3000);
+      }
     } catch (err) {
       setError(err.response?.data?.message || 'Password reset failed.');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleResendOtp = async () => {
+    setResendLoading(true);
+    try {
+      const response = await apiClient.post('/users/forgot-password', { email });
+      toast.success(response.data.message);
+      setTimer(30); // Start the 30-second timer
+    } catch (err) {
+      toast.error(err.response?.data?.message || "Failed to resend OTP.");
+    } finally {
+      setResendLoading(false);
     }
   };
 
@@ -126,6 +159,20 @@ const ResetPasswordPage = () => {
 
             {error && <p className="text-sm text-red-500 mt-4 text-center">{error}</p>}
 
+            <div className="text-center mt-6">
+              <p className="text-sm text-slate-500">
+                Didn't receive a code?{' '}
+                <button 
+                  type="button"
+                  onClick={handleResendOtp}
+                  disabled={resendLoading || timer > 0}
+                  className="font-semibold text-accent-500 hover:underline disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {resendLoading ? 'Sending...' : timer > 0 ? `Resend again in ${timer}s` : 'Resend OTP'}
+                </button>
+              </p>
+            </div>
+            
             <div className="text-center mt-6">
               <p className="text-sm text-slate-500">
                 {isAuthenticated ? (

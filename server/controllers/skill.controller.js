@@ -244,11 +244,17 @@ const getMatchingSkills = asyncHandler(async (req, res) => {
     $or: [{ category: requestSkill.category }, { tags: { $in: requestSkill.tags } }]
   }).populate('user', 'username profilePicture');
   const scoredMatches = potentialMatches.map(match => {
-    let score = (match.category === requestSkill.category) ? 10 : 0;
-    score += match.tags.filter(tag => requestSkill.tags.includes(tag)).length * 5;
-    return { ...match.toObject(), score };
-  }).sort((a, b) => b.score - a.score);
-  return res.status(200).json(new ApiResponse(200, scoredMatches.slice(0, 5), "Matching skills fetched"));
+    let averageRating = 0;
+    if (match.ratings && match.ratings.length > 0) {
+      const totalRating = match.ratings.reduce((acc, r) => acc + r.rating, 0);
+      averageRating = (totalRating / match.ratings.length).toFixed(1);
+    }
+    let score = (match.category === requestSkill.category) ? 10 : 0;
+    score += match.tags.filter(tag => requestSkill.tags.includes(tag)).length * 5;
+    return { ...match.toObject(), score, averageRating }; 
+  }).sort((a, b) => b.score - a.score);
+
+  return res.status(200).json(new ApiResponse(200, scoredMatches.slice(0, 5), "Matching skills fetched"));
 });
 
 const bookmarkSkill = asyncHandler(async (req, res) => {
@@ -396,33 +402,28 @@ const getYoutubeTutorials = asyncHandler(async (req, res) => {
   }
 
   // --- AI Safety Check ---
-  const genAI = new GoogleGenerativeAI(process.env.GOOGLE_API_KEY);
-  const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash"});
-
-  const safetyPrompt = `
-    Analyze the following user search query: "${keyword}".
-    Is this query about a legitimate, safe-for-work, learnable skill or topic?
-    Examples of good queries: "learn guitar", "how to cook pasta", "javascript tutorial".
-    Examples of bad queries: anything offensive, hateful, dangerous, or completely off-topic.
-    Respond with only the word "YES" if it is a good query, and only the word "NO" if it is a bad query.
-  `;
-
   try {
+    const genAI = new GoogleGenerativeAI(process.env.GOOGLE_API_KEY);
+    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash"});
+
+    const safetyPrompt = `
+    Is the following search query about a legitimate, safe-for-work, non-abusive, non-badword, learnable skill?
+    Query: "${keyword}"
+    Respond with only "YES" or "NO".
+  `;
+    
     const safetyResult = await model.generateContent(safetyPrompt);
     const safetyResponse = await safetyResult.response;
     const decision = safetyResponse.text().trim().toUpperCase();
 
     if (decision !== 'YES') {
-      // If the AI says "NO", block the search by returning an empty array.
+      // If the AI says "NO", block the search.
       return res.status(200).json(new ApiResponse(200, [], "Query blocked by safety filter."));
     }
   } catch (error) {
-    console.error("AI Safety Check Error:", error);
-    // If the safety check fails, we'll block the search to be safe.
-    return res.status(500).json(new ApiResponse(500, [], "Could not process the request."));
+    console.error("AI Safety Check Failed (will proceed without it):", error);
   }
   
-  // --- If the safety check passes, proceed to fetch videos ---
   const youtubeApiUrl = `https://www.googleapis.com/youtube/v3/search?part=snippet&q=${encodeURIComponent(keyword)}%20tutorial&type=video&maxResults=6&key=${process.env.YOUTUBE_API_KEY}`;
   try {
     const response = await fetch(youtubeApiUrl);

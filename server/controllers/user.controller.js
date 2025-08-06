@@ -37,13 +37,13 @@ const registerUser = asyncHandler(async (req, res) => {
     username: username.toLowerCase(),
     email,
     password,
-    verificationOtp: otp, 
-    verificationOtpExpiry: otpExpiry, 
+    verificationOtp: otp,
+    verificationOtpExpiry: otpExpiry,
   });
 
   const msg = {
     to: user.email,
-    from: 'codex.5342@gmail.com', // Use your verified SendGrid email
+    from: 'codex.5342@gmail.com',
     subject: 'Your SkillSwap Verification Code',
     html: `
       <div style="font-family: sans-serif; padding: 20px; color: #333;">
@@ -66,7 +66,6 @@ const registerUser = asyncHandler(async (req, res) => {
   return res.status(201).json(new ApiResponse(201, { email: user.email }, "Verification OTP sent to your email."));
 });
 
-
 const loginUser = asyncHandler(async (req, res) => {
   const { email, password } = req.body;
   if (!email || !password) {
@@ -87,10 +86,6 @@ const loginUser = asyncHandler(async (req, res) => {
     throw new ApiError(401, "Invalid user credentials");
   }
   
-  const isFirstLogin = !user.welcomed;
-  if (isFirstLogin) {
-    user.welcomed = true;
-  }
 
   const accessToken = user.generateAccessToken();
   const refreshToken = user.generateRefreshToken();
@@ -99,7 +94,6 @@ const loginUser = asyncHandler(async (req, res) => {
   await user.save({ validateBeforeSave: false });
 
   const loggedInUser = await User.findById(user._id).select("-password -refreshToken");
-  const userPayload = { ...loggedInUser.toObject(), isFirstLogin };
   
   const options = { httpOnly: true, secure: process.env.NODE_ENV === 'production' };
   
@@ -110,7 +104,7 @@ const loginUser = asyncHandler(async (req, res) => {
     .json(
       new ApiResponse(
         200,
-        { user: userPayload, accessToken },
+        { user: loggedInUser, accessToken },
         "User logged in successfully"
       )
     );
@@ -122,6 +116,119 @@ const logoutUser = asyncHandler(async (req, res) => {
   return res.status(200).clearCookie("accessToken", options).clearCookie("refreshToken", options).json(new ApiResponse(200, {}, "User logged out successfully"));
 });
 
+const forgotPassword = asyncHandler(async (req, res) => {
+  const { email } = req.body;
+  if (!email) {
+    throw new ApiError(400, "Email is required.");
+  }
+
+  const user = await User.findOne({ email });
+  if (!user) {
+    return res.status(200).json(new ApiResponse(200, {}, "If an account with this email exists, a password reset OTP has been sent."));
+  }
+
+  const otp = Math.floor(100000 + Math.random() * 900000).toString();
+  const otpExpiry = new Date(Date.now() + 10 * 60 * 1000);
+
+  user.passwordResetOtp = otp;
+  user.passwordResetOtpExpiry = otpExpiry;
+  await user.save({ validateBeforeSave: false });
+
+  const msg = {
+    to: user.email,
+    from: 'codex.5342@gmail.com', 
+    subject: 'Your SkillSwap Password Reset Code',
+    html: `
+      <div style="font-family: sans-serif; padding: 20px; color: #333;">
+        <h2>Password Reset Request</h2>
+        <p>Your password reset code is:</p>
+        <p style="font-size: 24px; font-weight: bold; letter-spacing: 2px; background: #f0f0f0; padding: 10px; border-radius: 5px;">${otp}</p>
+        <p style="font-size: 12px; color: #777;">This code will expire in 10 minutes.</p>
+      </div>
+    `,
+  };
+
+  try {
+    await sgMail.send(msg);
+    return res.status(200).json(new ApiResponse(200, { email: user.email }, "Password reset OTP sent to your email."));
+  } catch (error) {
+    console.error("SendGrid Error:", error);
+    throw new ApiError(500, "Could not send password reset email. Please try again later.");
+  }
+});
+
+const resetPassword = asyncHandler(async (req, res) => {
+  const { email, otp, newPassword } = req.body;
+
+  if (!email || !otp || !newPassword) {
+    throw new ApiError(400, "Email, OTP, and new password are required.");
+  }
+
+  // --- NEW: Password Complexity Validation ---
+  if (newPassword.length < 8) throw new ApiError(400, "Password must be at least 8 characters long.");
+  if (!/[a-z]/.test(newPassword)) throw new ApiError(400, "Password must contain at least one lowercase letter.");
+  if (!/[A-Z]/.test(newPassword)) throw new ApiError(400, "Password must contain at least one uppercase letter.");
+  if (!/\d/.test(newPassword)) throw new ApiError(400, "Password must contain at least one number.");
+  if (!/[@$!%*?&]/.test(newPassword)) throw new ApiError(400, "Password must contain at least one special character (@$!%*?&).");
+  // -----------------------------------------
+
+  const user = await User.findOne({
+    email,
+    passwordResetOtp: otp,
+    passwordResetOtpExpiry: { $gt: Date.now() }
+  }).select("+password");
+
+  if (!user) {
+    throw new ApiError(400, "Invalid OTP or OTP has expired.");
+  }
+
+  const isSamePassword = await user.isPasswordCorrect(newPassword);
+  if (isSamePassword) {
+    throw new ApiError(400, "Your new password cannot be the same as your old password.");
+  }
+
+  user.password = newPassword;
+  user.passwordResetOtp = undefined;
+  user.passwordResetOtpExpiry = undefined;
+  await user.save();
+
+  return res.status(200).json(new ApiResponse(200, {}, "Password has been reset successfully. You can now log in."));
+});
+
+const requestEmailChange = asyncHandler(async (req, res) => {
+  const { newEmail } = req.body;
+  const userId = req.user._id;
+  if (!newEmail) throw new ApiError(400, "New email is required.");
+  const existingUser = await User.findOne({ email: newEmail });
+  if (existingUser) throw new ApiError(409, "This email is already in use.");
+  const user = await User.findById(userId);
+  if (!user) throw new ApiError(404, "User not found");
+  const otp = Math.floor(100000 + Math.random() * 900000).toString();
+  const otpExpiry = new Date(Date.now() + 10 * 60 * 1000);
+  user.newEmail = newEmail;
+  user.emailChangeOtp = otp;
+  user.emailChangeOtpExpiry = otpExpiry;
+  await user.save({ validateBeforeSave: false });
+  const msg = { to: newEmail, from: 'codex.5342@gmail.com', subject: 'Verify Your New Email for SkillSwap', html: `Your code to change your email is: <strong>${otp}</strong>` };
+  await sgMail.send(msg);
+  return res.status(200).json(new ApiResponse(200, {}, "Verification OTP sent to your new email address."));
+});
+
+const verifyEmailChange = asyncHandler(async (req, res) => {
+  const { otp } = req.body;
+  const userId = req.user._id;
+  if (!otp) throw new ApiError(400, "OTP is required.");
+  const user = await User.findOne({ _id: userId, emailChangeOtp: otp, emailChangeOtpExpiry: { $gt: Date.now() } });
+  if (!user) throw new ApiError(400, "Invalid or expired OTP.");
+  user.email = user.newEmail;
+  user.isVerified = true;
+  user.newEmail = undefined;
+  user.emailChangeOtp = undefined;
+  user.emailChangeOtpExpiry = undefined;
+  const updatedUser = await user.save({ validateBeforeSave: false });
+  return res.status(200).json(new ApiResponse(200, { email: updatedUser.email }, "Email updated successfully."));
+});
+
 const getCurrentUser = asyncHandler(async (req, res) => {
   const bookmarkedSkills = await Skill.find({ bookmarkedBy: req.user._id }).select('_id');
   const bookmarkIds = bookmarkedSkills.map(skill => skill._id);
@@ -129,46 +236,27 @@ const getCurrentUser = asyncHandler(async (req, res) => {
   return res.status(200).json(new ApiResponse(200, userData, "User profile fetched successfully"));
 });
 
-const updateUserProfile = asyncHandler(async (req, res) => {
-  const { bio, locationString, socials, mobileNumber } = req.body;
-  const updateData = {};
-  if (bio !== undefined) updateData.bio = bio;
-  if (socials) updateData.socials = socials;
-  if (locationString) {
-    updateData.locationString = locationString;
-    try {
-      const geoData = await opencage.geocode({ q: locationString, limit: 1, key: process.env.OPENCAGE_API_KEY });
-      if (geoData.results.length > 0) {
-        const { lng, lat } = geoData.results[0].geometry;
-        updateData.location = { type: 'Point', coordinates: [lng, lat] };
-      }
-    } catch (error) {
-      console.error("Geocoding failed:", error.message);
-    }
-  }
-  if (mobileNumber !== undefined) updateData.mobileNumber = mobileNumber;
-  
-  const user = await User.findByIdAndUpdate(req.user._id, { $set: updateData }, { new: true, runValidators: true }).select("-password -refreshToken");
-  return res.status(200).json(new ApiResponse(200, user, "Profile updated successfully"));
-});
-
 const updateAccountDetails = asyncHandler(async (req, res) => {
-    const { username, email, firstName, lastName } = req.body;
-    if (!username || !email || !firstName || !lastName) {
-        throw new ApiError(400, "First name, last name, username and email are required.");
+    const { username, firstName, lastName, mobileNumber, bio, locationString, socials } = req.body;
+    
+    if (!username || !firstName || !lastName) {
+        throw new ApiError(400, "First name, last name, and username are required.");
     }
-    const existingUser = await User.findOne({ 
-        $or: [{ username }, { email }],
-        _id: { $ne: req.user._id }
-    });
-    if (existingUser) {
-        throw new ApiError(409, "Username or email is already in use by another account.");
-    }
-    const updatedUser = await User.findByIdAndUpdate(
-        req.user._id, 
-        { $set: { username, email, firstName, lastName } }, 
-        { new: true }
-    ).select("-password -refreshToken");
+
+    const user = await User.findById(req.user._id);
+    if (!user) throw new ApiError(404, "User not found");
+
+    // Update all fields on the single user object
+    user.username = username;
+    user.firstName = firstName;
+    user.lastName = lastName;
+    user.mobileNumber = mobileNumber;
+    user.bio = bio;
+    user.socials = socials;
+    user.locationString = locationString;
+
+    const updatedUser = await user.save({ validateBeforeSave: false });
+    
     return res.status(200).json(new ApiResponse(200, updatedUser, "Account details updated successfully."));
 });
 
@@ -290,74 +378,7 @@ const resendVerificationEmail = asyncHandler(async (req, res) => {
   }
 });
 
-const forgotPassword = asyncHandler(async (req, res) => {
-  const { email } = req.body;
-  if (!email) {
-    throw new ApiError(400, "Email is required.");
-  }
 
-  const user = await User.findOne({ email });
-  if (!user) {
-    // For security, don't reveal if a user exists or not.
-    return res.status(200).json(new ApiResponse(200, {}, "If an account with this email exists, a password reset OTP has been sent."));
-  }
-
-  // Generate a 6-digit OTP
-  const otp = Math.floor(100000 + Math.random() * 900000).toString();
-  // Set OTP to expire in 10 minutes
-  const otpExpiry = new Date(Date.now() + 10 * 60 * 1000);
-
-  user.passwordResetOtp = otp;
-  user.passwordResetOtpExpiry = otpExpiry;
-  await user.save({ validateBeforeSave: false });
-
-  const msg = {
-    to: user.email,
-    from: 'codex.5342@gmail.com', // Use your verified SendGrid email
-    subject: 'Your SkillSwap Password Reset Code',
-    html: `
-      <div style="font-family: sans-serif; padding: 20px; color: #333;">
-        <h2>Password Reset Request</h2>
-        <p>Your password reset code is:</p>
-        <p style="font-size: 24px; font-weight: bold; letter-spacing: 2px; background: #f0f0f0; padding: 10px; border-radius: 5px;">${otp}</p>
-        <p style="font-size: 12px; color: #777;">This code will expire in 10 minutes.</p>
-      </div>
-    `,
-  };
-
-  try {
-    await sgMail.send(msg);
-    return res.status(200).json(new ApiResponse(200, { email: user.email }, "Password reset OTP sent to your email."));
-  } catch (error) {
-    console.error("SendGrid Error:", error);
-    throw new ApiError(500, "Could not send password reset email. Please try again later.");
-  }
-});
-
-const resetPassword = asyncHandler(async (req, res) => {
-  const { email, otp, newPassword } = req.body;
-
-  if (!email || !otp || !newPassword) {
-    throw new ApiError(400, "Email, OTP, and new password are required.");
-  }
-
-  const user = await User.findOne({
-    email,
-    passwordResetOtp: otp,
-    passwordResetOtpExpiry: { $gt: Date.now() }
-  });
-
-  if (!user) {
-    throw new ApiError(400, "Invalid OTP or OTP has expired.");
-  }
-
-  user.password = newPassword;
-  user.passwordResetOtp = undefined;
-  user.passwordResetOtpExpiry = undefined;
-  await user.save();
-
-  return res.status(200).json(new ApiResponse(200, {}, "Password has been reset successfully. You can now log in."));
-});
 
 export {
   registerUser,
@@ -365,7 +386,6 @@ export {
   loginUser,
   logoutUser,
   getCurrentUser,
-  updateUserProfile,
   updateAccountDetails,
   updateUserAvatar,
   deleteUserAvatar,
@@ -373,4 +393,6 @@ export {
   resendVerificationEmail,
   forgotPassword,
   resetPassword,
+  requestEmailChange,
+  verifyEmailChange
 };

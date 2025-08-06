@@ -12,8 +12,6 @@ export const AuthProvider = ({ children }) => {
   const [isAuthenticated, setIsAuthenticated] = useState(!!localStorage.getItem('accessToken'));
   const [bookmarks, setBookmarks] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [showWelcomeModal, setShowWelcomeModal] = useState(false);
-  // --- UPDATED: Initialize chat state from sessionStorage ---
   const [chatMessages, setChatMessages] = useState(() => {
     try {
       const savedMessages = sessionStorage.getItem('chatMessages');
@@ -22,7 +20,24 @@ export const AuthProvider = ({ children }) => {
       return [];
     }
   });
+  const [totalUnreadCount, setTotalUnreadCount] = useState(0);
   const navigate = useNavigate();
+
+ const clearUnreadNotifications = useCallback(() => {
+    setTotalUnreadCount(0);
+  }, []);
+
+const fetchUnreadCount = useCallback(async () => {
+    if (!isAuthenticated) return;
+    try {
+      const response = await apiClient.get('/messages/conversations');
+      const conversations = response.data.data;
+      const unreadCount = conversations.reduce((acc, conv) => acc + (conv.unreadCount || 0), 0);
+      setTotalUnreadCount(unreadCount);
+    } catch (error) {
+      console.error("Failed to fetch unread count", error);
+    }
+  }, [isAuthenticated]);
 
   useEffect(() => {
     const checkUserStatus = async () => {
@@ -32,6 +47,7 @@ export const AuthProvider = ({ children }) => {
           setUser(response.data.data);
           setBookmarks(response.data.data.bookmarks || []);
           setIsAuthenticated(true);
+          fetchUnreadCount();      
         } catch (error) {
           localStorage.removeItem('accessToken');
           setIsAuthenticated(false);
@@ -41,7 +57,7 @@ export const AuthProvider = ({ children }) => {
       setLoading(false);
     };
     checkUserStatus();
-  }, [token]);
+  }, [token, fetchUnreadCount]);
 
   useEffect(() => {
     if (isAuthenticated && user) {
@@ -52,13 +68,17 @@ export const AuthProvider = ({ children }) => {
       socket.on('new_notification', (data) => {
         toast.success(data.message);
       });
+      socket.on('newMessage', () => {
+        fetchUnreadCount();
+      });
 
       return () => {
         socket.off('new_notification');
+        socket.off('newMessage');
         socket.disconnect();
       }
     }
-  }, [isAuthenticated, user]);
+  }, [isAuthenticated, user, fetchUnreadCount]);
 
   const login = useCallback(async (credentials) => {
     try {
@@ -95,6 +115,7 @@ export const AuthProvider = ({ children }) => {
       setBookmarks([]);
       setChatMessages([]); 
       sessionStorage.removeItem('chatMessages');
+      setTotalUnreadCount(0);
       localStorage.removeItem('accessToken');
       navigate('/login');
     }
@@ -121,9 +142,7 @@ export const AuthProvider = ({ children }) => {
     }
   }, [bookmarks]);
 
-  // --- UPDATED: Function now saves to sessionStorage ---
   const updateChatMessages = useCallback((newMessages) => {
-    // The argument can be a new array or a function to update the previous state
     const updater = typeof newMessages === 'function' ? newMessages : () => newMessages;
     
     setChatMessages(prevMessages => {
@@ -144,6 +163,9 @@ export const AuthProvider = ({ children }) => {
     updateUserState,
     chatMessages,
     updateChatMessages,
+    totalUnreadCount,  
+    fetchUnreadCount,
+    clearUnreadNotifications
   };
 
   return (

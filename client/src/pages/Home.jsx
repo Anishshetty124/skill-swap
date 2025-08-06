@@ -201,7 +201,15 @@ const Home = () => {
     debouncedLocationFetch(value);
   };
 
-
+const handleShowLess = () => {
+    setPage(1);
+    setHasMore(true);
+    fetchSkills(1, true, filters, locationQuery);
+    const searchResults = document.getElementById('search-results');
+    if (searchResults) {
+      searchResults.scrollIntoView({ behavior: 'smooth' });
+    }
+  };
   
   const skillCategories = ['Tech', 'Art', 'Music', 'Writing', 'Marketing', 'Language', 'Fitness', 'Cooking', 'Crafts','others'];
   const isAnyFilterActive = filters.keywords || filters.category || filters.level || locationQuery;
@@ -345,7 +353,7 @@ const Home = () => {
   <p className="text-center p-10 text-white-500">{error}</p>
 ) : skills.length > 0 ? (
   <>
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+    <div id="search-results" className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
       {skills.map((skill) => <SkillCard key={skill._id} skill={skill} />)}
     </div>
     
@@ -361,13 +369,13 @@ const Home = () => {
         </button>
       ) : (
         skills.length > 6 &&
-        <button 
-          onClick={clearSearch} 
-          className="px-6 py-2 bg-white dark:bg-slate-700 font-semibold rounded-md"
-        >
-          Show Less
-        </button>
-      )}
+        <button 
+          onClick={handleShowLess} 
+          className="px-6 py-2 bg-white dark:bg-slate-700 font-semibold rounded-md"
+        >
+          Show Less
+        </button>
+      )}
     </div>
   </>
 ) : (

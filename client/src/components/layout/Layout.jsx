@@ -11,7 +11,7 @@ const Layout = () => {
   const { isAuthenticated } = useAuth();
 
   return (
-    <div className="flex flex-col min-h-screen bg-slate-100 dark:bg-slate-900 text-slate-800 dark:text-slate-200">
+    <div className="flex flex-col min-h-screen bg-blue-100 dark:bg-slate-900 text-slate-800 dark:text-slate-200">
       <ToastContainer
         position="top-center"
         autoClose={3000}

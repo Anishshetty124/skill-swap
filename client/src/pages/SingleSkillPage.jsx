@@ -76,7 +76,6 @@ const SingleSkillPage = () => {
       try {
         await apiClient.delete(`/skills/${skillId}`);
         toast.success('Skill deleted successfully!');
-        // Navigate to dashboard and pass a state to indicate a refresh is needed
         navigate('/my-skills', { state: { refresh: true } });
       } catch (err) {
         toast.error(err.response?.data?.message || 'Failed to delete skill.');
@@ -178,13 +177,13 @@ const SingleSkillPage = () => {
       </div>
 
       {matches.length > 0 && (
-        <div className="mt-12">
-          <h2 className="text-2xl font-bold mb-4">Top Matches For Your Request</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {matches.map(matchSkill => <SkillCard key={matchSkill._id} skill={matchSkill} />)}
-          </div>
-        </div>
-      )}
+        <div className="mt-12">
+          <h2 className="text-2xl font-bold mb-4">Top Matches For Your Request</h2>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+            {matches.map(matchSkill => <SkillCard key={matchSkill._id} skill={matchSkill} />)}
+          </div>
+        </div>
+      )}
 
       <ProposalModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} requestedSkill={skill}/>
     </div>
