@@ -3,6 +3,7 @@ import apiClient from '../api/axios';
 import ProposalList from '../components/dashboard/ProposalList';
 import { useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import ProposalCardSkeleton from '../components/dashboard/ProposalCardSkeleton';
 
 const Dashboard = () => {
   const { user } = useAuth();
@@ -62,7 +63,9 @@ const Dashboard = () => {
 
       <div className="p-6 bg-gray-100 dark:bg-slate-800 rounded-b-md rounded-r-md">
         {loading ? (
-          <p className="text-center">Loading proposals...</p>
+           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        {[...Array(4)].map((_, i) => <ProposalCardSkeleton key={i} />)}
+      </div>
         ) : error ? (
           <p className="text-center text-red-500">{error}</p>
         ) : (

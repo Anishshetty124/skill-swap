@@ -36,24 +36,22 @@ const sendMessage = asyncHandler(async (req, res) => {
 	const senderId = req.user._id;
 
     if (profanity.check(message)) {
-        throw new ApiError(400, "Message contains inappropriate language and was not sent.");
+        throw new ApiError(400, "Message contains inappropriate language.");
     }
 
 	let conversation = await Conversation.findOne({
 		participants: { $all: [senderId, receiverId] },
 	});
 
-    
+    // --- THIS IS THE CORRECTED LOGIC ---
+    // If a conversation doesn't exist, check if there's ANY accepted proposal
+    // between these two users before creating one.
     if (!conversation) {
-        conversation = await Conversation.create({
-			participants: [senderId, receiverId],
-		});
         const acceptedProposal = await Proposal.findOne({
             $or: [
-                { proposer: senderId, receiver: receiverId },
-                { proposer: receiverId, receiver: senderId }
-            ],
-            status: 'accepted'
+                { proposer: senderId, receiver: receiverId, status: 'accepted' },
+                { proposer: receiverId, receiver: senderId, status: 'accepted' }
+            ]
         });
 
         if (!acceptedProposal) {
@@ -64,15 +62,16 @@ const sendMessage = asyncHandler(async (req, res) => {
 			participants: [senderId, receiverId],
 		});
 	}
+    // ------------------------------------
 
 	const newMessage = new Message({
-		senderId,
-		receiverId,
-		message,
-        conversationId: conversation._id, 
-	});
-
-	if (newMessage) {
+        senderId,
+        receiverId,
+        message,
+        conversationId: conversation._id
+    });
+	
+    if (newMessage) {
 		conversation.messages.push(newMessage._id);
         conversation.lastMessage = newMessage._id;
 	}
@@ -86,6 +85,7 @@ const sendMessage = asyncHandler(async (req, res) => {
 
 	res.status(201).json(new ApiResponse(201, newMessage, "Message sent successfully"));
 });
+
 
 const getConversations = asyncHandler(async (req, res) => {
     const loggedInUserId = req.user._id;

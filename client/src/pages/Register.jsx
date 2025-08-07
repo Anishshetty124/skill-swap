@@ -3,6 +3,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import apiClient from '../api/axios';
 import { toast } from 'react-toastify';
 import { EyeIcon, EyeSlashIcon, CheckCircleIcon } from '@heroicons/react/24/solid';
+import GoogleLoginButton from '../components/auth/GoogleLoginButton';
 
 const Register = () => {
   const [formData, setFormData] = useState({ 
@@ -127,6 +128,13 @@ const Register = () => {
             >
               {loading ? 'Registering...' : 'Register'}
             </button>
+            <div className="my-6 flex items-center">
+            <div className="flex-grow border-t border-slate-300"></div>
+            <span className="mx-4 text-slate-500">OR</span>
+            <div className="flex-grow border-t border-slate-300"></div>
+          </div>
+
+          <GoogleLoginButton />
           </form>
 
           {error && <p className="text-sm text-center text-red-500 mt-4">{error}</p>}

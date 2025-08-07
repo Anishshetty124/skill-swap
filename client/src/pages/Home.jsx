@@ -409,7 +409,6 @@ const handleShowLess = () => {
             </div>
         ) : (
           <div className="flex flex-wrap justify-center gap-3">
-            {/* --- THIS IS THE CORRECTED LOGIC --- */}
             {searchedKeyword ? (
               <p className="text-slate-500 italic">No tutorials found for this topic. It may be an invalid or inappropriate search.</p>
             ) : (

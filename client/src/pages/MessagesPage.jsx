@@ -6,6 +6,7 @@ import { PaperAirplaneIcon, ArrowLeftIcon, TrashIcon, EllipsisVerticalIcon, XMar
 import { useSocketContext } from '../context/SocketContext';
 import { toast } from 'react-toastify';
 import { format } from 'date-fns';
+import MessagesPageSkeleton from '../components/messages/MessagePageSkeleton';
 
 function useOnClickOutside(ref, handler) {
   useEffect(() => {
@@ -100,21 +101,24 @@ const ChatWindow = ({ selectedConversation, onBack, onClearChat, onReportUser })
   }, [selectedConversation]);
 
   useEffect(() => {
-    socket?.on("newMessage", (newMessage) => {
+    const handleNewMessage = (newMessage) => {
       if (selectedConversation?._id === newMessage.senderId) {
         setMessages(prev => [...prev, newMessage]);
       }
-    });
+    };
     
-    socket?.on("messageDeleted", ({ messageId }) => {
+    const handleMessageDeleted = ({ messageId }) => {
         setMessages(prev => prev.filter(msg => msg._id !== messageId));
-    });
+    };
+
+    socket?.on("newMessage", handleNewMessage);
+    socket?.on("messageDeleted", handleMessageDeleted);
 
     return () => {
-        socket?.off("newMessage");
-        socket?.off("messageDeleted");
+        socket?.off("newMessage", handleNewMessage);
+        socket?.off("messageDeleted", handleMessageDeleted);
     }
-  }, [socket, selectedConversation]);
+  }, [socket, selectedConversation, setMessages]);
 
   const handleMessageClick = (message) => {
     if (selectionMode && message.senderId === user._id) {
@@ -179,9 +183,10 @@ const ChatWindow = ({ selectedConversation, onBack, onClearChat, onReportUser })
   };
   
   return (
-    <div className="flex flex-col h-full bg-white dark:bg-slate-800">
+    <div className="flex flex-col h-full bg-slate-50 dark:bg-slate-900">
+      {/* Header (Stays fixed at the top) */}
       {selectionMode ? (
-        <div className="p-4 border-b border-slate-200 dark:border-slate-700 flex justify-between items-center bg-slate-100 dark:bg-slate-900 flex-shrink-0">
+        <div className="p-4 border-b border-slate-200 dark:border-slate-700 flex justify-between items-center bg-white dark:bg-slate-800 flex-shrink-0">
           <button onClick={() => { setSelectionMode(false); setSelectedMessages(new Set()); }}>
             <XMarkIcon className="h-6 w-6" />
           </button>
@@ -191,7 +196,7 @@ const ChatWindow = ({ selectedConversation, onBack, onClearChat, onReportUser })
           </button>
         </div>
       ) : (
-        <div className="p-4 border-b border-slate-200 dark:border-slate-700 flex justify-between items-center flex-shrink-0">
+        <div className="p-4 border-b border-slate-200 dark:border-slate-700 flex justify-between items-center bg-white dark:bg-slate-800 flex-shrink-0">
           <div className="flex items-center gap-4">
               <button onClick={onBack} className="md:hidden p-1 rounded-full hover:bg-slate-100 dark:hover:bg-slate-700">
                   <ArrowLeftIcon className="h-6 w-6"/>
@@ -219,6 +224,7 @@ const ChatWindow = ({ selectedConversation, onBack, onClearChat, onReportUser })
         </div>
       )}
 
+      {/* Message List (This is now the only scrollable part) */}
       <div className="flex-1 p-4 overflow-y-auto">
         {loading && <p className="text-center">Loading messages...</p>}
         {!loading && messages.map(msg => (
@@ -230,7 +236,7 @@ const ChatWindow = ({ selectedConversation, onBack, onClearChat, onReportUser })
             onTouchEnd={handleTouchEnd}
             onContextMenu={(e) => handleContextMenu(e, msg)}
           >
-            <div className={`px-4 py-2 rounded-2xl max-w-md relative transition-colors ${selectedMessages.has(msg._id) ? 'bg-blue-300 dark:bg-blue-900' : msg.senderId === user._id ? 'bg-blue-500 text-white' : 'bg-white dark:bg-slate-700'}`}>
+            <div className={`px-4 py-2 rounded-2xl max-w-md relative transition-colors ${selectedMessages.has(msg._id) ? 'bg-blue-300 dark:bg-blue-900' : msg.senderId === user._id ? 'bg-blue-500 text-white' : 'bg-purple-300 dark:bg-purple-600'}`}>
               {msg.message}
             </div>
             <p className="text-xs text-slate-400 mt-1 px-2">
@@ -241,7 +247,8 @@ const ChatWindow = ({ selectedConversation, onBack, onClearChat, onReportUser })
         <div ref={messagesEndRef} />
       </div>
 
-      <form onSubmit={handleSubmit} className="p-4 border-t border-slate-200 dark:border-slate-700 flex items-center gap-2 flex-shrink-0">
+      {/* Input Form (Stays fixed at the bottom) */}
+      <form onSubmit={handleSubmit} className="p-4 border-t border-slate-200 dark:border-slate-700 flex items-center gap-2 flex-shrink-0 bg-white dark:bg-slate-800">
         <input 
           type="text" 
           placeholder="Type a message..." 
@@ -266,29 +273,35 @@ const MessagesPage = () => {
   const navigate = useNavigate();
   const { fetchUnreadCount } = useAuth();
 
-   const fetchConversations = useCallback(async () => {
+     const fetchConversations = useCallback(async () => {
     try {
       setLoading(true);
       const response = await apiClient.get('/messages/conversations');
-      const fetchedConversations = response.data.data;
+      let fetchedConversations = response.data.data;
       
       const newChatUser = location.state?.newConversationWith;
 
       if (newChatUser) {
+        // --- THIS IS THE CORRECTED LOGIC ---
+        // 1. Check if a conversation with this user already exists in the fresh list
         const existingConv = fetchedConversations.find(c => c.participant._id === newChatUser._id);
         
-        if (existingConv) {
-          setConversations(fetchedConversations);
-          setSelectedConversation(existingConv.participant);
-        } else {
-          const newConvPlaceholder = { _id: 'new', participant: newChatUser };
-          setConversations([newConvPlaceholder, ...fetchedConversations]);
-          setSelectedConversation(newChatUser);
+        if (!existingConv) {
+          // 2. Only if it doesn't exist, create a new placeholder and add it to the list
+          const newConvPlaceholder = { 
+            _id: `new-${newChatUser._id}`, // Use a more unique temporary key
+            participant: newChatUser 
+          };
+          fetchedConversations = [newConvPlaceholder, ...fetchedConversations];
         }
-        navigate(location.pathname, { replace: true });
-      } else {
-        setConversations(fetchedConversations);
+        
+        // 3. Select the conversation and clear the location state
+        setSelectedConversation(newChatUser);
+        navigate(location.pathname, { replace: true, state: {} });
       }
+
+      // 4. Finally, set the single, correct list of conversations
+      setConversations(fetchedConversations);
 
     } catch (err) {
       setError('Failed to load conversations.');
@@ -301,7 +314,8 @@ const MessagesPage = () => {
     fetchConversations();
   }, [fetchConversations]);
 
-  const handleSelectConversation = useCallback(async (participant) => {
+  const handleSelectConversation = useCallback(async (participant, e) => {
+     if (e) e.preventDefault();
     setSelectedConversation(participant);
     const conv = conversations.find(c => c.participant._id === participant._id);
     
@@ -348,7 +362,7 @@ const MessagesPage = () => {
     }
   };
 
-  if (loading) return <p className="text-center p-10">Loading conversations...</p>;
+  if (loading) return <MessagesPageSkeleton />;
   if (error) return <p className="text-center p-10 text-red-500">{error}</p>;
 
   return (

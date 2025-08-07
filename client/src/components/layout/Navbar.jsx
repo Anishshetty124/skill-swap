@@ -1,9 +1,26 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
 import { SunIcon, MoonIcon } from '@heroicons/react/24/solid';
 import apiClient from '../../api/axios';
+
+function useOnClickOutside(ref, handler) {
+  useEffect(() => {
+    const listener = (event) => {
+      if (!ref.current || ref.current.contains(event.target)) {
+        return;
+      }
+      handler(event);
+    };
+    document.addEventListener("mousedown", listener);
+    document.addEventListener("touchstart", listener);
+    return () => {
+      document.removeEventListener("mousedown", listener);
+      document.removeEventListener("touchstart", listener);
+    };
+  }, [ref, handler]);
+}
 
 const ThemeToggle = () => {
   const { theme, toggleTheme } = useTheme();
@@ -26,6 +43,8 @@ const Navbar = () => {
   const [isMenuOpen, setIsMenuOpen] = React.useState(false);
   const navigate = useNavigate(); 
   const location = useLocation();
+  const menuRef = React.useRef();
+   useOnClickOutside(menuRef, () => setIsMenuOpen(false));
 
   const handleMessagesClick = async () => {
     setIsMenuOpen(false);
@@ -67,17 +86,18 @@ const Navbar = () => {
     </>
   );
 
+  // Links for Mobile View (Button Style)
   const mobileNavLinks = (
-    <>
-      <Link to="/" className="block w-full text-left py-2 px-3 rounded-md text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700" onClick={() => setIsMenuOpen(false)}>Home</Link>
+    <div className="flex flex-col items-stretch divide-y divide-slate-300 dark:divide-slate-700 p-2">
+      <Link to="/" className="block w-full text-left py-3 px-3 rounded-md text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700" onClick={() => setIsMenuOpen(false)}>Home</Link>
       {isAuthenticated ? (
         <>
-          <Link to="/my-skills" className="block w-full text-left py-2 px-3 rounded-md text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700" onClick={() => setIsMenuOpen(false)}>My Skills</Link>
-          <Link to="/skills/new" className="block w-full text-left py-2 px-3 rounded-md text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700" onClick={() => setIsMenuOpen(false)}>Post Skill</Link>
-          <Link to="/dashboard" className="block w-full text-left py-2 px-3 rounded-md text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700" onClick={() => setIsMenuOpen(false)}>Dashboard</Link>
-            <button 
+          <Link to="/my-skills" className="block w-full text-left py-3 px-3 rounded-md text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700" onClick={() => setIsMenuOpen(false)}>My Skills</Link>
+          <Link to="/skills/new" className="block w-full text-left py-3 px-3 rounded-md text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700" onClick={() => setIsMenuOpen(false)}>Post Skill</Link>
+          <Link to="/dashboard" className="block w-full text-left py-3 px-3 rounded-md text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700" onClick={() => setIsMenuOpen(false)}>Dashboard</Link>
+          <button 
             onClick={handleMessagesClick} 
-            className="relative block w-full text-left py-2 px-3 rounded-md text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700"
+            className="relative block w-full text-left py-3 px-3 rounded-md text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700"
           >
             <div className="flex justify-between items-center">
               <span>Messages</span>
@@ -88,20 +108,22 @@ const Navbar = () => {
               )}
             </div>
           </button>
-          <button onClick={() => { logout(); setIsMenuOpen(false); }} className="w-full text-center py-2 px-3 bg-red-500 text-white rounded-md hover:bg-red-600">Logout</button>
+          <div className="p-2">
+            <button onClick={() => { logout(); setIsMenuOpen(false); }} className="w-full text-center py-2 px-3 bg-red-500 text-white rounded-md hover:bg-red-600">Logout</button>
+          </div>
         </>
       ) : (
         <>
-          <Link to="/login" className="block w-full text-left py-2 px-3 rounded-md text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700" onClick={() => setIsMenuOpen(false)}>Login</Link>
-          <Link to="/register" className="block w-full text-left py-2 px-3 rounded-md text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 font-semibold" onClick={() => setIsMenuOpen(false)}>Register</Link>
+          <Link to="/login" className="block w-full text-left py-3 px-3 rounded-md text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700" onClick={() => setIsMenuOpen(false)}>Login</Link>
+          <Link to="/register" className="block w-full text-left py-3 px-3 rounded-md text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 font-semibold" onClick={() => setIsMenuOpen(false)}>Register</Link>
         </>
       )}
-    </>
+    </div>
   );
 
   return (
     <header className="bg-white/70 dark:bg-slate-900/70 backdrop-blur-lg shadow-sm sticky top-0 z-50 relative">
-      <div className="container mx-auto px-4">
+    <div className="container mx-auto px-4" ref={menuRef}>
         <nav className="py-4 flex justify-between items-center">
           <Link to="/" className="flex items-center gap-2">
             <svg width="32" height="32" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
@@ -141,13 +163,13 @@ const Navbar = () => {
           </div>
 
           {/* Hamburger Menu & Mobile Icon */}
-          <div className="md:hidden flex items-center gap-2">
+           <div className="md:hidden flex items-center gap-2" >
             <ThemeToggle />
             {isAuthenticated && user && (
               <Link to={`/profile/${user.username}`}>
                 {user.profilePicture ? (
                   <img
-                    className="h-10 w-10 rounded-full object-cover border-2 border-blue-500"
+                    className="h-11 w-11 rounded-full object-cover border-2 border-blue-500"
                     src={user.profilePicture}
                     alt="Profile"
                   />
@@ -160,11 +182,11 @@ const Navbar = () => {
             )}
             <button onClick={() => setIsMenuOpen(!isMenuOpen)}>
               {isMenuOpen ? (
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                 </svg>
               ) : (
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16m-7 6h7" />
                 </svg>
               )}
@@ -173,7 +195,7 @@ const Navbar = () => {
         </nav>
 
         <div
-          className={`absolute w-full left-0 bg-white/90 dark:bg-slate-800/90 backdrop-blur-lg shadow-md md:hidden ${
+          className={`absolute w-full left-0 bg-gray-200 dark:bg-slate-800 backdrop-blur-lg shadow-md md:hidden ${
             isMenuOpen ? "block" : "hidden"
           }`}
         >

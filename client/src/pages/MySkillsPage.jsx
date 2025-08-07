@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import apiClient from '../api/axios';
 import SkillCard from '../components/skills/SkillCard';
 import { useAuth } from '../context/AuthContext';
+import SkillCardSkeleton from '../components/skills/SkillCardSkeleton';
 
 const MySkillsPage = () => {
   const [mySkills, setMySkills] = useState([]);
@@ -26,7 +27,9 @@ const MySkillsPage = () => {
     }
   }, [user?._id]);
 
-  if (loading) return <p className="text-center p-10">Loading your skills...</p>;
+  if (loading) return <div className="grid mt-5 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+        {[...Array(6)].map((_, index) => <SkillCardSkeleton key={index} />)}
+      </div>;
   if (error) return <p className="text-center p-10 text-red-500">{error}</p>;
 
   return (

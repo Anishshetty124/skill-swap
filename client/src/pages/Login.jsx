@@ -4,6 +4,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { EyeIcon, EyeSlashIcon } from '@heroicons/react/24/solid';
 import apiClient from '../api/axios';
 import { toast } from 'react-toastify';
+import GoogleLoginButton from '../components/auth/GoogleLoginButton';
 
 const Login = () => {
   const [credentials, setCredentials] = useState({ email: '', password: '' });
@@ -117,6 +118,13 @@ const Login = () => {
               </button>
             </div>
             <button type="submit" className="w-full py-3 font-semibold text-white bg-gradient-to-r from-cyan-500 to-blue-500 rounded-lg shadow-lg hover:shadow-blue-500/50 transition-all duration-300 transform hover:scale-105">Log In</button>
+            <div className="my-6 flex items-center">
+            <div className="flex-grow border-t border-slate-300"></div>
+            <span className="mx-4 text-slate-500">OR</span>
+            <div className="flex-grow border-t border-slate-300"></div>
+          </div>
+
+          <GoogleLoginButton />
           </form>
 
           {error && <p className="text-sm text-center text-red-500 mt-4">{error}</p>}

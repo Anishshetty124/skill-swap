@@ -98,6 +98,20 @@ const fetchUnreadCount = useCallback(async () => {
       throw error;
     }
   }, [navigate]);
+
+const setTokenAndUser = useCallback(async (accessToken) => {
+    try {
+      localStorage.setItem('accessToken', accessToken);
+      setToken(accessToken);
+      const response = await apiClient.get('/users/me', {
+        headers: { 'Authorization': `Bearer ${accessToken}` }
+      });
+      setUser(response.data.data);
+      setIsAuthenticated(true);
+    } catch (error) {
+      logout();
+    }
+  }, []);
   
   const updateUserState = useCallback((newUserData) => {
     setUser(currentUser => ({...currentUser, ...newUserData}));
@@ -165,7 +179,8 @@ const fetchUnreadCount = useCallback(async () => {
     updateChatMessages,
     totalUnreadCount,  
     fetchUnreadCount,
-    clearUnreadNotifications
+    clearUnreadNotifications,
+    setTokenAndUser,
   };
 
   return (

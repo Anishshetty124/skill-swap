@@ -90,7 +90,7 @@ const EditProfilePage = () => {
         updateUserState(avatarResponse.data.data);
         toast.success('Profile picture removed.');
       } else if (avatarFile) {
-        const toastId = toast.loading('Uploading profile picture...');
+        const toastId = toast.loading('Uploading profile picture...', { closeButton: true, autoClose: 4500, draggable: true, draggablePercent: 40, pauseOnHover: true, theme: "colored" });
         const formData = new FormData();
         formData.append('file', avatarFile);
         formData.append('upload_preset', import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET);
@@ -104,7 +104,8 @@ const EditProfilePage = () => {
 
         const avatarUpdateRes = await apiClient.patch('/users/me/avatar', { avatarUrl: cloudinaryData.secure_url });
         updateUserState(avatarUpdateRes.data.data);
-        toast.update(toastId, { render: "Profile picture updated!", type: "success", isLoading: false, autoClose: 3000 });
+        window.location.reload();
+        toast.update(toastId, { render: "Profile picture updated!", type: "success", isLoading: false, autoClose: 2000 });
       }
     } catch (err) {
       console.error("Profile Update Error:", err); 
@@ -169,7 +170,7 @@ const EditProfilePage = () => {
           </div>
           <div>
             <label className="block text-sm font-medium">Mobile Number</label>
-            <input type="tel" value={mobileNumber} onChange={(e) => setMobileNumber(e.target.value)} placeholder="10-digit mobile number" required pattern="[0-9]{10}" className="w-full px-3 py-2 mt-1 bg-white dark:bg-slate-700 rounded-md"/>
+            <input type="tel" value={mobileNumber} onChange={(e) => setMobileNumber(e.target.value)} placeholder="10-digit mobile number" pattern="[0-9]{10}" className="w-full px-3 py-2 mt-1 bg-white dark:bg-slate-700 rounded-md"/>
           </div>
           <div>
             <label className="block text-sm font-medium">Bio</label>
