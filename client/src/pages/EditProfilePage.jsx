@@ -4,6 +4,7 @@ import apiClient from '../api/axios';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import UpdateEmailModal from '../components/profile/UpdateEmailModal';
+import ImageCropModal from '../components/profile/ImageCropModal';
 
 const EditProfilePage = () => {
   const { user, updateUserState, logout } = useAuth();
@@ -20,6 +21,8 @@ const EditProfilePage = () => {
   const [isAvatarMarkedForDeletion, setIsAvatarMarkedForDeletion] = useState(false);
   const [loading, setLoading] = useState(false);
   const [isEmailModalOpen, setIsEmailModalOpen] = useState(false);
+  const [imageToCrop, setImageToCrop] = useState(null);
+  const [isCropModalOpen, setIsCropModalOpen] = useState(false);
 
   useEffect(() => {
     if (user) {
@@ -33,10 +36,20 @@ const EditProfilePage = () => {
     }
   }, [user]);
 
-  const handleFileChange = (e) => {
-    setAvatarFile(e.target.files[0]);
-    setIsAvatarMarkedForDeletion(false);
-  };
+   const handleFileChange = (e) => {
+    if (e.target.files && e.target.files.length > 0) {
+      const reader = new FileReader();
+      reader.addEventListener('load', () => setImageToCrop(reader.result?.toString() || ''));
+      reader.readAsDataURL(e.target.files[0]);
+      setIsCropModalOpen(true);
+    }
+  };
+
+  const onCropComplete = (croppedBlob) => {
+    const croppedFile = new File([croppedBlob], "newAvatar.jpeg", { type: "image/jpeg" });
+    setAvatarFile(croppedFile);
+    setIsAvatarMarkedForDeletion(false);
+  };
 
   const handleSocialsChange = (e) => {
     setSocials({ ...socials, [e.target.name]: e.target.value });
@@ -142,6 +155,12 @@ const EditProfilePage = () => {
             </div>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+         <ImageCropModal 
+        isOpen={isCropModalOpen}
+        onClose={() => setIsCropModalOpen(false)}
+        imageSrc={imageToCrop}
+        onCropComplete={onCropComplete}
+    />
             <div>
               <label className="block text-sm font-medium">First Name</label>
               <input type="text" value={firstName} onChange={(e) => setFirstName(e.target.value)} required className="w-full px-3 py-2 mt-1 bg-white dark:bg-slate-700 rounded-md"/>

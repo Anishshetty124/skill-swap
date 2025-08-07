@@ -6,7 +6,7 @@ import { Skill } from '../models/skill.model.js';
 import { User } from '../models/user.model.js';
 import { Proposal } from '../models/proposal.model.js';
 import natural from 'natural';
-import { GoogleGenerativeAI } from '@google/generative-ai';
+import { GoogleGenerativeAI, HarmBlockThreshold, HarmCategory } from '@google/generative-ai';
 
 const { WordTokenizer, TfIdf } = natural;
 
@@ -26,43 +26,52 @@ const generateTags = (text) => {
 };
 
 const createSkill = asyncHandler(async (req, res) => {
-  const { type, title, description, category, level, availability, locationString, desiredSkill, costInCredits, creditsOffered } = req.body;
-  
-  if (!type || !title || !category) {
-    throw new ApiError(400, 'Type, title, and category are required');
+  const { title, description, category, level, costInCredits, creditsOffered, type, tags } = req.body;
+  const userId = req.user._id;
+
+  if (!title || !description || !category || !level || !type) {
+    throw new ApiError(400, "title, description, category, level, and type are required.");
   }
 
-  const tags = generateTags(`${title} ${description}`);
+  const genAI = new GoogleGenerativeAI(process.env.GOOGLE_API_KEY);
+  const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash"});
   
-  const skillData = { 
-    user: req.user._id, 
-    type, 
-    title, 
-    description, 
-    category, 
-    level, 
-    availability, 
-    tags, 
-    locationString, 
-    desiredSkill, 
-    costInCredits, 
-    creditsOffered 
-  };
+  const validationPrompt = `
+    Analyze the following skill title and description.
+    Is this a legitimate, safe-for-work, learnable skill or topic?
+    It must not be abusive, hateful, dangerous, or completely nonsensical (like "hgjbhgyugvh").
+    Title: "${title}"
+    Description: "${description}"
+    Respond with only the word "YES" if it is a valid skill, and only "NO" if it is not.
+  `;
+  
+  try {
+    const validationResult = await model.generateContent(validationPrompt);
+    const validationResponse = await validationResult.response;
+    const decision = validationResponse.text().trim().toUpperCase();
 
-  if (locationString && locationString.toLowerCase() !== 'remote') {
-    try {
-      const geoData = await opencage.geocode({ q: locationString, limit: 1, key: process.env.OPENCAGE_API_KEY });
-      if (geoData.results.length > 0) {
-        const { lng, lat } = geoData.results[0].geometry;
-        skillData.geoCoordinates = { type: 'Point', coordinates: [lng, lat] };
-      }
-    } catch (error) {
-      console.error("Geocoding failed for skill:", error.message);
+    if (decision !== 'YES') {
+      throw new ApiError(400, "This does not appear to be a valid skill. Please try a different topic.");
     }
+  } catch (error) {
+    console.error("AI Skill Post Validation Error:", error);
+    if (error instanceof ApiError) throw error; // Re-throw our specific error
+    throw new ApiError(500, "Could not validate the skill topic at this time.");
   }
 
-  const skill = await Skill.create(skillData);
-  return res.status(201).json(new ApiResponse(201, skill, 'Skill posted successfully'));
+  const skill = await Skill.create({
+    user: userId,
+    title,
+    description,
+    category,
+    level,
+    costInCredits: type === 'OFFER' ? costInCredits : undefined,
+    creditsOffered: type === 'REQUEST' ? creditsOffered : undefined,
+    type,
+    tags,
+  });
+
+  return res.status(201).json(new ApiResponse(201, skill, "Skill posted successfully"));
 });
 
 const escapeRegex = (text) => {
@@ -340,56 +349,67 @@ const getRecommendedSkills = asyncHandler(async (req, res) => {
 });
 
 const generateAiContent = asyncHandler(async (req, res) => {
-  const { context, title, type, query, history } = req.body;
+  const { context, title, type, query, history } = req.body;
 
-  if (!context) {
-    throw new ApiError(400, "A context is required.");
-  }
+  if (!context) {
+    throw new ApiError(400, "A context is required.");
+  }
 
-  const genAI = new GoogleGenerativeAI(process.env.GOOGLE_API_KEY);
-  let model;
-  let prompt;
-  let chatHistory = history || [];
+  const genAI = new GoogleGenerativeAI(process.env.GOOGLE_API_KEY);
+  const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash"});
+  let prompt;
+  let chatHistory = history || [];
 
-  switch (context) {
-    case 'generate-description':
-      if (!title || !type) throw new ApiError(400, "Title and type are required for description generation.");
-      model = genAI.getGenerativeModel({ model: "gemini-1.5-flash"});
-      prompt = type === 'OFFER'
-      ? `Based on the skill title "${title}", generate a friendly and appealing 1-2 sentence description for a skill-swapping website. The user is offering to teach this skill.`
-      : `for learning skill-"${title}", generate a friendly and appealing 1-2 sentence description for a skill-swapping website.where the user is requesting to learn this skill.`;
-      break;
-    
-    case 'ask-ai':
-      if (!query) throw new ApiError(400, "A query is required for the AI chat.");
-      model = genAI.getGenerativeModel({
-        model: "gemini-1.5-flash",
-        systemInstruction: `
-          You are "SkillBot", a friendly and encouraging AI assistant for a skill-swapping website.
-          Your primary purpose is to answer questions about learnable skills.
-          - **Formatting is crucial.** Always use Markdown for your responses. Use bullet points for lists, bold text for emphasis,give space between points subcontents and properly formatted code blocks for any code examples.
-          - Maintain the context of the conversation. If the user asks a follow-up question, understand it relates to the previous topic.
-          - If the user asks a question that is clearly NOT about a learnable skill (e.g., politics, celebrities), you MUST politely decline with this exact phrase: "I can only answer questions about skills. Please try another topic!"
-        `,
-      });
-      prompt = query;
-      break;
+  if (context === 'generate-description') {
+    if (!title || !type) throw new ApiError(400, "Title and type are required.");
 
-    default:
-      throw new ApiError(400, "Invalid AI context provided.");
-  }
+    const validationPrompt = `Is the following a legitimate, safe-for-work, learnable skill or topic? Answer with only "YES" or "NO".\n\nTopic: "${title}"`;
+    
+    try {
+      const validationResult = await model.generateContent(validationPrompt);
+      const validationResponse = await validationResult.response;
+      const decision = validationResponse.text().trim().toUpperCase();
 
-  try {
-    const chat = model.startChat({ history: chatHistory });
-    const result = await chat.sendMessage(prompt);
-    const response = await result.response;
-    const text = response.text();
-    return res.status(200).json(new ApiResponse(200, { response: text }, "AI response generated successfully"));
-  } catch (error) {
-    console.error("Google AI Error:", error);
-    throw new ApiError(500, "The AI service is currently unavailable.");
-  }
+      if (decision !== 'YES') {
+        throw new ApiError(400, "This does not appear to be a valid skill. Please try a different topic.");
+      }
+    } catch (error) {
+      console.error("AI Validation Error:", error);
+      if (error instanceof ApiError) throw error;
+      throw new ApiError(500, "Could not validate the skill topic.");
+    }
+
+    prompt = type === 'OFFER'
+      ? `Generate a friendly and engaging 1-2 sentence description for a skill-swapping website. The user is offering to teach: "${title}".`
+      : `Generate a friendly and engaging 1-2 sentence description for a skill-swapping website. The user is requesting to learn: "${title}".`;
+  } else if (context === 'ask-ai') {
+    if (!query) throw new ApiError(400, "A query is required for the AI chat.");
+  } else {
+    throw new ApiError(400, "Invalid AI context provided.");
+  }
+
+  try {
+    if (context === 'ask-ai') {
+        const chat = model.startChat({ 
+            history: chatHistory,
+            systemInstruction: `You are "SkillBot", a friendly AI assistant for a skill-swapping website. Your purpose is to answer questions about learnable skills. Use Markdown for formatting. If asked about a non-skill topic, you MUST politely decline with this exact phrase: "I can only answer questions about skills. Please try another topic!"`
+        });
+        const result = await chat.sendMessage(query);
+        const response = await result.response;
+        const text = response.text();
+        return res.status(200).json(new ApiResponse(200, { response: text }, "AI response generated successfully"));
+    } else {
+        const result = await model.generateContent(prompt);
+        const response = await result.response;
+        const text = response.text();
+        return res.status(200).json(new ApiResponse(200, { response: text }, "AI response generated successfully"));
+    }
+  } catch (error) {
+    console.error("Google AI Error:", error);
+    throw new ApiError(500, "The AI service is currently unavailable.");
+  }
 });
+
 
 const getYoutubeTutorials = asyncHandler(async (req, res) => {
   const { keyword } = req.query;

@@ -19,8 +19,18 @@ const StarRatingInput = ({ currentRating, onRate }) => {
   return (
     <div className="flex items-center">
       {[1, 2, 3, 4, 5].map((star) => (
-        <button key={star} type="button" className={`text-3xl transition-colors ${star <= (hoverRating || currentRating) ? 'text-yellow-400' : 'text-gray-300'}`}
-          onClick={() => onRate(star)} onMouseEnter={() => setHoverRating(star)} onMouseLeave={() => setHoverRating(0)}>★</button>
+        <button
+          key={star}
+          type="button"
+          className={`text-3xl transition-colors ${
+            star <= (hoverRating || currentRating) ? 'text-yellow-400' : 'text-gray-300'
+          }`}
+          onClick={() => onRate(star)}
+          onMouseEnter={() => setHoverRating(star)}
+          onMouseLeave={() => setHoverRating(0)}
+        >
+          ★
+        </button>
       ))}
     </div>
   );
@@ -43,6 +53,13 @@ const SingleSkillPage = () => {
     const fetchSkillAndMatches = async () => {
       try {
         setLoading(true);
+
+        // ✅ Check if not logged in
+        if (!isAuthenticated) {
+          setError('Please login to view this skill.');
+          return;
+        }
+
         const response = await apiClient.get(`/skills/${skillId}`);
         const fetchedSkill = response.data.data;
         setSkill(fetchedSkill);
@@ -50,7 +67,7 @@ const SingleSkillPage = () => {
         if (fetchedSkill.ratings && fetchedSkill.ratings.length > 0) {
           const total = fetchedSkill.ratings.reduce((acc, r) => acc + r.rating, 0);
           setAvgRating(total / fetchedSkill.ratings.length);
-          const myRating = fetchedSkill.ratings.find(r => r.user?._id === user?._id);
+          const myRating = fetchedSkill.ratings.find((r) => r.user?._id === user?._id);
           if (myRating) setUserRating(myRating.rating);
         } else {
           setAvgRating(0);
@@ -62,14 +79,15 @@ const SingleSkillPage = () => {
           setMatches(matchesResponse.data.data);
         }
       } catch (err) {
-        setError('Failed to load skill details or skill not found.');
+        setError('Something went wrong while fetching the skill.');
       } finally {
         setLoading(false);
       }
     };
+
     fetchSkillAndMatches();
-  }, [skillId, user?._id]);
-  
+  }, [skillId, user?._id, isAuthenticated]);
+
   const handleDelete = async () => {
     if (window.confirm('Are you sure you want to delete this skill?')) {
       setDeleting(true);
@@ -83,11 +101,11 @@ const SingleSkillPage = () => {
       }
     }
   };
-  
+
   const handleRateSkill = async (rating) => {
     if (!isAuthenticated) {
-        toast.error("You must be logged in to rate a skill.");
-        return;
+      toast.error('You must be logged in to rate a skill.');
+      return;
     }
     try {
       await apiClient.post(`/skills/${skillId}/rate`, { rating });
@@ -98,12 +116,12 @@ const SingleSkillPage = () => {
       if (updatedSkill.ratings && updatedSkill.ratings.length > 0) {
         const total = updatedSkill.ratings.reduce((acc, r) => acc + r.rating, 0);
         setAvgRating(total / updatedSkill.ratings.length);
-        const myRating = updatedSkill.ratings.find(r => r.user?._id === user?._id);
+        const myRating = updatedSkill.ratings.find((r) => r.user?._id === user?._id);
         if (myRating) setUserRating(myRating.rating);
       }
-      toast.success("Your rating has been submitted!");
+      toast.success('Your rating has been submitted!');
     } catch (error) {
-      toast.error(error.response?.data?.message || "Failed to submit rating.");
+      toast.error(error.response?.data?.message || 'Failed to submit rating.');
     }
   };
 
@@ -111,7 +129,27 @@ const SingleSkillPage = () => {
   const canPropose = isAuthenticated && !isOwner;
 
   if (loading) return <p className="text-center p-10">Loading...</p>;
-  if (error) return <p className="text-center p-10 text-red-500">{error}</p>;
+  if (error) {
+  return (
+    <div className="text-center p-10 text-blue-600">
+      <p className="text-xl font-semibold mb-4">{error}</p>
+      <div className="flex justify-center gap-4">
+        <Link
+          to="/login"
+          className="px-6 py-2 bg-indigo-600 text-white font-medium rounded hover:bg-indigo-700 transition"
+        >
+          Login
+        </Link>
+        <Link
+          to="/register"
+          className="px-6 py-2 bg-green-600 text-white font-medium rounded hover:bg-green-700 transition"
+        >
+          Register
+        </Link>
+      </div>
+    </div>
+  );
+}
   if (!skill) return <p className="text-center p-10">Skill not found.</p>;
 
   const skillTypeColor = skill.type === 'OFFER' ? 'text-blue-500' : 'text-green-500';
@@ -123,11 +161,17 @@ const SingleSkillPage = () => {
           <h1 className="text-4xl font-bold text-gray-900 dark:text-white">{skill.title}</h1>
           <span className={`text-lg font-bold ${skillTypeColor}`}>{skill.type}</span>
         </div>
-        
+
         <div className="flex items-center mb-6">
-          <span className="text-sm font-semibold bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200 px-3 py-1 rounded-full mr-4">{skill.category}</span>
-          <Link to={`/profile/${skill.user.username}`} className="text-sm text-gray-600 dark:text-gray-400 hover:underline">
-            Posted by: <span className="font-medium text-indigo-600 dark:text-indigo-400">{skill.user.username}</span>
+          <span className="text-sm font-semibold bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200 px-3 py-1 rounded-full mr-4">
+            {skill.category}
+          </span>
+          <Link
+            to={`/profile/${skill.user.username}`}
+            className="text-sm text-gray-600 dark:text-gray-400 hover:underline"
+          >
+            Posted by:{' '}
+            <span className="font-medium text-indigo-600 dark:text-indigo-400">{skill.user.username}</span>
           </Link>
         </div>
 
@@ -136,10 +180,15 @@ const SingleSkillPage = () => {
         <div className="mt-8 border-t dark:border-gray-700 pt-6">
           <h3 className="text-xl font-semibold mb-4">Details</h3>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-gray-600 dark:text-gray-400">
-            <p><strong>Level:</strong> {skill.level}</p>
-              <p className="md:col-span-2"><strong>Seeking in Return:</strong> {skill.desiredSkill || 'Open to offers'}</p>
-            <p><strong>Location:</strong> {skill.locationString}</p> 
-
+            <p>
+              <strong>Level:</strong> {skill.level}
+            </p>
+            <p className="md:col-span-2">
+              <strong>Seeking in Return:</strong> {skill.desiredSkill || 'Open to offers'}
+            </p>
+            <p>
+              <strong>Location:</strong> {skill.locationString}
+            </p>
           </div>
         </div>
 
@@ -149,7 +198,7 @@ const SingleSkillPage = () => {
             <p className="font-bold text-lg">{avgRating.toFixed(1)} / 5</p>
             <p className="text-sm text-gray-500">({skill?.ratings?.length || 0} ratings)</p>
           </div>
-          
+
           {isAuthenticated && !isOwner && (
             <div className="mb-4">
               <p className="text-sm font-medium mb-2">Your Rating:</p>
@@ -159,7 +208,7 @@ const SingleSkillPage = () => {
 
           {skill.ratings && skill.ratings.length > 0 && (
             <div className="space-y-2 mt-4">
-              {skill.ratings.map(r => (
+              {skill.ratings.map((r) => (
                 <div key={r._id || r.user._id} className="flex items-center justify-between text-sm">
                   <span className="text-gray-600 dark:text-gray-400">{r.user?.username || 'A user'}</span>
                   <StarRating rating={r.rating} />
@@ -168,24 +217,43 @@ const SingleSkillPage = () => {
             </div>
           )}
         </div>
-        
+
         <div className="mt-8 flex justify-center items-center gap-4">
-          {canPropose && (<button onClick={() => setIsModalOpen(true)} className="px-8 py-3 text-lg font-bold text-white bg-indigo-600 rounded-lg hover:bg-indigo-700">Propose a Swap</button>)}
-          {isOwner && (<button onClick={handleDelete} disabled={deleting} className="px-6 py-2 font-semibold text-white bg-red-600 rounded-lg hover:bg-red-700 disabled:bg-red-400">{deleting ? 'Deleting...' : 'Delete Skill'}</button>)}
-          {!isAuthenticated && !isOwner && (<p className="text-md text-gray-300 italic">Please log in to propose a swap.</p>)}
+          {canPropose && (
+            <button
+              onClick={() => setIsModalOpen(true)}
+              className="px-8 py-3 text-lg font-bold text-white bg-indigo-600 rounded-lg hover:bg-indigo-700"
+            >
+              Propose a Swap
+            </button>
+          )}
+          {isOwner && (
+            <button
+              onClick={handleDelete}
+              disabled={deleting}
+              className="px-6 py-2 font-semibold text-white bg-red-600 rounded-lg hover:bg-red-700 disabled:bg-red-400"
+            >
+              {deleting ? 'Deleting...' : 'Delete Skill'}
+            </button>
+          )}
+          {!isAuthenticated && !isOwner && (
+            <p className="text-md text-gray-300 italic">Please log in to propose a swap.</p>
+          )}
         </div>
       </div>
 
       {matches.length > 0 && (
-        <div className="mt-12">
-          <h2 className="text-2xl font-bold mb-4">Top Matches For Your Request</h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-            {matches.map(matchSkill => <SkillCard key={matchSkill._id} skill={matchSkill} />)}
-          </div>
-        </div>
-      )}
+        <div className="mt-12">
+          <h2 className="text-2xl font-bold mb-4">Top Matches For Your Request</h2>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+            {matches.map((matchSkill) => (
+              <SkillCard key={matchSkill._id} skill={matchSkill} />
+            ))}
+          </div>
+        </div>
+      )}
 
-      <ProposalModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} requestedSkill={skill}/>
+      <ProposalModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} requestedSkill={skill} />
     </div>
   );
 };

@@ -2,6 +2,7 @@ import dotenv from 'dotenv';
 import express from 'express';
 import cors from 'cors';
 import cookieParser from 'cookie-parser';
+import compression from 'compression'; 
 import passport from 'passport';
 import session from 'express-session';
 import { app, server } from './socket/socket.js'; 
@@ -39,18 +40,19 @@ app.use(cors({
   credentials: true,
 }));
 
+
 app.use(session({
-    secret: process.env.SESSION_SECRET || 'a_default_session_secret', // Add a SESSION_SECRET to your .env
-    resave: false,
-    saveUninitialized: false,
-    cookie: {
-        secure: process.env.NODE_ENV === 'production',
-        httpOnly: true,
-    }
+    secret: process.env.SESSION_SECRET || 'a_default_session_secret',
+    resave: false,
+    saveUninitialized: false,
+    cookie: {
+        secure: process.env.NODE_ENV === 'production',
+        httpOnly: true,
+    }
 }));
 app.use(passport.initialize());
 app.use(passport.session());
-
+app.use(compression()); 
 app.use(express.json({ limit: '16kb' }));
 app.use(express.urlencoded({ extended: true, limit: '16kb' }));
 app.use(cookieParser());
@@ -80,4 +82,3 @@ app.use((err, req, res, next) => {
 server.listen(PORT, () => {
   console.log(`🚀 Server is running at http://localhost:${PORT}`);
 });
-

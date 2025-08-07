@@ -5,6 +5,9 @@ import { useAuth } from '../context/AuthContext';
 import SkillCard from '../components/skills/SkillCard';
 import { MapPinIcon } from '@heroicons/react/24/solid';
 import Badge from '../components/profile/Badge';
+import ImageLightbox from '../components/common/ImageLightBox';
+import { useLongPress } from '../hooks/useLongPress';
+import ProfilePageSkeleton from '../components/profile/ProfilePageSkeleton';
 
 const ProfilePage = () => {
   const { username } = useParams();
@@ -15,6 +18,11 @@ const ProfilePage = () => {
   const [error, setError] = useState('');
   const [activeTab, setActiveTab] = useState('skills');
   const [showAllSkills, setShowAllSkills] = useState(false);
+  const [lightboxImage, setLightboxImage] = useState(null);
+
+  const longPressProps = useLongPress(() => {
+    setLightboxImage(profile.profilePicture || `https://api.dicebear.com/8.x/initials/svg?seed=${profile.firstName} ${profile.lastName}`);
+  }, 600);
 
   useEffect(() => {
     const fetchProfile = async () => {
@@ -33,7 +41,7 @@ const ProfilePage = () => {
 
   const isOwner = loggedInUser?.username === username;
 
-  if (loading) return <p className="text-center p-10">Loading profile...</p>;
+   if (loading) return <ProfilePageSkeleton />;
   if (error) return <p className="text-center p-10 text-red-500">{error}</p>;
   if (!profile) return <p className="text-center p-10">User not found.</p>;
 
@@ -55,6 +63,7 @@ const ProfilePage = () => {
         <div className="flex flex-col md:flex-row md:justify-between items-center md:items-start gap-4">
           <div className="flex flex-col md:flex-row items-center text-center md:text-left gap-6">
             <img 
+              {...longPressProps}
               className="w-24 h-24 md:w-28 md:h-28 rounded-full object-cover border-4 border-accent-500"
               src={profile.profilePicture || `https://api.dicebear.com/8.x/initials/svg?seed=${profile.firstName} ${profile.lastName}`}
               alt={profile.username}
@@ -162,6 +171,11 @@ const ProfilePage = () => {
             </p>
           )
         )}
+<ImageLightbox 
+        src={lightboxImage} 
+        alt="Profile Picture" 
+        onClose={() => setLightboxImage(null)} 
+      />
       </div>
     </div>
   );

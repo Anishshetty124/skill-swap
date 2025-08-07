@@ -106,7 +106,7 @@ const CreateSkillPage = () => {
         
         <div>
           <div className="flex justify-between items-center mb-1">
-            <label className="block text-sm font-medium">Description (Optional)</label>
+            <label className="block text-sm font-medium">Description</label>
             <button 
               type="button" 
               onClick={handleGenerateDescription}

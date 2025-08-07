@@ -8,20 +8,21 @@ import SingleSkillPage from './pages/SingleSkillPage';
 import ProfilePage from './pages/ProfilePage';
 import VerifyOtpPage from './pages/VerifyOtpPage';
 import ResetPasswordPage from './pages/ResetPasswordPage';
-import ProtectedRoute from './components/auth/ProtectedRoute';
 import AuthSuccessPage from './pages/AuthSuccessPage';
+import ProtectedRoute from './components/auth/ProtectedRoute';
+import Spinner from './components/common/Spinner';
 
-// --- Lazily load the heavier pages ---
+// --- Lazily load the heavier pages that aren't needed on the initial visit ---
 const MySkillsPage = React.lazy(() => import('./pages/MySkillsPage'));
 const CreateSkillPage = React.lazy(() => import('./pages/CreateSkillPage'));
 const Dashboard = React.lazy(() => import('./pages/Dashboard'));
 const EditProfilePage = React.lazy(() => import('./pages/EditProfilePage'));
 const MessagesPage = React.lazy(() => import('./pages/MessagesPage'));
 
-// A simple loading component for Suspense fallback
+// A simple loading component for the Suspense fallback
 const PageLoader = () => (
   <div className="flex justify-center items-center h-screen">
-    <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-accent-500"></div>
+    <Spinner text="Loading page..." />
   </div>
 );
 
@@ -40,7 +41,7 @@ function App() {
           <Route path="skills/:skillId" element={<SingleSkillPage />} />
           <Route path="profile/:username" element={<ProfilePage />} />
           
-          {/* Protected Routes */}
+          {/* Protected Routes (these will now be code-split) */}
           <Route element={<ProtectedRoute />}>
             <Route path="my-skills" element={<MySkillsPage />} />
             <Route path="skills/new" element={<CreateSkillPage />} />

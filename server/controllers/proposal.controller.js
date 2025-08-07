@@ -6,10 +6,9 @@ import { Skill } from '../models/skill.model.js';
 import { User } from '../models/user.model.js';
 import { calculateBadges } from '../utils/badgeManager.js';
 import mongoose from 'mongoose';
-import { io } from '../socket/socket.js'; 
 import { Conversation } from '../models/conversation.model.js';
 import { Message } from '../models/message.model.js';
-import { getReceiverSocketId } from '../socket/socket.js';
+import { getReceiverSocketId, io } from '../socket/socket.js';
 
 const createProposal = asyncHandler(async (req, res) => {
   const { requestedSkillId, proposalType, offeredSkillId } = req.body;

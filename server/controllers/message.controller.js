@@ -7,7 +7,6 @@ import { getReceiverSocketId, io } from '../socket/socket.js';
 import { User } from '../models/user.model.js';
 import { Proposal } from '../models/proposal.model.js'; 
 import profanity from 'leo-profanity'; 
-
 profanity.loadDictionary(); 
 profanity.add(profanity.getDictionary('hi'));
 profanity.add(profanity.getDictionary('kn'));

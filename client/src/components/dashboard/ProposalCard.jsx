@@ -5,7 +5,6 @@ import { toast } from 'react-toastify';
 import ShareContactModal from "./ShareContactModal";
 import { PencilIcon, ChatBubbleLeftRightIcon } from '@heroicons/react/24/solid';
 import { useAuth } from '../../context/AuthContext';
-import Spinner from "../common/Spinner";
 
 const ProposalCard = ({ proposal, type, onUpdate }) => {
   const { user } = useAuth();
@@ -174,7 +173,7 @@ const ProposalCard = ({ proposal, type, onUpdate }) => {
 
         <div className="flex justify-end items-center space-x-3 mt-4">
           {loading ? (
-          <Spinner text="processing..." />
+          <span className="text-sm italic">Processing...</span>
           ) : (
             <>
                 {proposal.status === 'accepted' && (

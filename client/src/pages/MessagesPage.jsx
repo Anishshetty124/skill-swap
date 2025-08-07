@@ -6,6 +6,7 @@ import { PaperAirplaneIcon, ArrowLeftIcon, TrashIcon, EllipsisVerticalIcon, XMar
 import { useSocketContext } from '../context/SocketContext';
 import { toast } from 'react-toastify';
 import { format } from 'date-fns';
+
 import MessagesPageSkeleton from '../components/messages/MessagePageSkeleton';
 
 function useOnClickOutside(ref, handler) {
@@ -183,7 +184,7 @@ const ChatWindow = ({ selectedConversation, onBack, onClearChat, onReportUser })
   };
   
   return (
-    <div className="flex flex-col h-full bg-slate-50 dark:bg-slate-900">
+    <div className="flex flex-col h-full bg-slate-50 dark:bg-slate-800">
       {/* Header (Stays fixed at the top) */}
       {selectionMode ? (
         <div className="p-4 border-b border-slate-200 dark:border-slate-700 flex justify-between items-center bg-white dark:bg-slate-800 flex-shrink-0">
