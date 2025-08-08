@@ -3,7 +3,7 @@ import { ApiError } from '../utils/ApiError.js';
 import { ApiResponse } from '../utils/ApiResponse.js';
 import { User } from '../models/user.model.js';
 import { Skill } from '../models/skill.model.js';
-import { calculateBadges } from '../utils/BadgeManager.js';
+import { calculateUserStats } from '../utils/badgeManager.js';
 import sgMail from '@sendgrid/mail';
 import jwt from 'jsonwebtoken';
 import opencage from 'opencage-api-client';
@@ -277,7 +277,7 @@ const getUserProfile = asyncHandler(async (req, res) => {
   const user = await User.findOne({ username }).select("-password -refreshToken -role");
   if (!user) throw new ApiError(404, "User not found");
   
-  let { earnedBadges, swapsCompleted, skillsOfferedCount } = await calculateBadges(user);
+ let { earnedBadges, swapsCompleted, skillsOfferedCount } = await calculateUserStats(user);
 
   const accountAgeInHours = (new Date() - user.createdAt) / (1000 * 60 * 60);
   if (accountAgeInHours > 24) {
@@ -380,13 +380,10 @@ const getLeaderboard = asyncHandler(async (req, res) => {
   const allUsers = await User.find({ role: 'user' }).select('firstName lastName username profilePicture swapCredits');
 
   const usersWithStats = await Promise.all(allUsers.map(async (user) => {
-    const swapsCompleted = await Proposal.countDocuments({
-      $or: [{ proposer: user._id }, { receiver: user._id }],
-      status: 'completed' 
-    });
-    
+    const { swapsCompleted } = await calculateUserStats(user);
     const score = (user.swapCredits || 0) + (swapsCompleted * 10);
-      return {
+
+    return {
       ...user.toObject(),
       swapsCompleted,
       score

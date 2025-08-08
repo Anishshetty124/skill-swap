@@ -7,6 +7,7 @@ import { getReceiverSocketId, io } from '../socket/socket.js';
 import { User } from '../models/user.model.js';
 import { Proposal } from '../models/proposal.model.js'; 
 import profanity from 'leo-profanity'; 
+import { sendPushNotification } from '../utils/pushNotifier.js';
 profanity.loadDictionary(); 
 profanity.add(profanity.getDictionary('hi'));
 profanity.add(profanity.getDictionary('kn'));
@@ -42,9 +43,6 @@ const sendMessage = asyncHandler(async (req, res) => {
 		participants: { $all: [senderId, receiverId] },
 	});
 
-    // --- THIS IS THE CORRECTED LOGIC ---
-    // If a conversation doesn't exist, check if there's ANY accepted proposal
-    // between these two users before creating one.
     if (!conversation) {
         const acceptedProposal = await Proposal.findOne({
             $or: [
@@ -61,7 +59,6 @@ const sendMessage = asyncHandler(async (req, res) => {
 			participants: [senderId, receiverId],
 		});
 	}
-    // ------------------------------------
 
 	const newMessage = new Message({
         senderId,
@@ -81,6 +78,12 @@ const sendMessage = asyncHandler(async (req, res) => {
 	if (receiverSocketId) {
 		io.to(receiverSocketId).emit("newMessage", newMessage);
 	}
+
+  const pushPayload = {
+    title: `New Message from ${req.user.username}`,
+    body: message
+  };
+  await sendPushNotification(receiverId, pushPayload);
 
 	res.status(201).json(new ApiResponse(201, newMessage, "Message sent successfully"));
 });
@@ -179,7 +182,8 @@ const reportUser = asyncHandler(async (req, res) => {
 
     reportedUser.reportCount = (reportedUser.reportCount || 0) + 1;
     
-    const io = req.app.get('io');
+    await reportedUser.save({ validateBeforeSave: false });
+
     const reportedUserSocketId = getReceiverSocketId(userIdToReport);
 
     if (reportedUser.reportCount >= 5) {
@@ -191,12 +195,10 @@ const reportUser = asyncHandler(async (req, res) => {
         console.log(`User ${reportedUser.username} deleted due to excessive reports.`);
 
     } else if (reportedUser.reportCount >= 2) {
+        // Send a warning notification after the second report
         if (reportedUserSocketId) {
             io.to(reportedUserSocketId).emit('new_notification', { message: "Warning: Your account has received multiple reports for inappropriate behavior. Further violations may result in account termination." });
         }
-        await reportedUser.save({ validateBeforeSave: false });
-    } else {
-        await reportedUser.save({ validateBeforeSave: false });
     }
 
     return res.status(200).json(new ApiResponse(200, {}, "User has been reported."));

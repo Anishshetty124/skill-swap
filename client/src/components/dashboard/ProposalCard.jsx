@@ -95,6 +95,7 @@ const ProposalCard = ({ proposal, type, onUpdate }) => {
       try {
         const response = await apiClient.patch(`/proposals/${proposal._id}/complete`);
         onUpdate(response.data.data);
+        window.location.reload();
         toast.success("Swap marked as complete!");
       } catch (err) {
         toast.error("Failed to mark swap as complete.");

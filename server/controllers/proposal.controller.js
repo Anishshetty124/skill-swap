@@ -4,7 +4,7 @@ import { ApiResponse } from '../utils/ApiResponse.js';
 import { Proposal } from '../models/proposal.model.js';
 import { Skill } from '../models/skill.model.js';
 import { User } from '../models/user.model.js';
-import { calculateBadges } from '../utils/BadgeManager.js';
+import { calculateUserStats as calculateBadges} from '../utils/badgeManager.js';
 import mongoose from 'mongoose';
 import { Conversation } from '../models/conversation.model.js';
 import { Message } from '../models/message.model.js';
@@ -53,10 +53,15 @@ const createProposal = asyncHandler(async (req, res) => {
 
   const proposal = await Proposal.create(proposalData);
 
-  io.to(receiverId.toString()).emit('new_notification', {
+   io.to(receiverId.toString()).emit('new_notification', {
     message: `You have a new proposal from ${req.user.username}!`
   });
 
+  const pushPayload = {
+    title: 'New SkillSwap Proposal!',
+    body: `You have a new proposal from ${req.user.username}.`
+  };
+  await sendPushNotification(receiverId, pushPayload);
   return res.status(201).json(new ApiResponse(201, proposal, "Proposal sent successfully"));
 });
 
