@@ -4,7 +4,7 @@ import { ApiResponse } from '../utils/ApiResponse.js';
 import { Proposal } from '../models/proposal.model.js';
 import { Skill } from '../models/skill.model.js';
 import { User } from '../models/user.model.js';
-import { calculateUserStats as calculateBadges} from '../utils/badgeManager.js';
+import { calculateUserStats as calculateBadges} from '../utils/BadgeManager.js';
 import mongoose from 'mongoose';
 import { Conversation } from '../models/conversation.model.js';
 import { Message } from '../models/message.model.js';
