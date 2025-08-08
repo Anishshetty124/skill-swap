@@ -50,17 +50,33 @@ const ImageCropModal = ({ isOpen, onClose, imageSrc, onCropComplete }) => {
     setCrop(newCrop);
   }
 
-  const handleCrop = async () => {
+   const handleCrop = async () => {
     if (!completedCrop || !imgRef.current) {
       return;
     }
-    const croppedBlob = await getCroppedImg(
-      imgRef.current,
-      completedCrop,
-      'newAvatar.jpeg'
-    );
-    onCropComplete(croppedBlob);
-    onClose();
+    
+    try {
+      const croppedBlob = await getCroppedImg(
+        imgRef.current,
+        completedCrop,
+        'newAvatar.jpeg'
+      );
+
+      if (croppedBlob) {
+        onCropComplete(croppedBlob);
+      } else {
+        const originalFile = await fetch(imageSrc).then(res => res.blob());
+        onCropComplete(originalFile);
+        toast.warn("Could not crop image on this device. Using original image instead.");
+      }
+    } catch (error) {
+        console.error("Cropping failed:", error);
+        const originalFile = await fetch(imageSrc).then(res => res.blob());
+        onCropComplete(originalFile);
+        toast.error("An error occurred during cropping. Using original image.");
+    } finally {
+        onClose();
+    }
   };
 
   if (!isOpen) return null;

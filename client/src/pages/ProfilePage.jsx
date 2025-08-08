@@ -3,7 +3,7 @@ import { useParams, Link } from 'react-router-dom';
 import apiClient from '../api/axios';
 import { useAuth } from '../context/AuthContext';
 import SkillCard from '../components/skills/SkillCard';
-import { MapPinIcon } from '@heroicons/react/24/solid';
+import { CurrencyDollarIcon, MapPinIcon } from '@heroicons/react/24/solid';
 import Badge from '../components/profile/Badge';
 import ImageLightbox from '../components/common/ImageLightBox';
 import { useLongPress } from '../hooks/useLongPress';
@@ -95,20 +95,31 @@ const ProfilePage = () => {
             </div>
           </div>
           
-          {isOwner && (
-            <Link to="/profile/edit" className="bg-slate-200 dark:bg-slate-700 text-sm font-semibold px-4 py-2 rounded-md hover:bg-slate-300 dark:hover:bg-slate-600 flex-shrink-0 w-full md:w-auto text-center">
-              Edit Profile
-            </Link>
+           {isOwner && (
+            <div className="flex items-center gap-2 flex-shrink-0">
+              <Link to="/my-skills" className="px-4 py-2 text-sm font-semibold text-white bg-blue-500 dark:bg-blue-700 shadow-md rounded-md hover:bg-blue-700 dark:hover:bg-blue-800">
+                My Skills
+              </Link>
+              <Link to="/profile/edit" className="px-4 py-2 text-sm font-semibold text-white bg-cyan-500 dark:bg-cyan-600  hover:bg-cyan-800 rounded-md dark:hover:bg-cyan-700">
+                Edit Profile
+              </Link>
+            </div>
           )}
         </div>
         
-        <div className="border-t dark:border-slate-700 mt-6 pt-6 flex flex-col md:flex-row gap-6">
+        <div className="border-t dark:border-slate-700 ml-9 mt-6 pt-6 flex flex-col md:flex-row gap-6">
           <div className="flex-1">
   <h3 className="text-lg font-semibold mb-2">Statistics</h3>
   <div className="space-y-2 text-sm text-slate-600 dark:text-slate-400">
     <p><strong>Skills Offered:</strong> {profile.skillsOfferedCount}</p>
     <p><strong>Swaps Completed:</strong> {profile.swapsCompleted}</p>
-    <p><strong>Swap Credits:</strong> {profile.swapCredits}</p>
+    <div className="flex items-center gap-1">
+        <strong>Swap Credits:</strong> 
+        <span className="flex items-center font-bold text-amber-500">
+            <CurrencyDollarIcon className="h-4 w-4 mr-1" />
+            {profile.swapCredits}
+        </span>
+    </div>
   </div>
 </div>
           <div className="flex-1">

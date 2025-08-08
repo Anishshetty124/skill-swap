@@ -4,7 +4,8 @@ import {
   getProposals,
   respondToProposal,
   deleteProposal,
-  updateContactInfo
+  updateContactInfo,
+  completeSwap
 } from '../controllers/proposal.controller.js';
 import { verifyJWT } from '../middlewares/auth.middleware.js';
 
@@ -24,5 +25,7 @@ router.route('/:id/respond')
 
 router.route('/:id/contact')
   .patch(updateContactInfo);
+
+router.route("/:id/complete").patch(completeSwap);
 
 export default router;

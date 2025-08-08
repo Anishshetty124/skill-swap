@@ -157,9 +157,9 @@ const respondToProposal = asyncHandler(async (req, res) => {
       if (newlyEarnedBadges.length > 0) {
         user.badges = earnedBadges;
         await user.save({ validateBeforeSave: false });
-        newlyEarnedBadges.forEach(badgeName => {
-          io.to(user._id.toString()).emit('new_notification', {
-            message: `Congratulations! You've earned the "${badgeName}" badge! 🎉`
+      newlyEarnedBadges.forEach(badgeName => {
+          io.to(user._id.toString()).emit('new_badge_earned', {
+            badgeName: badgeName
           });
         });
       }
@@ -236,10 +236,36 @@ const updateContactInfo = asyncHandler(async (req, res) => {
   return res.status(200).json(new ApiResponse(200, proposal, "Contact information updated successfully."));
 });
 
+const completeSwap = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const userId = req.user._id;
+
+  const proposal = await Proposal.findById(id).populate('proposer receiver');
+  if (!proposal) throw new ApiError(404, "Proposal not found");
+
+  if ((!proposal.proposer._id.equals(userId) && !proposal.receiver._id.equals(userId)) || proposal.status !== 'accepted') {
+    throw new ApiError(403, "You are not authorized to complete this swap.");
+  }
+
+  proposal.status = 'completed';
+  await proposal.save();
+
+  const otherUser = proposal.proposer._id.equals(userId) ? proposal.receiver : proposal.proposer;
+  const otherUserSocketId = getReceiverSocketId(otherUser._id.toString());
+  if (otherUserSocketId) {
+    io.to(otherUserSocketId).emit('new_notification', { 
+      message: `${req.user.username} has marked your swap as complete!` 
+    });
+  }
+
+  return res.status(200).json(new ApiResponse(200, proposal, "Swap marked as complete."));
+});
+
 export {
   createProposal,
   getProposals,
   respondToProposal,
   deleteProposal,
-  updateContactInfo
+  updateContactInfo,
+  completeSwap
 };

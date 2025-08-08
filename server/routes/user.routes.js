@@ -13,7 +13,8 @@ import {
   forgotPassword,
   resetPassword,
   requestEmailChange,
-  verifyEmailChange
+  verifyEmailChange,
+  getLeaderboard
 } from "../controllers/user.controller.js";
 import { verifyJWT } from "../middlewares/auth.middleware.js";
 
@@ -22,6 +23,7 @@ const router = Router();
 // ----------- PUBLIC ROUTES -----------
 router.route("/register").post(registerUser);
 router.route("/login").post(loginUser);
+router.route("/leaderboard").get(getLeaderboard);
 router.route("/verify-otp").post(verifyOtp);
 router.route("/resend-verification").post(resendVerificationEmail);
 router.route("/forgot-password").post(forgotPassword);

@@ -8,7 +8,7 @@ const proposalSchema = new Schema(
     proposalType: { type: String, enum: ['skill', 'credits'], required: true },
     offeredSkill: { type: Schema.Types.ObjectId, ref: 'Skill' },
     costInCredits: { type: Number },
-    status: { type: String, enum: ['pending', 'accepted', 'rejected'], default: 'pending' },
+   status: { type: String, enum: ['pending', 'accepted', 'rejected', 'completed'], default: 'pending' },
     contactInfo: { 
       phone: { type: String },
       email: { type: String },

@@ -160,7 +160,7 @@ const EditProfilePage = () => {
         onClose={() => setIsCropModalOpen(false)}
         imageSrc={imageToCrop}
         onCropComplete={onCropComplete}
-    />
+        />
             <div>
               <label className="block text-sm font-medium">First Name</label>
               <input type="text" value={firstName} onChange={(e) => setFirstName(e.target.value)} required className="w-full px-3 py-2 mt-1 bg-white dark:bg-slate-700 rounded-md"/>
@@ -177,7 +177,9 @@ const EditProfilePage = () => {
            <div>
             <label className="block text-sm font-medium">Email Address</label>
             <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 mt-1">
-              <p className="flex-grow px-3 py-2 bg-slate-100 dark:bg-slate-700 rounded-md">{user?.email}</p>
+              <p className="flex-grow px-3 py-2 bg-slate-100 dark:bg-slate-700 rounded-md break-all whitespace-pre-wrap">
+                {user?.email}
+              </p>
               <button 
                 type="button" 
                 onClick={() => setIsEmailModalOpen(true)}
@@ -216,10 +218,21 @@ const EditProfilePage = () => {
               </div>
             </div>
           </div>
-          <button type="submit" disabled={loading} className="w-full px-4 py-3 font-bold text-white bg-accent-600 rounded-md hover:bg-accent-700 disabled:bg-accent-400">
-            {loading ? 'Saving...' : 'Save Profile Changes'}
-          </button>
+          
         </form>
+         <div className="fixed bottom-0 left-0 w-full p-4 bg-white dark:bg-slate-800 border-t dark:border-slate-700 md:relative md:bg-transparent md:border-none md:p-0 md:mt-8">
+          <div className="container mx-auto max-w-2xl">
+            <button 
+              type="submit" 
+              form="profile-form" 
+              disabled={loading} 
+              onClick={handleSubmit}
+              className="w-full px-4 py-3 font-bold text-white bg-accent-600 rounded-md hover:bg-accent-700 disabled:bg-accent-400"
+            >
+              {loading ? 'Saving...' : 'Save Profile Changes'}
+            </button>
+          </div>
+        </div>
         <div className="mt-8 border-t dark:border-slate-700 pt-6">
           <h2 className="text-xl font-semibold mb-4">Account Management</h2>
           <button

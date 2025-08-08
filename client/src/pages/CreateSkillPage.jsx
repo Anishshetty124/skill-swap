@@ -59,7 +59,7 @@ const CreateSkillPage = () => {
       });
       setFormData(prev => ({ ...prev, description: response.data.data.response }));
     } catch (error) {
-      toast.error("Failed to generate description.");
+      toast.error(error.response?.data?.message || "Failed to generate description.");
     } finally {
       setIsGenerating(false);
     }

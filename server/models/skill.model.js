@@ -35,4 +35,17 @@ const skillSchema = new Schema({
 skillSchema.index({ title: 'text', description: 'text', tags: 'text' });
 skillSchema.index({ geoCoordinates: '2dsphere' });
 
+skillSchema.pre('deleteOne', { document: true, query: false }, async function(next) {
+  const skillId = this._id;
+  try {
+    // Find and delete all proposals where this skill was either requested or offered
+    await mongoose.model('Proposal').deleteMany({
+      $or: [{ requestedSkill: skillId }, { offeredSkill: skillId }]
+    });
+    next();
+  } catch (error) {
+    next(error);
+  }
+});
+
 export const Skill = mongoose.model('Skill', skillSchema);

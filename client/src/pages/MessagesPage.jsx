@@ -152,15 +152,33 @@ const ChatWindow = ({ selectedConversation, onBack, onClearChat, onReportUser })
     }
   };
 
-  const handleSubmit = async (e) => {
+ const handleSubmit = async (e) => {
     e.preventDefault();
     if (!newMessage.trim()) return;
+
+    const tempId = Date.now(); 
+    const optimisticMessage = {
+      _id: tempId,
+      senderId: user._id,
+      message: newMessage,
+      createdAt: new Date().toISOString(),
+      status: 'sending' 
+    };
+
+    setMessages(prev => [...prev, optimisticMessage]);
+    setNewMessage("");
+
     try {
       const res = await apiClient.post(`/messages/send/${selectedConversation._id}`, { message: newMessage });
-      setMessages([...messages, res.data.data]);
-      setNewMessage("");
+      setMessages(prev => prev.map(msg => 
+        msg._id === tempId ? { ...res.data.data, status: 'sent' } : msg
+      ));
     } catch (error) {
       toast.error(error.response?.data?.message || "Failed to send message.");
+      
+      setMessages(prev => prev.map(msg => 
+        msg._id === tempId ? { ...msg, status: 'failed' } : msg
+      ));
     }
   };
 

@@ -7,9 +7,8 @@ import 'react-toastify/dist/ReactToastify.css';
 import AiChat from '../common/AiChat';
 import { useAuth } from '../../context/AuthContext';
 import { XMarkIcon } from '@heroicons/react/24/solid';
-import Feedback from '../common/Feedback';
+import BadgeNotificationModal from '../common/BadgeNotificationModal';
 
-// --- NEW: Custom, accessible close button for toasts ---
 const CustomCloseButton = ({ closeToast }) => (
   <button onClick={closeToast} className="p-1">
     <XMarkIcon className="h-6 w-6 text-white" />
@@ -17,20 +16,19 @@ const CustomCloseButton = ({ closeToast }) => (
 );
 
 const Layout = () => {
-  const { isAuthenticated } = useAuth();
-
+  const { isAuthenticated, newlyEarnedBadge, clearNewlyEarnedBadge } = useAuth();
   return (
     <div className="flex flex-col min-h-screen bg-violet-100 dark:bg-slate-900 text-slate-800 dark:text-slate-200">
       <ToastContainer
         position="top-center"
-        autoClose={4000}
+        autoClose={3000}
         hideProgressBar={false}
         newestOnTop={false}
         closeOnClick
         rtl={false}
         pauseOnFocusLoss
         draggable
-        draggablePercent={40} 
+        draggablePercent={30} 
         pauseOnHover
         theme="colored"
         closeButton={CustomCloseButton} 
@@ -41,10 +39,14 @@ const Layout = () => {
         <div className="container mx-auto px-4 py-8">
           <Outlet />
         </div>
-      <Feedback/>
       </main>
       <Footer />
       {isAuthenticated && <AiChat />}
+       <BadgeNotificationModal
+        isOpen={!!newlyEarnedBadge}
+        badgeName={newlyEarnedBadge}
+        onClose={clearNewlyEarnedBadge}
+      />
     </div>
   );
 };

@@ -21,6 +21,7 @@ export const AuthProvider = ({ children }) => {
     }
   });
   const [totalUnreadCount, setTotalUnreadCount] = useState(0);
+  const [newlyEarnedBadge, setNewlyEarnedBadge] = useState(null);
   const navigate = useNavigate();
 
  const clearUnreadNotifications = useCallback(() => {
@@ -68,6 +69,11 @@ const fetchUnreadCount = useCallback(async () => {
       socket.on('new_notification', (data) => {
         toast.success(data.message);
       });
+      
+       socket.on('new_badge_earned', ({ badgeName }) => {
+        setNewlyEarnedBadge(badgeName);
+      });
+
       socket.on('newMessage', () => {
         fetchUnreadCount();
       });
@@ -79,6 +85,10 @@ const fetchUnreadCount = useCallback(async () => {
       }
     }
   }, [isAuthenticated, user, fetchUnreadCount]);
+
+  const clearNewlyEarnedBadge = useCallback(() => {
+    setNewlyEarnedBadge(null);
+  }, []);
 
   const login = useCallback(async (credentials) => {
     try {
@@ -181,6 +191,8 @@ const setTokenAndUser = useCallback(async (accessToken) => {
     fetchUnreadCount,
     clearUnreadNotifications,
     setTokenAndUser,
+    newlyEarnedBadge,
+    clearNewlyEarnedBadge
   };
 
   return (

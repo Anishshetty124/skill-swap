@@ -7,6 +7,7 @@ import { calculateBadges } from '../utils/BadgeManager.js';
 import sgMail from '@sendgrid/mail';
 import jwt from 'jsonwebtoken';
 import opencage from 'opencage-api-client';
+import { Proposal } from '../models/proposal.model.js';
 
 sgMail.setApiKey(process.env.SENDGRID_API_KEY);
 
@@ -375,7 +376,27 @@ const resendVerificationEmail = asyncHandler(async (req, res) => {
   }
 });
 
+const getLeaderboard = asyncHandler(async (req, res) => {
+  const allUsers = await User.find({ role: 'user' }).select('firstName lastName username profilePicture swapCredits');
 
+  const usersWithStats = await Promise.all(allUsers.map(async (user) => {
+    const swapsCompleted = await Proposal.countDocuments({
+      $or: [{ proposer: user._id }, { receiver: user._id }],
+      status: 'completed' 
+    });
+    
+    const score = (user.swapCredits || 0) + (swapsCompleted * 10);
+      return {
+      ...user.toObject(),
+      swapsCompleted,
+      score
+    }
+  }));
+
+  const topUsers = usersWithStats.sort((a, b) => b.score - a.score).slice(0, 10);
+
+  return res.status(200).json(new ApiResponse(200, topUsers, "Leaderboard fetched successfully"));
+});
 
 export {
   registerUser,
@@ -391,5 +412,6 @@ export {
   forgotPassword,
   resetPassword,
   requestEmailChange,
-  verifyEmailChange
+  verifyEmailChange,
+  getLeaderboard
 };
