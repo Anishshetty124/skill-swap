@@ -42,6 +42,7 @@ const userSchema = new mongoose.Schema({
   location: { type: { type: String, enum: ['Point'] }, coordinates: { type: [Number] } },
   refreshToken: { type: String },
   swapCredits: { type: Number, default: 10 },
+  swapsCompleted: { type: Number, default: 0 },
   badges: { type: [String], default: [] }
 }, { timestamps: true });
 

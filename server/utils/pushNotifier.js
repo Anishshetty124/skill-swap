@@ -4,7 +4,6 @@ import { User } from '../models/user.model.js';
 export const sendPushNotification = async (userId, payload) => {
   try {
     const user = await User.findById(userId);
-
     if (user && user.pushSubscription) {
       await webpush.sendNotification(
         user.pushSubscription,

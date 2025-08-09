@@ -377,22 +377,18 @@ const resendVerificationEmail = asyncHandler(async (req, res) => {
 });
 
 const getLeaderboard = asyncHandler(async (req, res) => {
-  const allUsers = await User.find({ role: 'user' }).select('firstName lastName username profilePicture swapCredits');
+  // This query is now much more efficient.
+  const topUsers = await User.find({ role: 'user' })
+    .select('firstName lastName username profilePicture swapCredits swapsCompleted')
+    .sort({ swapsCompleted: -1, swapCredits: -1 }) // Sort by swaps, then credits
+    .limit(10); 
 
-  const usersWithStats = await Promise.all(allUsers.map(async (user) => {
-    const { swapsCompleted } = await calculateUserStats(user);
-    const score = (user.swapCredits || 0) + (swapsCompleted * 10);
-
-    return {
-      ...user.toObject(),
-      swapsCompleted,
-      score
-    }
+  const leaderboardData = topUsers.map(user => ({
+    ...user.toObject(),
+    score: (user.swapCredits || 0) + (user.swapsCompleted || 0) * 10
   }));
 
-  const topUsers = usersWithStats.sort((a, b) => b.score - a.score).slice(0, 10);
-
-  return res.status(200).json(new ApiResponse(200, topUsers, "Leaderboard fetched successfully"));
+  return res.status(200).json(new ApiResponse(200, leaderboardData, "Leaderboard fetched successfully"));
 });
 
 export {

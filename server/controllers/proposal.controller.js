@@ -9,6 +9,7 @@ import mongoose from 'mongoose';
 import { Conversation } from '../models/conversation.model.js';
 import { Message } from '../models/message.model.js';
 import { getReceiverSocketId, io } from '../socket/socket.js';
+import { sendPushNotification } from '../utils/pushNotifier.js';
 
 const createProposal = asyncHandler(async (req, res) => {
   const { requestedSkillId, proposalType, offeredSkillId } = req.body;
@@ -59,7 +60,8 @@ const createProposal = asyncHandler(async (req, res) => {
 
   const pushPayload = {
     title: 'New SkillSwap Proposal!',
-    body: `You have a new proposal from ${req.user.username}.`
+    body: `You have a new proposal from ${req.user.username}.`,
+    url: '/dashboard' 
   };
   await sendPushNotification(receiverId, pushPayload);
   return res.status(201).json(new ApiResponse(201, proposal, "Proposal sent successfully"));
@@ -249,22 +251,46 @@ const completeSwap = asyncHandler(async (req, res) => {
   if (!proposal) throw new ApiError(404, "Proposal not found");
 
   if ((!proposal.proposer._id.equals(userId) && !proposal.receiver._id.equals(userId)) || proposal.status !== 'accepted') {
-    throw new ApiError(403, "You are not authorized to complete this swap.");
+    throw new ApiError(403, "This swap cannot be marked as complete.");
   }
 
-  proposal.status = 'completed';
-  await proposal.save();
+  // Add the current user to the completedBy array if they aren't already in it
+  if (!proposal.completedBy.includes(userId)) {
+    proposal.completedBy.push(userId);
+  }
 
   const otherUser = proposal.proposer._id.equals(userId) ? proposal.receiver : proposal.proposer;
-  const otherUserSocketId = getReceiverSocketId(otherUser._id.toString());
-  if (otherUserSocketId) {
-    io.to(otherUserSocketId).emit('new_notification', { 
-      message: `${req.user.username} has marked your swap as complete!` 
-    });
+
+  if (proposal.completedBy.length === 2) {
+    proposal.status = 'completed';
+    
+    await User.findByIdAndUpdate(proposal.proposer._id, { $inc: { swapsCompleted: 1 } });
+    await User.findByIdAndUpdate(proposal.receiver._id, { $inc: { swapsCompleted: 1 } });
+
+    const proposerSocketId = getReceiverSocketId(proposal.proposer._id.toString());
+    const receiverSocketId = getReceiverSocketId(proposal.receiver._id.toString());
+
+    if (proposerSocketId) {
+      io.to(proposerSocketId).emit('new_notification', { message: `Your swap with ${proposal.receiver.username} is now complete!` });
+    }
+    if (receiverSocketId) {
+      io.to(receiverSocketId).emit('new_notification', { message: `Your swap with ${proposal.proposer.username} is now complete!` });
+    }
+    
+  } else {
+    const otherUserSocketId = getReceiverSocketId(otherUser._id.toString());
+    if (otherUserSocketId) {
+      io.to(otherUserSocketId).emit('new_notification', { 
+        message: `${req.user.username} has marked your swap as complete. Please confirm to finalize.` 
+      });
+    }
   }
 
-  return res.status(200).json(new ApiResponse(200, proposal, "Swap marked as complete."));
+  await proposal.save();
+
+  return res.status(200).json(new ApiResponse(200, proposal, "Swap completion status updated."));
 });
+
 
 export {
   createProposal,

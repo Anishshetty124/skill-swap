@@ -8,6 +8,7 @@ import AiChat from '../common/AiChat';
 import { useAuth } from '../../context/AuthContext';
 import { XMarkIcon } from '@heroicons/react/24/solid';
 import BadgeNotificationModal from '../common/BadgeNotificationModal';
+import PushNotificationManager from '../common/PushNotificationManager';
 
 const CustomCloseButton = ({ closeToast }) => (
   <button onClick={closeToast} className="p-1">
@@ -19,6 +20,7 @@ const Layout = () => {
   const { isAuthenticated, newlyEarnedBadge, clearNewlyEarnedBadge } = useAuth();
   return (
     <div className="flex flex-col min-h-screen bg-violet-100 dark:bg-slate-900 text-slate-800 dark:text-slate-200">
+      <PushNotificationManager />
       <ToastContainer
         position="top-center"
         autoClose={3000}

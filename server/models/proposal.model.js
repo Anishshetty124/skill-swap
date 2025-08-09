@@ -14,7 +14,11 @@ const proposalSchema = new Schema(
       email: { type: String },
       meetingLink: { type: String },
       meetingTime: { type: String },
-      note: { type: String } 
+      note: { type: String },
+      completedBy: [{
+        type: Schema.Types.ObjectId,
+        ref: 'User'
+    }] 
     }
   },
   { timestamps: true }

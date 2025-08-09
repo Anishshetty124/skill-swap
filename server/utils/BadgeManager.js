@@ -6,17 +6,11 @@ export const calculateUserStats = async (user) => {
 
     const [skillsCount, completedSwaps] = await Promise.all([
         Skill.countDocuments({ user: userId, type: 'OFFER' }),
-        // --- THIS IS THE FIX ---
-        // We now correctly count proposals with a 'completed' status
-        Proposal.countDocuments({ 
-            $or: [{ proposer: userId }, { receiver: userId }], 
-            status: 'completed' 
-        })
+        Promise.resolve(user.swapsCompleted || 0)
     ]);
 
     const badges = new Set(user.badges || []);
 
-    // Badge logic remains the same, but is now based on the correct count
     if (completedSwaps >= 1) badges.add('Swap Starter');
     if (completedSwaps >= 5) badges.add('Silver Swapper');
     if (completedSwaps >= 10) badges.add('Gold Swapper');
