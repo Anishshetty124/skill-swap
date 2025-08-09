@@ -377,10 +377,10 @@ const resendVerificationEmail = asyncHandler(async (req, res) => {
 });
 
 const getLeaderboard = asyncHandler(async (req, res) => {
-  // This query is now much more efficient.
+
   const topUsers = await User.find({ role: 'user' })
     .select('firstName lastName username profilePicture swapCredits swapsCompleted')
-    .sort({ swapsCompleted: -1, swapCredits: -1 }) // Sort by swaps, then credits
+    .sort({ swapsCompleted: -1, swapCredits: -1 }) 
     .limit(10); 
 
   const leaderboardData = topUsers.map(user => ({

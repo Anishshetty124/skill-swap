@@ -6,6 +6,8 @@ import compression from 'compression';
 import passport from 'passport';
 import session from 'express-session';
 import { app, server } from './socket/socket.js'; 
+import cron from 'node-cron';
+import { cleanupUnverifiedUsers } from './utils/cronJobs.js';
 
 import connectDB from './config/db.js';
 import './config/passport.setup.js'; 
@@ -19,6 +21,7 @@ import messageRouter from './routes/message.routes.js';
 import authRouter from './routes/auth.routes.js'; 
 import feedbackRouter from './routes/feedback.routes.js';
 import pushRouter from './routes/push.routes.js';
+import rewardRouter from './routes/reward.routes.js';
 
 dotenv.config({ path: './.env' });
 
@@ -67,6 +70,7 @@ app.use('/api/v1/proposals', proposalRouter);
 app.use('/api/v1/messages', messageRouter);
 app.use('/api/v1/feedback', feedbackRouter);
 app.use('/api/v1/push', pushRouter);
+app.use('/api/v1/rewards', rewardRouter);
 
 app.use((err, req, res, next) => {
   if (err instanceof ApiError) {
@@ -82,6 +86,8 @@ app.use((err, req, res, next) => {
     message: 'Internal Server Error',
   });
 });
+
+cron.schedule('0 22 * * *', cleanupUnverifiedUsers);
 
 server.listen(PORT, () => {
   console.log(`🚀 Server is running at http://localhost:${PORT}`);

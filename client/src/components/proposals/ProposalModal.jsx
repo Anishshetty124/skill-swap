@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import apiClient from '../../api/axios';
 import { useAuth } from '../../context/AuthContext';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
 
 const ProposalModal = ({ isOpen, onClose, requestedSkill }) => {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [proposalType, setProposalType] = useState('credits');
   const [myOfferedSkills, setMyOfferedSkills] = useState([]);
   const [selectedSkillId, setSelectedSkillId] = useState('');
@@ -42,7 +43,8 @@ const ProposalModal = ({ isOpen, onClose, requestedSkill }) => {
       await apiClient.post('/proposals', proposalData);
       setSuccess('Proposal sent successfully!');
       toast.success('Proposal sent!');
-      setTimeout(() => onClose(), 2000);
+      setTimeout(() => onClose(), 1000);
+      navigate('/');
     } catch (err) {
       setError(err.response?.data?.message || 'Failed to send proposal.');
     }
@@ -58,7 +60,7 @@ const ProposalModal = ({ isOpen, onClose, requestedSkill }) => {
       <div className="bg-white dark:bg-slate-800 p-8 rounded-lg shadow-xl w-full max-w-lg">
         <h2 className="text-2xl font-bold mb-4">Propose a Swap</h2>
         <div className="bg-slate-100 dark:bg-slate-700 p-3 rounded-md mb-6">
-          {/* --- CORRECTED TEXT LOGIC --- */}
+        
           {isRequestType ? (
             <>
               <p className="text-sm text-slate-600 dark:text-slate-400">You are offering to teach:</p>

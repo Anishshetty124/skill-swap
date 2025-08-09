@@ -3,17 +3,51 @@ import {
   PaperAirplaneIcon,
   SparklesIcon,
   XMarkIcon,
+  MicrophoneIcon, // NEW import
 } from "@heroicons/react/24/solid";
 import apiClient from "../../api/axios";
 import ReactMarkdown from "react-markdown";
 import { useAuth } from "../../context/AuthContext";
 
 const AiChat = () => {
-  const { chatMessages, updateChatMessages } = useAuth(); 
+  const { chatMessages, updateChatMessages } = useAuth();
   const [isOpen, setIsOpen] = useState(false);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const messagesEndRef = useRef(null);
+
+  const [isListening, setIsListening] = useState(false);
+  const recognitionRef = useRef(null);
+
+  useEffect(() => {
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+      console.warn("Speech recognition not supported by this browser.");
+      return;
+    }
+
+    const recognition = new SpeechRecognition();
+    recognition.continuous = false;
+    recognition.interimResults = false;
+    recognition.lang = "en-US";
+
+    recognition.onresult = (event) => {
+      const transcript = event.results[0][0].transcript;
+      setInput(transcript); 
+      setIsListening(false);
+    };
+
+    recognition.onerror = (event) => {
+      console.error("Speech recognition error:", event.error);
+      setIsListening(false);
+    };
+
+    recognition.onend = () => {
+      setIsListening(false);
+    };
+
+    recognitionRef.current = recognition;
+  }, []);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -22,13 +56,12 @@ const AiChat = () => {
   useEffect(scrollToBottom, [chatMessages]);
 
   const handleSend = async (e) => {
-    e.preventDefault();
+    if (e) e.preventDefault();
     if (!input.trim() || isLoading) return;
 
     const userMessage = { sender: "user", text: input };
-    
     updateChatMessages((prev) => [...prev, userMessage]);
-    
+
     setInput("");
     setIsLoading(true);
 
@@ -57,9 +90,21 @@ const AiChat = () => {
       setIsLoading(false);
     }
   };
-  
+
   const handleClearChat = () => {
     updateChatMessages([]);
+  };
+
+  const handleMicClick = () => {
+    if (!recognitionRef.current) return;
+
+    if (isListening) {
+      recognitionRef.current.stop();
+      setIsListening(false);
+    } else {
+      recognitionRef.current.start();
+      setIsListening(true);
+    }
   };
 
   return (
@@ -77,7 +122,9 @@ const AiChat = () => {
         <div className="fixed bottom-24 right-6 w-[90%] max-w-sm h-[70vh] bg-slate-100 border border-slate-200 dark:bg-slate-800 rounded-2xl shadow-2xl flex flex-col z-50">
           {/* Header */}
           <div className="p-4 border-b dark:border-slate-700 flex justify-between items-center">
-            <h3 className="font-bold text-lg text-slate-800 dark:text-white px-2 rounded-md">AI Skill Assistant</h3>
+            <h3 className="font-bold text-lg text-slate-800 dark:text-white px-2 rounded-md">
+              AI Skill Assistant
+            </h3>
             <div className="flex gap-2 items-center">
               <button
                 onClick={handleClearChat}
@@ -136,17 +183,31 @@ const AiChat = () => {
             onSubmit={handleSend}
             className="p-4 border-t dark:border-slate-700 flex items-center gap-2"
           >
-            <input
-              type="text"
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              placeholder="Ask about a skill..."
-              className="w-full px-4 py-2 dark:text-white text-black bg-slate-100 dark:bg-slate-700 rounded-full focus:outline-none focus:ring-2 focus:ring-accent-500"
-              disabled={isLoading}
-            />
+            <div className="relative flex-grow">
+              <input
+                type="text"
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                placeholder={isListening ? "Listening..." : "Ask about a skill..."}
+                className="w-full px-4 py-2 dark:text-white text-black bg-slate-100 dark:bg-slate-700 rounded-full focus:outline-none focus:ring-2 focus:ring-accent-500"
+                disabled={isLoading}
+              />
+              {recognitionRef.current && (
+                <button
+                  type="button"
+                  onClick={handleMicClick}
+                  className={`absolute inset-y-0 right-0 pr-3 flex items-center transition-colors ${
+                    isListening ? "text-red-500" : "text-slate-500"
+                  }`}
+                  aria-label={isListening ? "Stop Listening" : "Start Listening"}
+                >
+                  <MicrophoneIcon className={`h-6 w-6 ${isListening ? "animate-pulse" : ""}`} />
+                </button>
+              )}
+            </div>
             <button
               type="submit"
-              disabled={isLoading}
+              disabled={isLoading || !input.trim()}
               className="p-2 bg-blue-500 text-white rounded-full disabled:opacity-50"
             >
               <PaperAirplaneIcon className="h-6 w-6" />

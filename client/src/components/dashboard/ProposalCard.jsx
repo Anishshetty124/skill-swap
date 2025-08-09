@@ -89,21 +89,26 @@ const ProposalCard = ({ proposal, type, onUpdate }) => {
     navigate("/messages", { state: { newConversationWith: otherUser } });
   };
 
-  const handleCompleteSwap = async () => {
-    if (window.confirm("Are you sure you want to mark this swap as complete?")) {
-      setLoading(true);
-      try {
-        const response = await apiClient.patch(`/proposals/${proposal._id}/complete`);
-        onUpdate(response.data.data);
-        window.location.reload();
-        toast.success("Swap marked as complete!");
-      } catch (err) {
-        toast.error("Failed to mark swap as complete.");
-      } finally {
-        setLoading(false);
-      }
+const handleCompleteSwap = async () => {
+  if (!window.confirm("Are you sure you want to mark this swap as complete?")) return;
+  setLoading(true);
+  try {
+    const response = await apiClient.patch(`/proposals/${proposal._id}/complete`);
+    const updatedProposal = response.data.data;
+    onUpdate(updatedProposal);
+
+    if (updatedProposal.status === "completed") {
+      toast.success("Swap marked as complete!");
+    } else {
+      toast.info("Waiting for the other user to confirm completion.");
     }
-  };
+  } catch (err) {
+    toast.error(err.response?.data?.message || "Failed to update swap status.");
+  } finally {
+    setLoading(false);
+  }
+};
+
 
   if (!proposal.proposer || !proposal.receiver) {
     window.location.reload();
@@ -261,13 +266,13 @@ const ProposalCard = ({ proposal, type, onUpdate }) => {
                     Chat
                   </button>
 
-                  <button
-                    onClick={handleCompleteSwap}
-                    className="flex items-center gap-1 text-sm font-semibold text-green-500 hover:text-green-600"
-                    title="Mark as Complete"
-                  >
-                    Mark as Complete
-                  </button>
+                    {proposal.completedBy?.includes(user._id) ? (
+            <span className="text-sm italic text-slate-500">Waiting for other user...</span>
+          ) : (
+            <button onClick={handleCompleteSwap} className="flex items-center ... text-green-500 hover:text-green-600">
+              Confirm Completion
+            </button>
+          )}
                 </>
               )}
 

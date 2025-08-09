@@ -424,13 +424,31 @@ const handleShowLess = () => {
       </div>
        <RecommendedSkills />
 
-       <div className="mt-16 text-center">
-          <h2 className="text-3xl font-bold mb-8">Community Leaders</h2>
-          <div className="max-w-2xl mx-auto text-left">
-            <LeaderboardPreview />
-          </div>
-        </div> 
-
+       <div className="mt-16 text-center bg-slate-100 dark:bg-slate-800 p-8 rounded-2xl shadow-lg">
+          <h2 className="text-3xl font-bold mb-4">Join the Community</h2>
+          <p className="text-slate-600 dark:text-slate-400 mb-6 max-w-xl mx-auto">
+            See who's leading the community in skills and credits, and start your own journey to the top!
+          </p>
+          <Link 
+            to="/leaderboard" 
+            className="inline-block px-8 py-3 bg-accent-600 text-white font-bold rounded-full shadow-lg hover:bg-accent-700 transition-colors"
+          >
+            View the Leaderboard
+          </Link>
+        </div>
+         
+         <div className="mt-16 text-center bg-slate-100 dark:bg-slate-800 p-8 rounded-2xl shadow-lg">
+          <h2 className="text-3xl font-bold mb-4">Feeling Lucky?</h2>
+          <p className="text-slate-600 dark:text-slate-400 mb-6 max-w-xl mx-auto">
+            Try your luck with our Daily Lucky Roll and win free Swap Credits to help you on your learning journey!
+          </p>
+          <Link 
+            to="/lucky-roll" 
+            className="inline-block px-8 py-3 bg-accent-600 text-white font-bold rounded-full shadow-lg hover:bg-accent-700 transition-colors"
+          >
+            Try the Lucky Roll
+          </Link>
+        </div>
       
       <div className="mt-16 text-center">
           <h2 className="text-3xl font-bold mb-8">How SkillSwap Works</h2>

@@ -43,7 +43,7 @@ const BadgeNotificationModal = ({ isOpen, onClose, badgeName }) => {
             </div>
 
             <Link 
-                to="/profile/me" // A placeholder link, assuming you'll have a route for the current user's profile
+                to="/profile/me" 
                 onClick={onClose}
                 className="w-full px-6 py-3 bg-accent-600 text-white font-semibold rounded-md hover:bg-accent-700"
             >

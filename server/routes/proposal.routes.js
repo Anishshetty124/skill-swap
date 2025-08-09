@@ -3,7 +3,7 @@ import {
   createProposal,
   getProposals,
   respondToProposal,
-  deleteProposal,
+  archiveProposal,
   updateContactInfo,
   completeSwap
 } from '../controllers/proposal.controller.js';
@@ -18,7 +18,7 @@ router.route('/')
   .get(getProposals);
 
 router.route('/:id')
-  .delete(deleteProposal);
+  .delete(archiveProposal);
 
 router.route('/:id/respond')
   .patch(respondToProposal);

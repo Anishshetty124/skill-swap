@@ -43,7 +43,9 @@ const userSchema = new mongoose.Schema({
   refreshToken: { type: String },
   swapCredits: { type: Number, default: 10 },
   swapsCompleted: { type: Number, default: 0 },
-  badges: { type: [String], default: [] }
+  skillsOfferedCount: { type: Number, default: 0 },
+  badges: { type: [String], default: [] },
+  lastLuckyRoll: { type: Date }
 }, { timestamps: true });
 
 userSchema.index({ location: '2dsphere' });

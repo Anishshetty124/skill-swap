@@ -81,7 +81,8 @@ const sendMessage = asyncHandler(async (req, res) => {
 
   const pushPayload = {
     title: `New Message from ${req.user.username}`,
-    body: message
+    body: message,
+    url: '/messages'
   };
   await sendPushNotification(receiverId, pushPayload);
 
@@ -92,33 +93,97 @@ const sendMessage = asyncHandler(async (req, res) => {
 const getConversations = asyncHandler(async (req, res) => {
     const loggedInUserId = req.user._id;
 
-    const conversations = await Conversation.find({ participants: loggedInUserId }).populate({
-        path: 'participants',
-        select: 'username profilePicture firstName lastName'
-    }).populate('lastMessage');
+    const conversations = await Conversation.aggregate([
+        // Stage 1: Find all conversations the current user is a part of
+        { $match: { participants: loggedInUserId } },
 
-    const conversationsWithUnreadCount = await Promise.all(conversations.map(async (conv) => {
-        const otherParticipant = conv.participants.find(p => p && !p._id.equals(loggedInUserId));
-        if (!otherParticipant) return null;
+        // Stage 2: Get the details of the other participant
+        {
+            $lookup: {
+                from: 'users',
+                localField: 'participants',
+                foreignField: '_id',
+                as: 'participantDetails'
+            }
+        },
 
-        const unreadCount = await Message.countDocuments({
-            senderId: otherParticipant._id,
-            receiverId: loggedInUserId,
-            read: false
-        });
+        // Stage 3: Get the details of the last message
+        {
+            $lookup: {
+                from: 'messages',
+                localField: 'lastMessage',
+                foreignField: '_id',
+                as: 'lastMessageDetails'
+            }
+        },
 
-        return {
-            _id: conv._id,
-            participant: otherParticipant,
-            updatedAt: conv.updatedAt,
-            lastMessage: conv.lastMessage,
-            unreadCount: unreadCount 
-        };
-    }));
+        // Stage 4: Reshape the data for the frontend
+        {
+            $project: {
+                _id: 1,
+                updatedAt: 1,
+                participant: {
+                    $arrayElemAt: [
+                        {
+                            $filter: {
+                                input: "$participantDetails",
+                                as: "p",
+                                cond: { $ne: ["$$p._id", loggedInUserId] }
+                            }
+                        },
+                        0
+                    ]
+                },
+                lastMessage: { $arrayElemAt: ["$lastMessageDetails", 0] }
+            }
+        },
 
-    const validConversations = conversationsWithUnreadCount.filter(conv => conv !== null);
+        // Stage 5: Calculate the unread count for each conversation
+        {
+            $lookup: {
+                from: 'messages',
+                let: { conversationId: "$_id", participantId: "$participant._id" },
+                pipeline: [
+                    {
+                        $match: {
+                            $expr: {
+                                $and: [
+                                    { $eq: ["$conversationId", "$$conversationId"] },
+                                    { $eq: ["$senderId", "$$participantId"] },
+                                    { $eq: ["$receiverId", loggedInUserId] },
+                                    { $eq: ["$read", false] }
+                                ]
+                            }
+                        }
+                    },
+                    { $count: "unread" }
+                ],
+                as: "unreadMessages"
+            }
+        },
 
-    res.status(200).json(new ApiResponse(200, validConversations, "Conversations fetched successfully"));
+        // Stage 6: Final formatting
+        {
+            $project: {
+                _id: 1,
+                updatedAt: 1,
+                participant: {
+                    _id: "$participant._id",
+                    username: "$participant.username",
+                    profilePicture: "$participant.profilePicture",
+                    firstName: "$participant.firstName",
+                    lastName: "$participant.lastName"
+                },
+                lastMessage: 1,
+                unreadCount: { $ifNull: [{ $arrayElemAt: ["$unreadMessages.unread", 0] }, 0] }
+            }
+        },
+
+        // Stage 7: Sort by the most recent conversation
+        { $sort: { updatedAt: -1 } }
+    ]);
+
+    res.status(200).json(new ApiResponse(200, conversations, "Conversations fetched successfully"));
 });
 
 const deleteMessage = asyncHandler(async (req, res) => {
@@ -217,21 +282,43 @@ const markAllAsRead = asyncHandler(async (req, res) => {
 });
 
 const markMessagesAsRead = asyncHandler(async (req, res) => {
-    const { id: userToChatId } = req.params;
-    const currentUserId = req.user._id;
+  const { id: userToChatId } = req.params;
+  const currentUserId = req.user._id;
 
-    const conversation = await Conversation.findOne({
-        participants: { $all: [currentUserId, userToChatId] }
-    });
+  const conversationExists = await Conversation.exists({
+    participants: { $all: [currentUserId, userToChatId] }
+  });
 
-    if (conversation) {
-        await Message.updateMany(
-            { conversationId: conversation._id, receiverId: currentUserId, read: false },
-            { $set: { read: true } }
-        );
-    }
-
-    res.status(200).json(new ApiResponse(200, {}, "Messages marked as read"));
+  if (conversationExists) {
+    await Message.updateMany(
+      { senderId: userToChatId, receiverId: currentUserId, read: false },
+      { $set: { read: true } }
+    );
+    return res.status(200).json(new ApiResponse(200, {}, "Messages marked as read"));
+  } else {
+    return res.status(404).json(new ApiResponse(404, {}, "Conversation not found"));
+  }
 });
 
-export { sendMessage, getMessages, getConversations, deleteMessage, clearConversation, reportUser , markMessagesAsRead, markAllAsRead };
+const deleteConversation = asyncHandler(async (req, res) => {
+    const { conversationId } = req.params;
+    const userId = req.user._id;
+
+    const conversation = await Conversation.findById(conversationId);
+    if (!conversation) {
+        throw new ApiError(404, "Conversation not found");
+    }
+
+    if (!conversation.participants.includes(userId)) {
+        throw new ApiError(403, "You are not authorized to delete this conversation.");
+    }
+
+    await Message.deleteMany({ _id: { $in: conversation.messages } });
+
+    await Conversation.findByIdAndDelete(conversationId);
+
+    res.status(200).json(new ApiResponse(200, {}, "Conversation deleted successfully."));
+});
+
+
+export { sendMessage, getMessages, getConversations, deleteMessage, clearConversation, reportUser , markMessagesAsRead, markAllAsRead, deleteConversation };

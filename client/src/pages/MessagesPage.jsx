@@ -63,7 +63,7 @@ const ConversationList = ({ conversations, onSelectConversation, selectedConvers
   </div>
 );
 
-const ChatWindow = ({ selectedConversation, onBack, onClearChat, onReportUser }) => {
+const ChatWindow = ({ selectedConversation, onBack, onClearChat, onReportUser,onDeleteConversation }) => {
   const { user } = useAuth();
   const [messages, setMessages] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -75,7 +75,10 @@ const ChatWindow = ({ selectedConversation, onBack, onClearChat, onReportUser })
   const [selectedMessages, setSelectedMessages] = useState(new Set());
   const menuRef = useRef();
   let pressTimer = useRef();
-
+  
+  const [popoverId, setPopoverId] = useState(null);
+  const popoverRef = useRef();
+  
   useOnClickOutside(menuRef, () => setIsMenuOpen(false));
 
   useEffect(() => {
@@ -153,34 +156,39 @@ const ChatWindow = ({ selectedConversation, onBack, onClearChat, onReportUser })
   };
 
  const handleSubmit = async (e) => {
-    e.preventDefault();
-    if (!newMessage.trim()) return;
+  e.preventDefault();
+  if (!newMessage.trim()) return;
 
-    const tempId = Date.now(); 
-    const optimisticMessage = {
-      _id: tempId,
-      senderId: user._id,
-      message: newMessage,
-      createdAt: new Date().toISOString(),
-      status: 'sending' 
-    };
+  if (!selectedConversation?._id || selectedConversation._id === 'new') {
+    toast.error("Please wait a moment for the chat to be created before sending a message.");
+    return;
+  }
 
-    setMessages(prev => [...prev, optimisticMessage]);
-    setNewMessage("");
-
-    try {
-      const res = await apiClient.post(`/messages/send/${selectedConversation._id}`, { message: newMessage });
-      setMessages(prev => prev.map(msg => 
-        msg._id === tempId ? { ...res.data.data, status: 'sent' } : msg
-      ));
-    } catch (error) {
-      toast.error(error.response?.data?.message || "Failed to send message.");
-      
-      setMessages(prev => prev.map(msg => 
-        msg._id === tempId ? { ...msg, status: 'failed' } : msg
-      ));
-    }
+  const tempId = Date.now();
+  const optimisticMessage = {
+    _id: tempId,
+    senderId: user._id,
+    message: newMessage,
+    createdAt: new Date().toISOString(),
+    status: 'sending',
   };
+
+  setMessages(prev => [...prev, optimisticMessage]);
+  setNewMessage("");
+
+  try {
+    const res = await apiClient.post(`/messages/send/${selectedConversation._id}`, { message: newMessage });
+    setMessages(prev =>
+      prev.map(msg => (msg._id === tempId ? { ...res.data.data, status: 'sent' } : msg))
+    );
+  } catch (error) {
+    toast.error(error.response?.data?.message || "Failed to send message.");
+    setMessages(prev =>
+      prev.map(msg => (msg._id === tempId ? { ...msg, status: 'failed' } : msg))
+    );
+  }
+};
+
 
   const handleTouchStart = (message) => {
     if (message.senderId !== user._id) return;
@@ -234,8 +242,9 @@ const ChatWindow = ({ selectedConversation, onBack, onClearChat, onReportUser })
                   <EllipsisVerticalIcon className="h-6 w-6"/>
               </button>
               {isMenuOpen && (
-                  <div className="absolute right-0 mt-2 w-48 bg-white dark:bg-slate-900 rounded-md shadow-lg z-10 border dark:border-slate-700">
+                  <div className="absolute right-0 mt-2 w-48 bg-white dark:bg-slate-900 rounded-md shadow-lg z-10 border dark:border-slate-700 divide-y dark:divide-slate-700">
                       <button onClick={() => { onClearChat(); setIsMenuOpen(false); }} className="w-full text-left px-4 py-2 text-sm text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800">Clear Chat</button>
+                      <button onClick={() => { onDeleteConversation(); setIsMenuOpen(false); }} className="w-full text-left px-4 py-2 text-sm text-red-500 hover:bg-slate-100 dark:hover:bg-slate-800">Delete Conversation</button>
                       <button onClick={() => { onReportUser(); setIsMenuOpen(false); }} className="w-full text-left px-4 py-2 text-sm text-red-500 hover:bg-slate-100 dark:hover:bg-slate-800">Report User</button>
                   </div>
               )}
@@ -288,40 +297,40 @@ const MessagesPage = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [selectedConversation, setSelectedConversation] = useState(null);
+
   const location = useLocation();
   const navigate = useNavigate();
-  const { fetchUnreadCount } = useAuth();
 
-     const fetchConversations = useCallback(async () => {
+  const { fetchUnreadCount } = useAuth();
+  const { socket } = useSocketContext();  
+
+  const fetchConversations = useCallback(async () => {
     try {
       setLoading(true);
       const response = await apiClient.get('/messages/conversations');
       let fetchedConversations = response.data.data;
-      
+
       const newChatUser = location.state?.newConversationWith;
 
       if (newChatUser) {
-        // --- THIS IS THE CORRECTED LOGIC ---
-        // 1. Check if a conversation with this user already exists in the fresh list
         const existingConv = fetchedConversations.find(c => c.participant._id === newChatUser._id);
-        
+
         if (!existingConv) {
-          // 2. Only if it doesn't exist, create a new placeholder and add it to the list
-          const newConvPlaceholder = { 
-            _id: `new-${newChatUser._id}`, // Use a more unique temporary key
-            participant: newChatUser 
+          // Add placeholder if not found
+          const newConvPlaceholder = {
+            _id: `new-${newChatUser._id}`, // unique temp id
+            participant: newChatUser,
           };
           fetchedConversations = [newConvPlaceholder, ...fetchedConversations];
         }
-        
-        // 3. Select the conversation and clear the location state
+
+        // Select new conversation and clear location state
         setSelectedConversation(newChatUser);
         navigate(location.pathname, { replace: true, state: {} });
       }
 
-      // 4. Finally, set the single, correct list of conversations
       setConversations(fetchedConversations);
-
+      setError('');
     } catch (err) {
       setError('Failed to load conversations.');
     } finally {
@@ -333,51 +342,96 @@ const MessagesPage = () => {
     fetchConversations();
   }, [fetchConversations]);
 
-  const handleSelectConversation = useCallback(async (participant, e) => {
-     if (e) e.preventDefault();
-    setSelectedConversation(participant);
-    const conv = conversations.find(c => c.participant._id === participant._id);
-    
-    if (conv && conv.unreadCount > 0) {
-      try {
-        await apiClient.post(`/messages/read/${participant._id}`);
-        setConversations(prevConvs => 
-          prevConvs.map(c => 
-            c.participant._id === participant._id ? { ...c, unreadCount: 0 } : c
-          )
-        );
-        fetchUnreadCount();
-      } catch (error) {
-        console.error("Failed to mark messages as read", error);
+  useEffect(() => {
+    const handleNewMessage = () => {
+      fetchConversations();
+    };
+
+    socket?.on('newMessage', handleNewMessage);
+
+    return () => {
+      socket?.off('newMessage', handleNewMessage);
+    };
+  }, [socket, fetchConversations]);
+
+  const handleSelectConversation = useCallback(
+    async (participant, e) => {
+      if (e) e.preventDefault();
+      setSelectedConversation(participant);
+
+      const conv = conversations.find(c => c.participant._id === participant._id);
+
+      if (conv && conv.unreadCount > 0) {
+        try {
+          await apiClient.post(`/messages/read/${participant._id}`);
+          setConversations(prevConvs =>
+            prevConvs.map(c =>
+              c.participant._id === participant._id ? { ...c, unreadCount: 0 } : c
+            )
+          );
+          fetchUnreadCount();
+        } catch (error) {
+          console.error('Failed to mark messages as read', error);
+        }
       }
-    }
-  }, [conversations, fetchUnreadCount]);
+    },
+    [conversations, fetchUnreadCount]
+  );
 
   const handleClearChat = async () => {
     if (!selectedConversation || selectedConversation._id === 'new') return;
-    if (window.confirm("Are you sure you want to clear this entire chat history? This cannot be undone.")) {
+    if (
+      window.confirm(
+        'Are you sure you want to clear this entire chat history? This cannot be undone.'
+      )
+    ) {
+      try {
+        const conv = conversations.find(c => c.participant._id === selectedConversation._id);
+        if (conv) {
+          await apiClient.delete(`/messages/conversation/${conv._id}`);
+          setSelectedConversation(prev => ({ ...prev }));
+          toast.success('Chat history cleared.');
+        }
+      } catch (error) {
+        toast.error('Failed to clear chat.');
+      }
+    }
+  };
+ 
+   const handleDeleteConversation = async () => {
+    if (!selectedConversation) return;
+    
+    const conv = conversations.find(c => c.participant._id === selectedConversation._id);
+    if (!conv || conv._id === 'new') return;
+
+    if (window.confirm("Are you sure you want to permanently delete this entire conversation? This cannot be undone.")) {
         try {
-            const conv = conversations.find(c => c.participant._id === selectedConversation._id);
-            if (conv) {
-              await apiClient.delete(`/messages/conversation/${conv._id}`);
-              setSelectedConversation(prev => ({...prev})); 
-              toast.success("Chat history cleared.");
-            }
+            await apiClient.delete(`/messages/conversation/${conv._id}/delete`);
+            
+            setConversations(prev => prev.filter(c => c._id !== conv._id));
+            setSelectedConversation(null); 
+            fetchUnreadCount();
+
+            toast.success("Conversation deleted.");
         } catch (error) {
-            toast.error("Failed to clear chat.");
+            toast.error("Failed to delete conversation.");
         }
     }
   };
 
   const handleReportUser = async () => {
     if (!selectedConversation) return;
-    if (window.confirm(`Are you sure you want to report ${selectedConversation.username} for inappropriate behavior?`)) {
-        try {
-            await apiClient.post(`/messages/report/${selectedConversation._id}`);
-            toast.success("User reported. Our team will review the chat history.");
-        } catch (error) {
-            toast.error("Failed to report user.");
-        }
+    if (
+      window.confirm(
+        `Are you sure you want to report ${selectedConversation.username} for inappropriate behavior?`
+      )
+    ) {
+      try {
+        await apiClient.post(`/messages/report/${selectedConversation._id}`);
+        toast.success('User reported. Our team will review the chat history.');
+      } catch (error) {
+        toast.error('Failed to report user.');
+      }
     }
   };
 
@@ -387,26 +441,38 @@ const MessagesPage = () => {
   return (
     <div className="h-[calc(100vh-10rem)] md:h-[calc(100vh-12rem)] flex bg-white dark:bg-slate-800 rounded-lg shadow-lg overflow-hidden">
       <div className={`flex-shrink-0 w-full md:w-1/3 ${selectedConversation ? 'hidden md:block' : 'block'}`}>
-        <ConversationList 
-          conversations={conversations} 
+        <ConversationList
+          conversations={conversations}
           onSelectConversation={handleSelectConversation}
           selectedConversation={selectedConversation}
           onRefresh={fetchConversations}
         />
       </div>
-      
+
       <div className={`flex-1 ${selectedConversation ? 'block' : 'hidden md:block'}`}>
         {selectedConversation ? (
-          <ChatWindow 
-            selectedConversation={selectedConversation} 
+          <ChatWindow
+            selectedConversation={selectedConversation}
             onBack={() => setSelectedConversation(null)}
             onClearChat={handleClearChat}
+            onDeleteConversation={handleDeleteConversation}
             onReportUser={handleReportUser}
           />
         ) : (
           <div className="hidden md:flex flex-col items-center justify-center h-full text-center text-slate-500">
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-24 w-24 mb-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              className="h-24 w-24 mb-4 text-slate-400"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={1}
+                d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"
+              />
             </svg>
             <h3 className="text-xl font-semibold">Select a conversation</h3>
             <p>Choose from your existing conversations on the left to start chatting.</p>
@@ -416,5 +482,7 @@ const MessagesPage = () => {
     </div>
   );
 };
+
+
 
 export default MessagesPage;

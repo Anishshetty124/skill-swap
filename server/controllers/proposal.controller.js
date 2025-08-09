@@ -86,129 +86,134 @@ const getProposals = asyncHandler(async (req, res) => {
 });
 
 const respondToProposal = asyncHandler(async (req, res) => {
-  const { id } = req.params;
-  const { status, contactInfo } = req.body;
-  const userId = req.user._id;
+  const { id } = req.params;
+  const { status, contactInfo } = req.body;
+  const userId = req.user._id;
 
-  if (!['accepted', 'rejected'].includes(status)) {
-    throw new ApiError(400, "Invalid status.");
-  }
+  if (!['accepted', 'rejected'].includes(status)) {
+    throw new ApiError(400, "Invalid status.");
+  }
 
-  const proposal = await Proposal.findById(id)
-    .populate('requestedSkill', 'title category costInCredits')
-    .populate('offeredSkill', 'title category');
+  const proposal = await Proposal.findById(id)
+    .populate('requestedSkill', 'title category costInCredits')
+    .populate('offeredSkill', 'title category')
+    .populate('proposer', 'username badges swapsCompleted')
+    .populate('receiver', 'username badges swapsCompleted');
 
-  if (!proposal) throw new ApiError(404, 'Proposal not found');
-  if (!proposal.receiver.equals(userId)) throw new ApiError(403, 'You are not authorized to respond.');
-  if (proposal.status !== 'pending') throw new ApiError(400, `This proposal has already been ${proposal.status}.`);
+  if (!proposal) throw new ApiError(404, 'Proposal not found');
+  if (!proposal.receiver.equals(userId)) throw new ApiError(403, 'You are not authorized to respond.');
+  if (proposal.status !== 'pending') throw new ApiError(400, `This proposal has already been ${proposal.status}.`);
 
-  if (status === 'accepted' && contactInfo) {
-    proposal.contactInfo = contactInfo;
-  }
+  if (status === 'accepted' && contactInfo) {
+    proposal.contactInfo = contactInfo;
+  }
 
-  proposal.status = status;
-  await proposal.save({ validateBeforeSave: false });
+  proposal.status = status;
+  await proposal.save({ validateBeforeSave: false });
 
-  if (status === 'accepted') {
+  if (status === 'accepted') {
+    // Create conversation if not exists
     let conversation = await Conversation.findOne({
-      participants: { $all: [proposal.proposer, proposal.receiver] },
+      participants: { $all: [proposal.proposer._id, proposal.receiver._id] },
     });
 
     if (!conversation) {
       await Conversation.create({
-        participants: [proposal.proposer, proposal.receiver],
+        participants: [proposal.proposer._id, proposal.receiver._id],
       });
     }
 
-    const proposerId = proposal.proposer.toString();
-    const receiverId = proposal.receiver.toString();
-    const receiverUsername = req.user.username;
+    const proposerId = proposal.proposer._id.toString();
+    const receiverId = proposal.receiver._id.toString();
+    const receiverUsername = proposal.receiver.username;
 
-    if (proposal.proposalType === 'credits') {
-      const cost = proposal.costInCredits;
-      await User.findByIdAndUpdate(proposal.proposer, { $inc: { swapCredits: -cost } });
-      await User.findByIdAndUpdate(proposal.receiver, { $inc: { swapCredits: cost } });
+    if (proposal.proposalType === 'credits') {
+      const cost = proposal.costInCredits;
+      await User.findByIdAndUpdate(proposal.proposer._id, { $inc: { swapCredits: -cost } });
+      await User.findByIdAndUpdate(proposal.receiver._id, { $inc: { swapCredits: cost } });
 
-      io.to(proposerId).emit('new_notification', {
-        message: `Your proposal was accepted! You spent ${cost} credits.`
-      });
-      io.to(receiverId).emit('new_notification', {
-        message: `You accepted the proposal and earned ${cost} credits!`
-      });
-    } else {
-      io.to(proposerId).emit('new_notification', {
-        message: `Your skill swap with ${receiverUsername} was accepted!`
-      });
-    }
+      io.to(proposerId).emit('new_notification', {
+        message: `Your proposal was accepted! You spent ${cost} credits.`
+      });
+      io.to(receiverId).emit('new_notification', {
+        message: `You accepted the proposal and earned ${cost} credits!`
+      });
+    } else {
+      io.to(proposerId).emit('new_notification', {
+        message: `Your skill swap with ${receiverUsername} was accepted!`
+      });
+    }
 
-    const skillsToUpdate = [proposal.requestedSkill._id];
-    if (proposal.offeredSkill) {
-      skillsToUpdate.push(proposal.offeredSkill._id);
-    }
-    await Skill.updateMany({ _id: { $in: skillsToUpdate } }, { $set: { status: 'in_progress' } });
+    // Update skill statuses to in_progress
+    const skillsToUpdate = [proposal.requestedSkill._id];
+    if (proposal.offeredSkill) {
+      skillsToUpdate.push(proposal.offeredSkill._id);
+    }
+    await Skill.updateMany({ _id: { $in: skillsToUpdate } }, { $set: { status: 'in_progress' } });
 
-    if (contactInfo && (contactInfo.phone || contactInfo.email || contactInfo.note)) {
-      io.to(proposerId).emit('contact_info_received', {
-        message: `${receiverUsername} has shared their contact details with you.`,
-        details: contactInfo
-      });
-    }
+    // Notify proposer with contact info if provided
+    if (contactInfo && (contactInfo.phone || contactInfo.email || contactInfo.note)) {
+      io.to(proposerId).emit('contact_info_received', {
+        message: `${receiverUsername} has shared their contact details with you.`,
+        details: contactInfo
+      });
+    }
 
-    const usersInvolved = await User.find({ _id: { $in: [proposal.proposer, proposal.receiver] } });
-    for (const user of usersInvolved) {
-      const oldBadges = new Set(user.badges || []);
-      const { earnedBadges } = await calculateBadges(user);
-      const newBadges = new Set(earnedBadges);
-      const newlyEarnedBadges = [...newBadges].filter(badge => !oldBadges.has(badge));
+    // ===== FIXED BADGE LOGIC =====
+    // Update swapsCompleted and badges for both users with notification
+    const usersInvolved = await User.find({ _id: { $in: [proposal.proposer._id, proposal.receiver._id] } });
 
-      if (newlyEarnedBadges.length > 0) {
-        user.badges = earnedBadges;
-        await user.save({ validateBeforeSave: false });
-      newlyEarnedBadges.forEach(badgeName => {
-          io.to(user._id.toString()).emit('new_badge_earned', {
-            badgeName: badgeName
-          });
-        });
-      }
-    }
-  }
+    for (const user of usersInvolved) {
+      const oldBadges = new Set(user.badges || []);
 
-  return res.status(200).json(new ApiResponse(200, proposal, `Proposal has been ${status}.`));
+      // Increment completed swaps count
+      user.swapsCompleted = (user.swapsCompleted || 0) + 1;
+
+      // Recalculate badges with updated stats
+      const { earnedBadges } = await calculateBadges(user);
+      const newBadges = new Set(earnedBadges);
+
+      const newlyEarnedBadges = [...newBadges].filter(badge => !oldBadges.has(badge));
+
+      if (newlyEarnedBadges.length > 0) {
+        user.badges = earnedBadges;
+        await user.save({ validateBeforeSave: false });
+
+        newlyEarnedBadges.forEach(badgeName => {
+          io.to(user._id.toString()).emit('new_badge_earned', {
+            badgeName
+          });
+        });
+      } else {
+        await user.save({ validateBeforeSave: false });
+      }
+    }
+    // ===============================
+  }
+
+  return res.status(200).json(new ApiResponse(200, proposal, `Proposal has been ${status}.`));
 });
 
-const deleteProposal = asyncHandler(async (req, res) => {
-  const { id } = req.params;
-  const userId = req.user._id;
 
-  const proposal = await Proposal.findById(id);
-  if (!proposal) throw new ApiError(404, "Proposal not found");
+const archiveProposal = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const userId = req.user._id;
 
-  if (!proposal.proposer.equals(userId) && !proposal.receiver.equals(userId)) {
-    throw new ApiError(403, "You are not authorized to delete this proposal.");
-  }
+  const proposal = await Proposal.findById(id);
+  if (!proposal) throw new ApiError(404, "Proposal not found");
 
-     const otherUserId = proposal.proposer.equals(userId) 
-    ? proposal.receiver.toString() 
-    : proposal.proposer.toString();
+  if (!proposal.proposer.equals(userId) && !proposal.receiver.equals(userId)) {
+    throw new ApiError(403, "You are not authorized to modify this proposal.");
+  }
+
+  // Add the user to the archivedBy array
+  if (!proposal.archivedBy.includes(userId)) {
+    proposal.archivedBy.push(userId);
+  }
   
-  const otherUserSocketId = getReceiverSocketId(otherUserId);
-  if (otherUserSocketId) {
-    io.to(otherUserSocketId).emit('new_notification', { 
-      message: `${req.user.username} has withdrawn their proposal.` 
-    });
-  }
+  await proposal.save();
 
-  const conversation = await Conversation.findOne({
-    participants: { $all: [proposal.proposer, proposal.receiver] }
-  });
-
-  if (conversation) {
-    await Message.deleteMany({ _id: { $in: conversation.messages } });
-    await Conversation.findByIdAndDelete(conversation._id);
-  }
-
-  await Proposal.findByIdAndDelete(id);
-  return res.status(200).json(new ApiResponse(200, {}, "Proposal and associated chat deleted successfully"));
+  return res.status(200).json(new ApiResponse(200, {}, "Proposal has been removed from your dashboard."));
 });
 
 const updateContactInfo = asyncHandler(async (req, res) => {
@@ -244,59 +249,58 @@ const updateContactInfo = asyncHandler(async (req, res) => {
 });
 
 const completeSwap = asyncHandler(async (req, res) => {
-  const { id } = req.params;
-  const userId = req.user._id;
+  const { id } = req.params;
+  const userId = req.user._id;
 
-  const proposal = await Proposal.findById(id).populate('proposer receiver');
-  if (!proposal) throw new ApiError(404, "Proposal not found");
+  const proposal = await Proposal.findById(id).populate('proposer receiver');
+  if (!proposal) throw new ApiError(404, "Proposal not found");
 
-  if ((!proposal.proposer._id.equals(userId) && !proposal.receiver._id.equals(userId)) || proposal.status !== 'accepted') {
-    throw new ApiError(403, "This swap cannot be marked as complete.");
-  }
+  if (
+    (!proposal.proposer._id.equals(userId) && !proposal.receiver._id.equals(userId)) ||
+    proposal.status !== 'accepted'
+  ) {
+    throw new ApiError(403, "You are not authorized to complete this swap.");
+  }
 
-  // Add the current user to the completedBy array if they aren't already in it
-  if (!proposal.completedBy.includes(userId)) {
-    proposal.completedBy.push(userId);
-  }
+  // Prevent a user from confirming more than once
+  if (proposal.completedBy.includes(userId)) {
+    throw new ApiError(400, "You have already marked this swap as complete.");
+  }
 
+  proposal.completedBy.push(userId);
   const otherUser = proposal.proposer._id.equals(userId) ? proposal.receiver : proposal.proposer;
 
-  if (proposal.completedBy.length === 2) {
-    proposal.status = 'completed';
-    
-    await User.findByIdAndUpdate(proposal.proposer._id, { $inc: { swapsCompleted: 1 } });
-    await User.findByIdAndUpdate(proposal.receiver._id, { $inc: { swapsCompleted: 1 } });
+  if (proposal.completedBy.length === 2) {
+    proposal.status = 'completed';
 
-    const proposerSocketId = getReceiverSocketId(proposal.proposer._id.toString());
-    const receiverSocketId = getReceiverSocketId(proposal.receiver._id.toString());
+    await User.findByIdAndUpdate(proposal.proposer._id, { $inc: { swapsCompleted: 1 } });
+    await User.findByIdAndUpdate(proposal.receiver._id, { $inc: { swapsCompleted: 1 } });
 
-    if (proposerSocketId) {
-      io.to(proposerSocketId).emit('new_notification', { message: `Your swap with ${proposal.receiver.username} is now complete!` });
-    }
-    if (receiverSocketId) {
-      io.to(receiverSocketId).emit('new_notification', { message: `Your swap with ${proposal.proposer.username} is now complete!` });
-    }
-    
-  } else {
-    const otherUserSocketId = getReceiverSocketId(otherUser._id.toString());
-    if (otherUserSocketId) {
-      io.to(otherUserSocketId).emit('new_notification', { 
-        message: `${req.user.username} has marked your swap as complete. Please confirm to finalize.` 
-      });
-    }
-  }
+    io.to(proposal.proposer._id.toString()).emit('new_notification', { message: `Your swap with ${proposal.receiver.username} is now complete!` });
+    io.to(proposal.receiver._id.toString()).emit('new_notification', { message: `Your swap with ${proposal.proposer.username} is now complete!` });
+    
+  } else {
+    const otherUserSocketId = getReceiverSocketId(otherUser._id.toString());
+    if (otherUserSocketId) {
+      io.to(otherUserSocketId).emit('new_notification', { 
+        message: `${req.user.username} has marked your swap as complete. Please confirm to finalize.` 
+      });
+    }
+  }
 
-  await proposal.save();
-
-  return res.status(200).json(new ApiResponse(200, proposal, "Swap completion status updated."));
+  await proposal.save();
+  return res.status(200).json(new ApiResponse(200, proposal, "Swap completion status updated."));
 });
+
+
+
 
 
 export {
   createProposal,
   getProposals,
   respondToProposal,
-  deleteProposal,
+  archiveProposal,
   updateContactInfo,
   completeSwap
 };

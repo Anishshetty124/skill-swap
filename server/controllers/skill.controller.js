@@ -34,8 +34,8 @@ const createSkill = asyncHandler(async (req, res) => {
   }
 
   const genAI = new GoogleGenerativeAI(process.env.GOOGLE_API_KEY);
-  const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash"});
-  
+  const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+
   const validationPrompt = `
     Analyze the following skill title and description.
     Is this a legitimate, safe-for-work, learnable skill or topic?
@@ -44,7 +44,7 @@ const createSkill = asyncHandler(async (req, res) => {
     Description: "${description}"
     Respond with only the word "YES" if it is a valid skill, and only "NO" if it is not.
   `;
-  
+
   try {
     const validationResult = await model.generateContent(validationPrompt);
     const validationResponse = await validationResult.response;
@@ -55,7 +55,7 @@ const createSkill = asyncHandler(async (req, res) => {
     }
   } catch (error) {
     console.error("AI Skill Post Validation Error:", error);
-    if (error instanceof ApiError) throw error; // Re-throw our specific error
+    if (error instanceof ApiError) throw error;
     throw new ApiError(500, "Could not validate the skill topic at this time.");
   }
 
@@ -70,6 +70,10 @@ const createSkill = asyncHandler(async (req, res) => {
     type,
     tags,
   });
+
+  if (skill.type === 'OFFER') {
+    await User.findByIdAndUpdate(userId, { $inc: { skillsOfferedCount: 1 } });
+  }
 
   return res.status(201).json(new ApiResponse(201, skill, "Skill posted successfully"));
 });
@@ -184,15 +188,23 @@ const updateSkill = asyncHandler(async (req, res) => {
 
 const deleteSkill = asyncHandler(async (req, res) => {
   const { skillId } = req.params;
+  const userId = req.user._id;
+
   const skill = await Skill.findById(skillId);
   if (!skill) {
     throw new ApiError(404, "Skill not found");
   }
-  if (skill.user.toString() !== req.user._id.toString()) {
+  if (skill.user.toString() !== userId.toString()) {
     throw new ApiError(403, "You are not authorized to delete this skill");
   }
+
+  if (skill.type === 'OFFER') {
+    await User.findByIdAndUpdate(userId, { $inc: { skillsOfferedCount: -1 } });
+  }
+
   await Skill.findByIdAndDelete(skillId);
   await Proposal.deleteMany({ $or: [{ requestedSkill: skillId }, { offeredSkill: skillId }] });
+
   return res.status(200).json(new ApiResponse(200, {}, "Skill and associated proposals deleted successfully"));
 });
 

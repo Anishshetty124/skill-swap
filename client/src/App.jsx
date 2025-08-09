@@ -11,13 +11,14 @@ import ResetPasswordPage from './pages/ResetPasswordPage';
 import AuthSuccessPage from './pages/AuthSuccessPage';
 import ProtectedRoute from './components/auth/ProtectedRoute';
 import Spinner from './components/common/Spinner';
-import LeaderboardPage from './pages/LeaderboardPage';
+import LuckyRollPage from './pages/LuckyRollPage';
 
 const MySkillsPage = React.lazy(() => import('./pages/MySkillsPage'));
 const CreateSkillPage = React.lazy(() => import('./pages/CreateSkillPage'));
 const Dashboard = React.lazy(() => import('./pages/Dashboard'));
 const EditProfilePage = React.lazy(() => import('./pages/EditProfilePage'));
 const MessagesPage = React.lazy(() => import('./pages/MessagesPage'));
+const LeaderboardPage = React.lazy(() => import('./pages/LeaderboardPage'));
 
 const PageLoader = () => (
   <div className="flex justify-center items-center h-screen">
@@ -30,6 +31,7 @@ function App() {
     <Suspense fallback={<PageLoader />}>
       <Routes>
         <Route path="/" element={<Layout />}>
+          {/* Public Routes */}
           <Route index element={<Home />} />
           <Route path="login" element={<Login />} />
           <Route path="register" element={<Register />} />
@@ -38,14 +40,16 @@ function App() {
           <Route path="auth/success" element={<AuthSuccessPage />} />
           <Route path="skills/:skillId" element={<SingleSkillPage />} />
           <Route path="profile/:username" element={<ProfilePage />} />
-           <Route path="leaderboard" element={<LeaderboardPage />} />
-
+          <Route path="leaderboard" element={<LeaderboardPage />} />
+          
+          {/* Protected Routes (these will now be code-split) */}
           <Route element={<ProtectedRoute />}>
             <Route path="my-skills" element={<MySkillsPage />} />
             <Route path="skills/new" element={<CreateSkillPage />} />
             <Route path="dashboard" element={<Dashboard />} />
             <Route path="messages" element={<MessagesPage />} />
             <Route path="profile/edit" element={<EditProfilePage />} />
+            <Route path="lucky-roll" element={<LuckyRollPage />} />
           </Route>
         </Route>
       </Routes>

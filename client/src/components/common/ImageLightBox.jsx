@@ -17,10 +17,10 @@ const ImageLightbox = ({ src, alt, onClose }) => {
       </button>
       <div className="relative" onClick={(e) => e.stopPropagation()}>
         <img 
-          src={src} 
-          alt={alt} 
-          className="max-w-[90vw] max-h-[90vh] rounded-lg shadow-2xl"
-        />
+  src={src} 
+  alt={alt} 
+  className="max-w-[95vw] max-h-[95vh] rounded-lg shadow-2xl"
+/>
       </div>
     </div>
   );
