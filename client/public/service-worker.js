@@ -1,13 +1,10 @@
-// This is the service worker file.
-
-// Listen for push events from the server
 self.addEventListener('push', event => {
   const data = event.data.json();
   
   const options = {
     body: data.body,
-    icon: '/pba-192x192.png',
-    badge: '/pba-192x192.png',
+    icon: '/logo.png',
+    badge: '/logo.png',
     data: {
       url: data.url 
     }
