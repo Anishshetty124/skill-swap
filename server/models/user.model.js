@@ -44,7 +44,7 @@ const userSchema = new mongoose.Schema({
   swapCredits: { type: Number, default: 10 },
   swapsCompleted: { type: Number, default: 0 },
   skillsOfferedCount: { type: Number, default: 0 },
-  badges: { type: [String], default: [] },
+  badges: { type: [{ type: String, unique: true }], default: [] },
   lastLuckyRoll: { type: Date }
 }, { timestamps: true });
 

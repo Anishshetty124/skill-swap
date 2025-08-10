@@ -94,10 +94,21 @@ const handleCompleteSwap = async () => {
   setLoading(true);
   try {
     const response = await apiClient.patch(`/proposals/${proposal._id}/complete`);
-    const updatedProposal = response.data.data;
-    onUpdate(updatedProposal);
+    const updatedProposal = response.data?.data;
 
-    if (updatedProposal.status === "completed") {
+    // Defensive merge: preserve nested skill objects if server didn't include them
+    const merged = {
+      ...proposal,
+      ...updatedProposal,
+      requestedSkill: updatedProposal?.requestedSkill || proposal.requestedSkill,
+      offeredSkill: updatedProposal?.offeredSkill || proposal.offeredSkill,
+      proposer: updatedProposal?.proposer || proposal.proposer,
+      receiver: updatedProposal?.receiver || proposal.receiver,
+    };
+
+    onUpdate(merged);
+
+    if (merged.status === "completed") {
       toast.success("Swap marked as complete!");
     } else {
       toast.info("Waiting for the other user to confirm completion.");
@@ -108,6 +119,7 @@ const handleCompleteSwap = async () => {
     setLoading(false);
   }
 };
+
 
 
   if (!proposal.proposer || !proposal.receiver) {

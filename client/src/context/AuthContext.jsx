@@ -72,10 +72,7 @@ export const AuthProvider = ({ children }) => {
       });
 
       socket.off('new_badge_earned');
-      socket.on('new_badge_earned', ({ badgeName }) => {
-        setNewlyEarnedBadge(badgeName);
-      });
-
+    
       socket.off('newMessage');
       socket.on('newMessage', () => {
         fetchUnreadCount();
@@ -83,16 +80,13 @@ export const AuthProvider = ({ children }) => {
 
       return () => {
         socket.off('new_notification');
-        socket.off('new_badge_earned');
         socket.off('newMessage');
         socket.disconnect();
       };
     }
   }, [isAuthenticated, user, fetchUnreadCount]);
 
-  const clearNewlyEarnedBadge = useCallback(() => {
-    setNewlyEarnedBadge(null);
-  }, []);
+  
 
   const login = useCallback(async (credentials) => {
     try {
@@ -194,8 +188,6 @@ export const AuthProvider = ({ children }) => {
     fetchUnreadCount,
     clearUnreadNotifications,
     setTokenAndUser,
-    newlyEarnedBadge,
-    clearNewlyEarnedBadge
   };
 
   return (

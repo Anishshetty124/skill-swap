@@ -437,18 +437,39 @@ const handleShowLess = () => {
           </Link>
         </div>
          
-         <div className="mt-16 text-center bg-slate-100 dark:bg-slate-800 p-8 rounded-2xl shadow-lg">
-          <h2 className="text-3xl font-bold mb-4">Feeling Lucky?</h2>
-          <p className="text-slate-600 dark:text-slate-400 mb-6 max-w-xl mx-auto">
-            Try your luck with our Daily Lucky Roll and win free Swap Credits to help you on your learning journey!
-          </p>
-          <Link 
-            to="/lucky-roll" 
-            className="inline-block px-8 py-3 bg-accent-600 text-white font-bold rounded-full shadow-lg hover:bg-accent-700 transition-colors"
-          >
-            Try the Lucky Roll
-          </Link>
-        </div>
+         <div
+  className="
+    mt-16 text-center p-8 rounded-2xl shadow-lg max-w-xl mx-auto
+    bg-gradient-to-br from-yellow-50 via-yellow-100 to-yellow-200
+    dark:from-yellow-900 dark:via-yellow-800 dark:to-yellow-900
+    ring-2 ring-yellow-300/50 dark:ring-yellow-600/70
+  "
+>
+  <h2 className="text-3xl font-extrabold mb-4 text-yellow-800 dark:text-yellow-300 drop-shadow-sm">
+    Feeling Lucky?
+  </h2>
+  <p className="text-yellow-700 dark:text-yellow-200 mb-6 max-w-xl mx-auto leading-relaxed text-lg">
+    Try your luck with our{" "}
+    <span className="font-semibold underline decoration-yellow-500 dark:decoration-yellow-400">
+      Daily Lucky Roll
+    </span>{" "}
+    and win free Swap Credits to help you on your learning journey!
+  </p>
+  <Link
+    to="/lucky-roll"
+    className="
+      inline-block px-10 py-3
+      bg-yellow-400 hover:bg-yellow-500
+      text-yellow-900 font-semibold rounded-full shadow-md
+      transition-colors tracking-wide
+      ring-1 ring-yellow-500/70 hover:ring-yellow-600
+      dark:bg-yellow-600 dark:text-yellow-100 dark:hover:bg-yellow-700
+    "
+  >
+    Try the Lucky Roll
+  </Link>
+</div>
+
       
       <div className="mt-16 text-center">
           <h2 className="text-3xl font-bold mb-8">How SkillSwap Works</h2>

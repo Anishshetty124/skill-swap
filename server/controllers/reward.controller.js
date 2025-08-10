@@ -14,20 +14,18 @@ const claimDailyReward = asyncHandler(async (req, res) => {
   const now = new Date();
   const lastRoll = user.lastLuckyRoll ? new Date(user.lastLuckyRoll) : null;
 
-  // Check if the user has already claimed their reward today
   if (lastRoll && now.toDateString() === lastRoll.toDateString()) {
     throw new ApiError(400, "You have already claimed your daily reward. Try again tomorrow!");
   }
 
-  // Determine the prize (e.g., between 1 and 6 credits)
-  const prize = Math.floor(Math.random() * 6) + 1;
+  // prize now zero-based
+  const prize = Math.floor(Math.random() * 6)+1; // 0 to 5
 
-  // Update the user's credits and the timestamp
-  user.swapCredits += prize;
+  user.swapCredits += (prize + 1);
   user.lastLuckyRoll = now;
   await user.save({ validateBeforeSave: false });
 
-  return res.status(200).json(new ApiResponse(200, { prize, newCreditTotal: user.swapCredits }, `Congratulations! You won ${prize} credits!`));
+  return res.status(200).json(new ApiResponse(200, { prize, newCreditTotal: user.swapCredits }, `Congratulations! You won ${prize + 1} credits!`));
 });
 
 // A simple function to check if the daily reward is available

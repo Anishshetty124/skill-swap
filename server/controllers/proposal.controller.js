@@ -4,7 +4,7 @@ import { ApiResponse } from '../utils/ApiResponse.js';
 import { Proposal } from '../models/proposal.model.js';
 import { Skill } from '../models/skill.model.js';
 import { User } from '../models/user.model.js';
-import { calculateUserStats as calculateBadges} from '../utils/BadgeManager.js';
+import { calculateUserStats as calculateBadges, calculateUserStats} from '../utils/BadgeManager.js';
 import mongoose from 'mongoose';
 import { Conversation } from '../models/conversation.model.js';
 import { Message } from '../models/message.model.js';
@@ -144,14 +144,12 @@ const respondToProposal = asyncHandler(async (req, res) => {
       });
     }
 
-    // Update skill statuses to in_progress
     const skillsToUpdate = [proposal.requestedSkill._id];
     if (proposal.offeredSkill) {
       skillsToUpdate.push(proposal.offeredSkill._id);
     }
     await Skill.updateMany({ _id: { $in: skillsToUpdate } }, { $set: { status: 'in_progress' } });
 
-    // Notify proposer with contact info if provided
     if (contactInfo && (contactInfo.phone || contactInfo.email || contactInfo.note)) {
       io.to(proposerId).emit('contact_info_received', {
         message: `${receiverUsername} has shared their contact details with you.`,
@@ -159,17 +157,13 @@ const respondToProposal = asyncHandler(async (req, res) => {
       });
     }
 
-    // ===== FIXED BADGE LOGIC =====
-    // Update swapsCompleted and badges for both users with notification
     const usersInvolved = await User.find({ _id: { $in: [proposal.proposer._id, proposal.receiver._id] } });
 
     for (const user of usersInvolved) {
       const oldBadges = new Set(user.badges || []);
 
-      // Increment completed swaps count
       user.swapsCompleted = (user.swapsCompleted || 0) + 1;
 
-      // Recalculate badges with updated stats
       const { earnedBadges } = await calculateBadges(user);
       const newBadges = new Set(earnedBadges);
 
@@ -188,7 +182,6 @@ const respondToProposal = asyncHandler(async (req, res) => {
         await user.save({ validateBeforeSave: false });
       }
     }
-    // ===============================
   }
 
   return res.status(200).json(new ApiResponse(200, proposal, `Proposal has been ${status}.`));
@@ -252,32 +245,65 @@ const completeSwap = asyncHandler(async (req, res) => {
   const { id } = req.params;
   const userId = req.user._id;
 
-  const proposal = await Proposal.findById(id).populate('proposer receiver');
+ const proposal = await Proposal.findById(id)
+  .populate('proposer receiver')
+  .populate('requestedSkill', 'title category costInCredits')
+  .populate('offeredSkill', 'title category');
+
   if (!proposal) throw new ApiError(404, "Proposal not found");
 
-  if (
-    (!proposal.proposer._id.equals(userId) && !proposal.receiver._id.equals(userId)) ||
-    proposal.status !== 'accepted'
-  ) {
-    throw new ApiError(403, "You are not authorized to complete this swap.");
+  if ((!proposal.proposer._id.equals(userId) && !proposal.receiver._id.equals(userId)) || proposal.status !== 'accepted') {
+    throw new ApiError(403, "This swap cannot be marked as complete.");
   }
 
-  // Prevent a user from confirming more than once
-  if (proposal.completedBy.includes(userId)) {
-    throw new ApiError(400, "You have already marked this swap as complete.");
+  if (!proposal.completedBy.includes(userId)) {
+    proposal.completedBy.push(userId);
   }
 
-  proposal.completedBy.push(userId);
-  const otherUser = proposal.proposer._id.equals(userId) ? proposal.receiver : proposal.proposer;
+  const otherUser = proposal.proposer._id.equals(userId) ? proposal.receiver : proposal.proposer;
 
   if (proposal.completedBy.length === 2) {
     proposal.status = 'completed';
 
-    await User.findByIdAndUpdate(proposal.proposer._id, { $inc: { swapsCompleted: 1 } });
-    await User.findByIdAndUpdate(proposal.receiver._id, { $inc: { swapsCompleted: 1 } });
+    // --- BADGE LOGIC INTEGRATED HERE ---
+    const usersToUpdate = [proposal.proposer, proposal.receiver];
+    for (const user of usersToUpdate) {
+      const oldBadges = new Set(user.badges || []);
+      
+      // Increment the permanent swapsCompleted count before calculating badges
+      user.swapsCompleted = (user.swapsCompleted || 0) + 1;
+      
+      const { earnedBadges } = await calculateUserStats(user);
+      const newBadges = new Set(earnedBadges);
+      
+      const newlyEarnedBadges = [...newBadges].filter(badge => !oldBadges.has(badge));
 
-    io.to(proposal.proposer._id.toString()).emit('new_notification', { message: `Your swap with ${proposal.receiver.username} is now complete!` });
-    io.to(proposal.receiver._id.toString()).emit('new_notification', { message: `Your swap with ${proposal.proposer.username} is now complete!` });
+      if (newlyEarnedBadges.length > 0) {
+        user.badges = earnedBadges;
+        
+        newlyEarnedBadges.forEach(badgeName => {
+          const userSocketId = getReceiverSocketId(user._id.toString());
+          if (userSocketId) {
+            io.to(userSocketId).emit('new_notification', { 
+              message: `Congratulations! You've earned the "${badgeName}" badge! 🎉`
+            });
+          }
+        });
+      }
+      // Save the user with the new swap count and any new badges
+      await user.save({ validateBeforeSave: false });
+    }
+    // ------------------------------------
+    
+    const proposerSocketId = getReceiverSocketId(proposal.proposer._id.toString());
+    const receiverSocketId = getReceiverSocketId(proposal.receiver._id.toString());
+
+    if (proposerSocketId) {
+      io.to(proposerSocketId).emit('new_notification', { message: `Your swap with ${proposal.receiver.username} is now complete!` });
+    }
+    if (receiverSocketId) {
+      io.to(receiverSocketId).emit('new_notification', { message: `Your swap with ${proposal.proposer.username} is now complete!` });
+    }
     
   } else {
     const otherUserSocketId = getReceiverSocketId(otherUser._id.toString());
@@ -289,10 +315,9 @@ const completeSwap = asyncHandler(async (req, res) => {
   }
 
   await proposal.save();
+
   return res.status(200).json(new ApiResponse(200, proposal, "Swap completion status updated."));
 });
-
-
 
 
 

@@ -9,7 +9,11 @@ import { toast } from 'react-toastify';
 const StarRating = ({ rating }) => {
   const stars = [];
   for (let i = 1; i <= 5; i++) {
-    stars.push(<span key={i} className={i <= rating ? 'text-yellow-400' : 'text-gray-300'}>★</span>);
+    stars.push(
+      <span key={i} className={i <= rating ? 'text-yellow-400' : 'text-gray-300'}>
+        ★
+      </span>
+    );
   }
   return <div className="flex">{stars}</div>;
 };
@@ -53,32 +57,44 @@ const SingleSkillPage = () => {
     const fetchSkillAndMatches = async () => {
       try {
         setLoading(true);
+        setError('');
 
-        // ✅ Check if not logged in
         if (!isAuthenticated) {
           setError('Please login to view this skill.');
           return;
         }
 
         const response = await apiClient.get(`/skills/${skillId}`);
-        const fetchedSkill = response.data.data;
+        const fetchedSkill = response.data?.data;
+        if (!fetchedSkill) {
+          setError('Skill not found.');
+          return;
+        }
         setSkill(fetchedSkill);
 
-        if (fetchedSkill.ratings && fetchedSkill.ratings.length > 0) {
-          const total = fetchedSkill.ratings.reduce((acc, r) => acc + r.rating, 0);
-          setAvgRating(total / fetchedSkill.ratings.length);
-          const myRating = fetchedSkill.ratings.find((r) => r.user?._id === user?._id);
+        const ratingsArr = fetchedSkill.ratings || [];
+        if (ratingsArr.length > 0) {
+          const total = ratingsArr.reduce((acc, r) => acc + (r?.rating || 0), 0);
+          const avg = total / ratingsArr.length;
+          setAvgRating(Number.isFinite(avg) ? avg : 0);
+          const myRating = ratingsArr.find((r) => r?.user?._id === user?._id);
           if (myRating) setUserRating(myRating.rating);
+          else setUserRating(0);
         } else {
           setAvgRating(0);
           setUserRating(0);
         }
 
-        if (user?._id === fetchedSkill.user._id && fetchedSkill.type === 'REQUEST') {
+        // Only request matches if the owner is viewing their REQUEST
+        if (user?._id === fetchedSkill?.user?._id && fetchedSkill.type === 'REQUEST') {
           const matchesResponse = await apiClient.get(`/skills/${skillId}/matches`);
-          setMatches(matchesResponse.data.data);
+          const fetchedMatches = matchesResponse.data?.data || [];
+          setMatches((fetchedMatches || []).filter(Boolean));
+        } else {
+          setMatches([]);
         }
       } catch (err) {
+        console.error(err);
         setError('Something went wrong while fetching the skill.');
       } finally {
         setLoading(false);
@@ -110,14 +126,19 @@ const SingleSkillPage = () => {
     try {
       await apiClient.post(`/skills/${skillId}/rate`, { rating });
       const response = await apiClient.get(`/skills/${skillId}`);
-      const updatedSkill = response.data.data;
+      const updatedSkill = response.data?.data;
       setSkill(updatedSkill);
 
-      if (updatedSkill.ratings && updatedSkill.ratings.length > 0) {
-        const total = updatedSkill.ratings.reduce((acc, r) => acc + r.rating, 0);
-        setAvgRating(total / updatedSkill.ratings.length);
-        const myRating = updatedSkill.ratings.find((r) => r.user?._id === user?._id);
-        if (myRating) setUserRating(myRating.rating);
+      const ratingsArr = updatedSkill?.ratings || [];
+      if (ratingsArr.length > 0) {
+        const total = ratingsArr.reduce((acc, r) => acc + (r?.rating || 0), 0);
+        const avg = total / ratingsArr.length;
+        setAvgRating(Number.isFinite(avg) ? avg : 0);
+        const myRating = ratingsArr.find((r) => r?.user?._id === user?._id);
+        setUserRating(myRating ? myRating.rating : 0);
+      } else {
+        setAvgRating(0);
+        setUserRating(0);
       }
       toast.success('Your rating has been submitted!');
     } catch (error) {
@@ -130,29 +151,30 @@ const SingleSkillPage = () => {
 
   if (loading) return <p className="text-center p-10">Loading...</p>;
   if (error) {
-  return (
-    <div className="text-center p-10 text-blue-600">
-      <p className="text-xl font-semibold mb-4">{error}</p>
-      <div className="flex justify-center gap-4">
-        <Link
-          to="/login"
-          className="px-6 py-2 bg-indigo-600 text-white font-medium rounded hover:bg-indigo-700 transition"
-        >
-          Login
-        </Link>
-        <Link
-          to="/register"
-          className="px-6 py-2 bg-green-600 text-white font-medium rounded hover:bg-green-700 transition"
-        >
-          Register
-        </Link>
+    return (
+      <div className="text-center p-10 text-blue-600">
+        <p className="text-xl font-semibold mb-4">{error}</p>
+        <div className="flex justify-center gap-4">
+          <Link
+            to="/login"
+            className="px-6 py-2 bg-indigo-600 text-white font-medium rounded hover:bg-indigo-700 transition"
+          >
+            Login
+          </Link>
+          <Link
+            to="/register"
+            className="px-6 py-2 bg-green-600 text-white font-medium rounded hover:bg-green-700 transition"
+          >
+            Register
+          </Link>
+        </div>
       </div>
-    </div>
-  );
-}
+    );
+  }
   if (!skill) return <p className="text-center p-10">Skill not found.</p>;
 
   const skillTypeColor = skill.type === 'OFFER' ? 'text-blue-500' : 'text-green-500';
+  const safeAvg = Number.isFinite(avgRating) ? avgRating.toFixed(1) : '0.0';
 
   return (
     <div className="max-w-4xl mx-auto py-8">
@@ -167,11 +189,11 @@ const SingleSkillPage = () => {
             {skill.category}
           </span>
           <Link
-            to={`/profile/${skill.user.username}`}
+            to={`/profile/${skill.user?.username || ''}`}
             className="text-sm text-gray-600 dark:text-gray-400 hover:underline"
           >
             Posted by:{' '}
-            <span className="font-medium text-indigo-600 dark:text-indigo-400">{skill.user.username}</span>
+            <span className="font-medium text-indigo-600 dark:text-indigo-400">{skill.user?.username || 'Unknown'}</span>
           </Link>
         </div>
 
@@ -195,8 +217,8 @@ const SingleSkillPage = () => {
         <div className="mt-8 border-t dark:border-gray-700 pt-6">
           <h3 className="text-xl font-semibold mb-2">Skill Rating</h3>
           <div className="flex items-center gap-4 mb-4">
-            <p className="font-bold text-lg">{avgRating.toFixed(1)} / 5</p>
-            <p className="text-sm text-gray-500">({skill?.ratings?.length || 0} ratings)</p>
+            <p className="font-bold text-lg">{safeAvg} / 5</p>
+            <p className="text-sm text-gray-500">({(skill?.ratings || []).length} ratings)</p>
           </div>
 
           {isAuthenticated && !isOwner && (
@@ -206,12 +228,12 @@ const SingleSkillPage = () => {
             </div>
           )}
 
-          {skill.ratings && skill.ratings.length > 0 && (
+          {(skill.ratings || []).filter(Boolean).length > 0 && (
             <div className="space-y-2 mt-4">
-              {skill.ratings.map((r) => (
-                <div key={r._id || r.user._id} className="flex items-center justify-between text-sm">
+              {(skill.ratings || []).filter(Boolean).map((r, idx) => (
+                <div key={r._id || r.user?._id || `rating-${idx}`} className="flex items-center justify-between text-sm">
                   <span className="text-gray-600 dark:text-gray-400">{r.user?.username || 'A user'}</span>
-                  <StarRating rating={r.rating} />
+                  <StarRating rating={r?.rating || 0} />
                 </div>
               ))}
             </div>
@@ -242,12 +264,12 @@ const SingleSkillPage = () => {
         </div>
       </div>
 
-      {matches.length > 0 && (
+      {(matches || []).filter(Boolean).length > 0 && (
         <div className="mt-12">
           <h2 className="text-2xl font-bold mb-4">Top Matches For Your Request</h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-            {matches.map((matchSkill) => (
-              <SkillCard key={matchSkill._id} skill={matchSkill} />
+            {(matches || []).filter(Boolean).map((matchSkill) => (
+              <SkillCard key={matchSkill._id || matchSkill?.id} skill={matchSkill} />
             ))}
           </div>
         </div>

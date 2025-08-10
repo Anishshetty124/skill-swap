@@ -8,7 +8,6 @@ import AiChat from '../common/AiChat';
 import { useAuth } from '../../context/AuthContext';
 import { XMarkIcon } from '@heroicons/react/24/solid';
 import FeedbackModal from '../common/FeedbackModal';
-import BadgeNotificationModal from '../common/BadgeNotificationModal';
 import PushNotificationManager from '../common/PushNotificationManager';  // keep this as you had it before
 
 const CustomCloseButton = ({ closeToast }) => (
@@ -18,23 +17,23 @@ const CustomCloseButton = ({ closeToast }) => (
 );
 
 const Layout = () => {
-  const { isAuthenticated, newlyEarnedBadge, clearNewlyEarnedBadge } = useAuth();
+  const { isAuthenticated} = useAuth();
   const [isFeedbackModalOpen, setIsFeedbackModalOpen] = useState(false);
 
   return (
     <div className="flex flex-col min-h-screen bg-slate-100 dark:bg-slate-900 text-slate-800 dark:text-slate-200">
-      <PushNotificationManager /> {/* kept from original */}
+      <PushNotificationManager /> 
 
       <ToastContainer
         position="top-center"
-        autoClose={4000}       // updated from 3000 to 4000 ms
+        autoClose={4000}       
         hideProgressBar={false}
         newestOnTop={false}
         closeOnClick
         rtl={false}
         pauseOnFocusLoss
         draggable
-        draggablePercent={60}  // updated from 30 to 60
+        draggablePercent={40}  
         pauseOnHover
         theme="colored"
         closeButton={CustomCloseButton}
@@ -57,11 +56,6 @@ const Layout = () => {
         onClose={() => setIsFeedbackModalOpen(false)}
       />
 
-      <BadgeNotificationModal
-        isOpen={!!newlyEarnedBadge}
-        badgeName={newlyEarnedBadge}
-        onClose={clearNewlyEarnedBadge}
-      />
     </div>
   );
 };
