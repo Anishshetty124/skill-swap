@@ -238,29 +238,28 @@ const clearConversation = asyncHandler(async (req, res) => {
 
 const reportUser = asyncHandler(async (req, res) => {
     const { userIdToReport } = req.params;
-    const reportingUser = req.user;
 
-    const reportedUser = await User.findById(userIdToReport);
-    if (!reportedUser) {
+    const updatedUser = await User.findByIdAndUpdate(
+        userIdToReport,
+        { $inc: { reportCount: 1 } },
+        { new: true }
+    );
+
+    if (!updatedUser) {
         throw new ApiError(404, "User to report not found.");
     }
 
-    reportedUser.reportCount = (reportedUser.reportCount || 0) + 1;
-    
-    await reportedUser.save({ validateBeforeSave: false });
-
     const reportedUserSocketId = getReceiverSocketId(userIdToReport);
 
-    if (reportedUser.reportCount >= 5) {
-        await reportedUser.deleteOne(); 
+    if (updatedUser.reportCount >= 5) {
+        await updatedUser.deleteOne(); 
         
         if (reportedUserSocketId) {
             io.to(reportedUserSocketId).emit('account_deleted', { message: "Your account has been deleted due to multiple reports of misconduct." });
         }
-        console.log(`User ${reportedUser.username} deleted due to excessive reports.`);
+        console.log(`User ${updatedUser.username} deleted due to excessive reports.`);
 
-    } else if (reportedUser.reportCount >= 2) {
-        // Send a warning notification after the second report
+    } else if (updatedUser.reportCount >= 2) {
         if (reportedUserSocketId) {
             io.to(reportedUserSocketId).emit('new_notification', { message: "Warning: Your account has received multiple reports for inappropriate behavior. Further violations may result in account termination." });
         }

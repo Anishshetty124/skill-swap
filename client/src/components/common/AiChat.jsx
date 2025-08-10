@@ -3,7 +3,7 @@ import {
   PaperAirplaneIcon,
   SparklesIcon,
   XMarkIcon,
-  MicrophoneIcon, // NEW import
+  MicrophoneIcon,
 } from "@heroicons/react/24/solid";
 import apiClient from "../../api/axios";
 import ReactMarkdown from "react-markdown";
@@ -13,14 +13,21 @@ const AiChat = () => {
   const { chatMessages, updateChatMessages } = useAuth();
   const [isOpen, setIsOpen] = useState(false);
   const [input, setInput] = useState("");
+  const inputRef = useRef("");
   const [isLoading, setIsLoading] = useState(false);
   const messagesEndRef = useRef(null);
 
   const [isListening, setIsListening] = useState(false);
   const recognitionRef = useRef(null);
 
+  // Keep inputRef in sync with input state
   useEffect(() => {
-    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    inputRef.current = input;
+  }, [input]);
+
+  useEffect(() => {
+    const SpeechRecognition =
+      window.SpeechRecognition || window.webkitSpeechRecognition;
     if (!SpeechRecognition) {
       console.warn("Speech recognition not supported by this browser.");
       return;
@@ -33,7 +40,10 @@ const AiChat = () => {
 
     recognition.onresult = (event) => {
       const transcript = event.results[0][0].transcript;
-      setInput(transcript); 
+      // Append transcript to current input value from ref
+      setInput((prev) =>
+        (inputRef.current ? inputRef.current + " " : "") + transcript
+      );
       setIsListening(false);
     };
 
@@ -189,7 +199,7 @@ const AiChat = () => {
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 placeholder={isListening ? "Listening..." : "Ask about a skill..."}
-                className="w-full px-4 py-2 dark:text-white text-black bg-slate-100 dark:bg-slate-700 rounded-full focus:outline-none focus:ring-2 focus:ring-accent-500"
+                className="w-full px-4 pr-12 py-2 dark:text-white text-black bg-slate-100 dark:bg-slate-700 rounded-full focus:outline-none focus:ring-2 focus:ring-accent-500"
                 disabled={isLoading}
               />
               {recognitionRef.current && (
@@ -201,7 +211,9 @@ const AiChat = () => {
                   }`}
                   aria-label={isListening ? "Stop Listening" : "Start Listening"}
                 >
-                  <MicrophoneIcon className={`h-6 w-6 ${isListening ? "animate-pulse" : ""}`} />
+                  <MicrophoneIcon
+                    className={`h-6 w-6 ${isListening ? "animate-pulse" : ""}`}
+                  />
                 </button>
               )}
             </div>

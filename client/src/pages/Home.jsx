@@ -1,12 +1,16 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, Suspense } from 'react';
 import apiClient from '../api/axios';
-import SkillCard from '../components/skills/SkillCard';
-import SkillCardSkeleton from '../components/skills/SkillCardSkeleton';
 import { debounce } from 'lodash';
 import { MagnifyingGlassIcon as SearchIcon, UserGroupIcon, ArrowsRightLeftIcon } from '@heroicons/react/24/solid';
 import { Link } from 'react-router-dom';
 import RecommendedSkills from '../components/home/RecommendedSkills';
 import LeaderboardPreview from '../components/home/LeaderboardPreview';
+import { ArrowDownCircleIcon } from 'lucide-react';
+
+const SkillCard = React.lazy(() => import('../components/skills/SkillCard'));
+const SkillCardSkeleton = React.lazy(() => import('../components/skills/SkillCardSkeleton'));
+
+const SKILLS_LIMIT = 6;
 
 const Home = () => {
   const [skills, setSkills] = useState([]);
@@ -25,10 +29,12 @@ const Home = () => {
   const [youtubePlaceholders, setYoutubePlaceholders] = useState([]);
   const [showAllSkills, setShowAllSkills] = useState(false);
   const [searchedKeyword, setSearchedKeyword] = useState('');
-  
+  const [showScrollButton, setShowScrollButton] = useState(false);
+  const skillCategories = useMemo(() => [
+    'Tech', 'Art', 'Music', 'Writing', 'Marketing', 'Language', 'Fitness', 'Cooking', 'Crafts', 'others'
+  ], []);
 
-  const SKILLS_LIMIT = 6;
-
+ 
   const buildQueryString = (pageNum = 1, currentFilters = filters, currentLocQuery = locationQuery) => {
     const params = new URLSearchParams({ page: pageNum, limit: SKILLS_LIMIT });
     if (currentFilters.keywords) params.append('keywords', currentFilters.keywords);
@@ -38,75 +44,115 @@ const Home = () => {
     return params.toString();
   };
 
+
   const fetchSkills = async (pageNum = 1, isNewSearch = false, currentFilters = filters, currentLocQuery = locationQuery) => {
+    setLoading(true);
+    setError('');
     try {
-      setLoading(true);
-      setError('');
       const queryString = buildQueryString(pageNum, currentFilters, currentLocQuery);
       const response = await apiClient.get(`/skills?${queryString}`);
       const newSkills = response.data.data.skills || [];
-      if (isNewSearch) {
-        setSkills(newSkills);
-      } else {
-        setSkills(prevSkills => [...prevSkills, ...newSkills]);
-      }
+      setSkills(isNewSearch ? newSkills : prev => [...prev, ...newSkills]);
       setHasMore(newSkills.length === SKILLS_LIMIT);
-    } catch (err) {
+    } catch {
       setError('Failed to load skills.');
     } finally {
       setLoading(false);
     }
   };
-  
-  const fetchYoutubeVideos = async (keyword) => {
-    if (!keyword) return;
-    setYoutubeLoading(true);
-    setYoutubePlaceholders([]);
-    try {
-      const response = await apiClient.get(`/skills/youtube-tutorials?keyword=${encodeURIComponent(keyword)}`);
-      setYoutubeVideos(response.data.data);
-    } catch (err) {
-      console.error("Failed to fetch YouTube videos", err);
-    } finally {
-      setYoutubeLoading(false);
-    }
-  };
-  
+
+
   const fetchYoutubePlaceholders = async () => {
     try {
-        const response = await apiClient.get('/skills/youtube-placeholders');
-        setYoutubePlaceholders(response.data.data);
-    } catch (error) {
-        console.error("Failed to fetch YouTube placeholders", error);
+      const response = await apiClient.get('/skills/youtube-placeholders');
+      setYoutubePlaceholders(response.data.data);
+    } catch {
+      
     }
-  }
+  };
 
+  // Debounced YouTube fetch
+  const debouncedYoutubeFetch = useCallback(
+    debounce(async (keyword) => {
+      if (!keyword) return setYoutubeVideos([]);
+      setYoutubeLoading(true);
+      try {
+        const response = await apiClient.get(`/skills/youtube-tutorials?keyword=${encodeURIComponent(keyword)}`);
+        setYoutubeVideos(response.data.data);
+      } catch {
+        setYoutubeVideos([]);
+      } finally {
+        setYoutubeLoading(false);
+      }
+    }, 400),
+    []
+  );
+
+  // Initial load: parallelize skills and placeholders
   useEffect(() => {
-    fetchSkills(1, true);
-    fetchYoutubePlaceholders();
+    setLoading(true);
+    Promise.all([
+      fetchSkills(1, true),
+      fetchYoutubePlaceholders()
+    ]).finally(() => setLoading(false));
+    // Cleanup debounce
+    return () => {
+      debouncedKeywordFetch.cancel();
+      debouncedLocationFetch.cancel();
+      debouncedYoutubeFetch.cancel();
+    };
   }, []);
 
-   const handleMainSearch = (e, currentFilters = filters, currentLocQuery = locationQuery) => {
+  // Keyword suggestions
+  const fetchKeywordSuggestions = async (query) => {
+    if (query.length > 1) {
+      const response = await apiClient.get(`/skills/keyword-suggestions?search=${query}`);
+      setKeywordSuggestions(response.data.data);
+    } else {
+      setKeywordSuggestions([]);
+    }
+  };
+
+  // Location suggestions
+  const fetchLocationSuggestions = async (query) => {
+    if (query.length > 1) {
+      const response = await apiClient.get(`/skills/locations?search=${query}`);
+      setLocationSuggestions(response.data.data);
+    } else {
+      setLocationSuggestions([]);
+    }
+  };
+
+  // Debounced fetches
+  const debouncedKeywordFetch = useCallback(debounce(fetchKeywordSuggestions, 300), []);
+  const debouncedLocationFetch = useCallback(debounce(fetchLocationSuggestions, 300), []);
+
+  // Handlers
+  const handleKeywordChange = (e) => {
+    const value = e.target.value;
+    setFilters(prev => ({ ...prev, keywords: value }));
+    debouncedKeywordFetch(value);
+    setSearchedKeyword(value);
+    debouncedYoutubeFetch(value);
+  };
+
+  const handleMainSearch = (e, currentFilters = filters, currentLocQuery = locationQuery) => {
     if (e) e.preventDefault();
     let searchTerms = [];
     if (currentFilters.keywords) searchTerms.push(currentFilters.keywords);
     if (currentFilters.category) searchTerms.push(currentFilters.category);
     if (currentFilters.level) searchTerms.push(currentFilters.level);
     if (currentLocQuery) searchTerms.push(currentLocQuery);
-    const searchTermDisplay = searchTerms.join(', ');
-    
-    setCurrentSearch(searchTermDisplay); 
-    
+    setCurrentSearch(searchTerms.join(', '));
     setPage(1);
     setHasMore(true);
     setSkills([]);
     fetchSkills(1, true, currentFilters, currentLocQuery);
-    
-    setSearchedKeyword(currentFilters.keywords);
-    fetchYoutubeContent(currentFilters.keywords);
-    
     setKeywordSuggestions([]);
     setLocationSuggestions([]);
+    setSearchedKeyword(currentFilters.keywords);
+    debouncedYoutubeFetch(currentFilters.keywords);
+    setShowScrollButton(true);
   };
 
   const handleCitySearch = (e, currentFilters = filters, currentLocQuery = locationQuery) => {
@@ -116,15 +162,11 @@ const Home = () => {
     if (currentFilters.category) searchTerms.push(currentFilters.category);
     if (currentFilters.level) searchTerms.push(currentFilters.level);
     if (currentLocQuery) searchTerms.push(currentLocQuery);
-    const searchTermDisplay = searchTerms.join(', ');
-    
-    setCurrentSearch(searchTermDisplay); 
-    
+    setCurrentSearch(searchTerms.join(', '));
     setPage(1);
     setHasMore(true);
     setSkills([]);
     fetchSkills(1, true, currentFilters, currentLocQuery);
-    
     setLocationSuggestions([]);
   };
 
@@ -138,61 +180,14 @@ const Home = () => {
     setFilters({ keywords: '', category: '', level: '' });
     setSearchedKeyword('');
     handleMainSearch(null, { keywords: '', category: '', level: '' }, locationQuery);
+    setYoutubeVideos([]);
+    setShowScrollButton(false);
   };
 
-   const clearCityFilter = () => {
+  const clearCityFilter = () => {
     setLocationQuery('');
-    setShowCitySearch(false); 
+    setShowCitySearch(false);
     handleCitySearch(null, filters, '');
-  };
-
-  const fetchKeywordSuggestions = async (query) => {
-    if (query.length > 1) {
-      const response = await apiClient.get(`/skills/keyword-suggestions?search=${query}`);
-      setKeywordSuggestions(response.data.data);
-    } else {
-      setKeywordSuggestions([]);
-    }
-  };
-
-  const fetchLocationSuggestions = async (query) => {
-    if (query.length > 1) {
-      const response = await apiClient.get(`/skills/locations?search=${query}`);
-      setLocationSuggestions(response.data.data);
-    } else {
-      setLocationSuggestions([]);
-    }
-  };
-
-  const debouncedKeywordFetch = useCallback(debounce(fetchKeywordSuggestions, 300), []);
-  const debouncedLocationFetch = useCallback(debounce(fetchLocationSuggestions, 300), []);
-
-  const handleKeywordChange = (e) => {
-    const value = e.target.value;
-    setFilters(prev => ({ ...prev, keywords: value }));
-    debouncedKeywordFetch(value);
-  };
-
-   const fetchYoutubeContent = async (keyword = '') => {
-    setYoutubeLoading(true);
-    try {
-      const isAuthenticated = false; 
-      if (keyword) {
-        const response = await apiClient.get(`/skills/youtube-tutorials?keyword=${encodeURIComponent(keyword)}`);
-        console.log("📺 YouTube API response:", response.data); 
-        setYoutubeVideos(response.data.data);
-        setYoutubePlaceholders([]);
-      } else {
-        const endpoint = isAuthenticated ? '/skills/personalized-youtube-placeholders' : '/skills/youtube-placeholders';
-        const response = await apiClient.get(endpoint);
-        setYoutubePlaceholders(response.data.data);
-        setYoutubeVideos([]);
-      }
-    } catch (err) {
-      console.error("Failed to fetch YouTube content", err);
-    } finally {
-      setYoutubeLoading(false);
-    }
   };
 
   const handleLocationInputChange = (e) => {
@@ -201,7 +196,7 @@ const Home = () => {
     debouncedLocationFetch(value);
   };
 
-const handleShowLess = () => {
+  const handleShowLess = () => {
     setPage(1);
     setHasMore(true);
     fetchSkills(1, true, filters, locationQuery);
@@ -210,8 +205,15 @@ const handleShowLess = () => {
       searchResults.scrollIntoView({ behavior: 'smooth' });
     }
   };
-  
-  const skillCategories = ['Tech', 'Art', 'Music', 'Writing', 'Marketing', 'Language', 'Fitness', 'Cooking', 'Crafts','others'];
+
+  const scrollToResults = () => {
+    const resultsSection = document.getElementById('search-results');
+    if (resultsSection) {
+      resultsSection.scrollIntoView({ behavior: 'smooth' });
+    }
+    setShowScrollButton(false); 
+  };
+
   const isAnyFilterActive = filters.keywords || filters.category || filters.level || locationQuery;
   const displayedSkills = showAllSkills ? skills : skills.slice(0, 6);
   const isMainFilterActive = filters.keywords || filters.category || filters.level;
@@ -275,7 +277,9 @@ const handleShowLess = () => {
       >
         Clear
       </button>
+      
     )}
+    
 </div>
       </form>
       
@@ -345,42 +349,42 @@ const handleShowLess = () => {
       {currentSearch && !loading && ( <h2 className="text-2xl font-bold mb-4">Showing results for: <span className="text-blue-600">{currentSearch}</span></h2> )}
       
       
-      {loading && skills.length === 0 ? (
-  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-    {[...Array(6)].map((_, index) => <SkillCardSkeleton key={index} />)}
-  </div>
-) : error ? (
-  <p className="text-center p-10 text-white-500">{error}</p>
-) : skills.length > 0 ? (
-  <>
-    <div id="search-results" className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-      {skills.map((skill) => <SkillCard key={skill._id} skill={skill} />)}
-    </div>
-    
-    {/* Button Logic */}
-    <div className="text-center mt-8">
-      {hasMore ? (
-        <button 
-          onClick={loadMoreSkills} 
-          disabled={loading} 
-          className="px-6 py-2 bg-white dark:bg-slate-700 font-semibold rounded-md disabled:opacity-50"
-        >
-          {loading ? 'Loading...' : 'Load More Skills'}
-        </button>
-      ) : (
-        skills.length > 6 &&
-        <button 
-          onClick={handleShowLess} 
-          className="px-6 py-2 bg-white dark:bg-slate-700 font-semibold rounded-md"
-        >
-          Show Less
-        </button>
-      )}
-    </div>
-  </>
-) : (
-  <p className="text-center p-10 text-slate-500">{currentSearch ? "No skills found." : "No skills posted yet."}</p>
-)}
+      <Suspense fallback={<div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">{[...Array(6)].map((_, i) => <div key={i} className="animate-pulse bg-slate-200 dark:bg-slate-700 h-48 rounded-lg" />)}</div>}>
+        {loading && skills.length === 0 ? (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+            {[...Array(6)].map((_, index) => <SkillCardSkeleton key={index} />)}
+          </div>
+        ) : error ? (
+          <p className="text-center p-10 text-white-500">{error}</p>
+        ) : skills.length > 0 ? (
+          <>
+            <div id="search-results" className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+              {skills.map((skill) => <SkillCard key={skill._id} skill={skill} />)}
+            </div>
+            <div className="text-center mt-8">
+              {hasMore ? (
+                <button
+                  onClick={loadMoreSkills}
+                  disabled={loading}
+                  className="px-6 py-2 bg-white dark:bg-slate-700 font-semibold rounded-md disabled:opacity-50"
+                >
+                  {loading ? 'Loading...' : 'Load More Skills'}
+                </button>
+              ) : (
+                skills.length > 6 &&
+                <button
+                  onClick={handleShowLess}
+                  className="px-6 py-2 bg-white dark:bg-slate-700 font-semibold rounded-md"
+                >
+                  Show Less
+                </button>
+              )}
+            </div>
+          </>
+        ) : (
+          <p className="text-center p-10 text-slate-500">{currentSearch ? "No skills found." : "No skills posted yet."}</p>
+        )}
+      </Suspense>
 
     
       <div className="mt-16 text-center">
@@ -497,6 +501,17 @@ const handleShowLess = () => {
               </div>
           </div>
       </div>
+      {showScrollButton && skills.length > 0 && (
+        <div className="fixed bottom-24 left-1/2 -translate-x-1/2 z-40">
+          <button
+            onClick={scrollToResults}
+            className="p-3 bg-blue-600 text-white rounded-full shadow-lg animate-bounce hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+            title="Scroll to results"
+          >
+            <ArrowDownCircleIcon className="h-8 w-8" />
+          </button>
+        </div>
+      )}
     </div>
   );
 };
