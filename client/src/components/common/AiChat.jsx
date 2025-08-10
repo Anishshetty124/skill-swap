@@ -129,7 +129,7 @@ const AiChat = () => {
 
       {/* Chat Window */}
       {isOpen && (
-        <div className="fixed bottom-24 right-6 w-[90%] max-w-sm h-[70vh] bg-slate-100 border border-slate-200 dark:bg-slate-800 rounded-2xl shadow-2xl flex flex-col z-50">
+        <div className="fixed bottom-24 right-6 w-[90%] max-w-sm h-[70vh] bg-slate-200 border border-slate-200 dark:bg-slate-800 rounded-2xl shadow-2xl flex flex-col z-50">
           {/* Header */}
           <div className="p-4 border-b dark:border-slate-700 flex justify-between items-center">
             <h3 className="font-bold text-lg text-slate-800 dark:text-white px-2 rounded-md">
@@ -169,7 +169,7 @@ const AiChat = () => {
                   className={`prose dark:prose-invert px-4 py-2 rounded-2xl max-w-xs break-words whitespace-pre-wrap overflow-hidden ${
                     msg.sender === "user"
                       ? "bg-blue-500 text-white shadow-md"
-                      : "bg-slate-200 dark:bg-slate-700 shadow-md"
+                      : "bg-purple-400 dark:bg-purple-700 shadow-md"
                   }`}
                 >
                   <div className="break-words whitespace-pre-wrap [&_pre]:break-words [&_pre]:whitespace-pre-wrap [&_pre]:overflow-auto [&_code]:break-words">
@@ -199,7 +199,7 @@ const AiChat = () => {
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 placeholder={isListening ? "Listening..." : "Ask about a skill..."}
-                className="w-full px-4 pr-12 py-2 dark:text-white text-black bg-slate-100 dark:bg-slate-700 rounded-full focus:outline-none focus:ring-2 focus:ring-accent-500"
+                className="w-full px-4 pr-12 py-2 text-gray-900 dark:text-white bg-slate-300 dark:bg-slate-700 rounded-full focus:outline-none focus:ring-2 focus:ring-accent-500"
                 disabled={isLoading}
               />
               {recognitionRef.current && (
