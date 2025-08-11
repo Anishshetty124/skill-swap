@@ -1,10 +1,7 @@
 import React from 'react';
-import { motion } from 'framer-motion'; // Framer Motion is already in your project
+import { motion } from 'framer-motion'; 
 
-/**
- * A full-screen splash/loading component with an animated logo.
- * It's designed to be shown on the initial load of the PWA.
- */
+
 const SplashScreen = () => {
   return (
     <motion.div
@@ -24,7 +21,7 @@ const SplashScreen = () => {
           repeat: Infinity,
         }}
       >
-       <img src="/logo.png" alt="SkillSwap Logo" className="h-25 w-25 rounded-2xl" />
+       <img src="/logo.png" alt="SkillSwap Logo" className="w-23 h-23 md:w-31 md:h-31 rounded-2xl" />
       </motion.div>
       <p className="mt-4 text-lg font-semibold text-slate-300">
         SkillSwap
