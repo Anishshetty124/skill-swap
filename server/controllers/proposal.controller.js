@@ -64,12 +64,11 @@ const createProposal = asyncHandler(async (req, res) => {
   const pushPayload = {
     title: 'New SkillSwap Proposal!',
     body: `You have a new proposal from ${req.user.username}.`,
-    url: '/dashboard'
+     url: `${process.env.FRONTEND_URL}/dashboard` 
   };
   try {
     await sendPushNotification(receiverId, pushPayload);
   } catch (err) {
-    // Optionally log push notification errors
   }
   return res.status(201).json(new ApiResponse(201, proposal, "Proposal sent successfully"));
 });

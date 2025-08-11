@@ -445,7 +445,8 @@ const MessagesPage = () => {
         await apiClient.post(`/messages/report/${selectedConversation._id}`);
         toast.success('User reported. Our team will review the chat history.');
       } catch (error) {
-        toast.error('Failed to report user.');
+       const errorMessage = error.response?.data?.message || 'Failed to report user.';
+       toast.error(errorMessage);
       }
     }
   };

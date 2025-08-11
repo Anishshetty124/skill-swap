@@ -79,11 +79,9 @@ const sendMessage = asyncHandler(async (req, res) => {
         io.to(receiverSocketId).emit("newMessage", newMessage);
     }
 
-    // --- THIS IS THE CORRECTED CODE ---
     const pushPayload = {
         title: `New Message from ${req.user.username}`,
         body: message,
-        // The URL is now an absolute path, which the service worker can open correctly.
         url: `${process.env.FRONTEND_URL}/messages` 
     };
     await sendPushNotification(receiverId, pushPayload);
@@ -233,16 +231,30 @@ const clearConversation = asyncHandler(async (req, res) => {
 
 const reportUser = asyncHandler(async (req, res) => {
     const { userIdToReport } = req.params;
+    const reporterId = req.user._id; 
+
+    if (reporterId.equals(userIdToReport)) {
+        throw new ApiError(400, "You cannot report yourself.");
+    }
+
+    const userToReport = await User.findById(userIdToReport);
+
+    if (!userToReport) {
+        throw new ApiError(404, "User to report not found.");
+    }
+
+    if (userToReport.reportedBy.includes(reporterId)) {
+        throw new ApiError(400, "You have already reported this user.");
+    }
 
     const updatedUser = await User.findByIdAndUpdate(
         userIdToReport,
-        { $inc: { reportCount: 1 } },
+        { 
+            $inc: { reportCount: 1 },
+            $push: { reportedBy: reporterId } 
+        },
         { new: true }
     );
-
-    if (!updatedUser) {
-        throw new ApiError(404, "User to report not found.");
-    }
 
     const reportedUserSocketId = getReceiverSocketId(userIdToReport);
 
@@ -262,6 +274,7 @@ const reportUser = asyncHandler(async (req, res) => {
 
     return res.status(200).json(new ApiResponse(200, {}, "User has been reported."));
 });
+
 
 
 const markAllAsRead = asyncHandler(async (req, res) => {

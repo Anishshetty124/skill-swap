@@ -33,6 +33,10 @@ const userSchema = new mongoose.Schema({
   emailChangeOtp: { type: String },
   emailChangeOtpExpiry: { type: Date },
   reportCount: { type: Number, default: 0 },
+   reportedBy: [{
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "User",
+      }],
   pushSubscription: { type: Object },
   role: { type: String, enum: ['user', 'admin'], default: 'user' },
   profilePicture: { type: String, default: '' },

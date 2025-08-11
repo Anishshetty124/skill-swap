@@ -31,21 +31,16 @@ const PageLoader = ({ text = "Loading page..." }) => (
 );
 
 function App() {
-  // --- THIS IS THE CORRECTED LOGIC ---
-  // Initialize state directly from sessionStorage to prevent flicker on refresh.
   const [isAppLoading, setIsAppLoading] = useState(() => {
-    // If 'hasLoadedBefore' is true, we are not loading. Otherwise, we are.
     return !sessionStorage.getItem('hasLoadedBefore');
   });
 
   useEffect(() => {
-    // This effect now only handles the timer for the very first launch.
     if (isAppLoading) {
       const timer = setTimeout(() => {
         setIsAppLoading(false);
-      }, 2500); // Adjust time as needed
+      }, 2500); 
 
-      // Mark that the app has loaded for this session so the splash doesn't show again.
       sessionStorage.setItem('hasLoadedBefore', 'true');
       
       return () => clearTimeout(timer);
@@ -58,7 +53,6 @@ function App() {
         {isAppLoading && <SplashScreen />}
       </AnimatePresence>
 
-      {/* The rest of the app only renders after the initial load is handled */}
       {!isAppLoading && (
         <Suspense fallback={<PageLoader />}>
           <Routes>

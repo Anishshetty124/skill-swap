@@ -26,8 +26,7 @@ const SplashScreen = () => {
           repeat: Infinity,
         }}
       >
-        {/* Make sure your main logo is available at this path in the /public folder */}
-        <img src="/logo.png" alt="SkillSwap Logo" className="h-24 w-24" />
+       <img src="/logo.png" alt="SkillSwap Logo" className="h-25 w-25 rounded-2xl" />
       </motion.div>
       <p className="mt-4 text-lg font-semibold text-slate-300">
         SkillSwap

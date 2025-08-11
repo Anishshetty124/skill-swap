@@ -4,15 +4,14 @@ import { ApiResponse } from '../utils/ApiResponse.js';
 import { User } from '../models/user.model.js';
 import webpush from 'web-push';
 
-// Configure web-push with your VAPID keys
 webpush.setVapidDetails(
-  'mailto:your-email@example.com', // Replace with your email
+  'mailto:anishshetty124@gmail.com', 
   process.env.VAPID_PUBLIC_KEY,
   process.env.VAPID_PRIVATE_KEY
 );
 
 /**
- * @description Saves a push subscription to the current user's record.
+ * @description Subscribe a user to push notifications
  * @route POST /api/v1/push/subscribe
  * @access Private
  */

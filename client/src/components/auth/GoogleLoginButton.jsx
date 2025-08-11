@@ -3,7 +3,7 @@ import { FaGoogle } from 'react-icons/fa';
 
 const GoogleLoginButton = () => {
   const handleGoogleLogin = () => {
-    window.location.href = `${import.meta.env.VITE_API_BASE_URL}/auth/google`;
+    window.location.href = `${import.meta.env.VITE_API_BASE_URL}/auth/google?prompt=select_account`;
   };
 
   return (

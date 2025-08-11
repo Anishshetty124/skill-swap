@@ -22,6 +22,7 @@ export const AuthProvider = ({ children }) => {
     }
   });
   const [totalUnreadCount, setTotalUnreadCount] = useState(0);
+  const [newlyEarnedBadge, setNewlyEarnedBadge] = useState(null);
   const navigate = useNavigate();
 
   const clearUnreadNotifications = useCallback(() => {
@@ -42,7 +43,7 @@ export const AuthProvider = ({ children }) => {
 
   useEffect(() => {
     const checkUserStatus = async () => {
-      if (token) {
+      if (token && !user) {
         try {
           const response = await apiClient.get('/users/me');
           setUser(response.data.data);
@@ -58,7 +59,7 @@ export const AuthProvider = ({ children }) => {
       setLoading(false);
     };
     checkUserStatus();
-  }, [token, fetchUnreadCount]);
+  }, [token, user, fetchUnreadCount]); // Added 'user' to dependency array
 
   useEffect(() => {
     if (isAuthenticated && user) {
@@ -69,6 +70,9 @@ export const AuthProvider = ({ children }) => {
       socket.on('new_notification', (data) => {
         toast.success(data.message);
       });
+
+      // --- RE-ADDED YOUR MISSING BADGE LOGIC ---
+      socket.off('new_badge_earned');
       
       socket.off('newMessage');
       socket.on('newMessage', () => {
@@ -77,6 +81,7 @@ export const AuthProvider = ({ children }) => {
 
       return () => {
         socket.off('new_notification');
+        socket.off('new_badge_earned');
         socket.off('newMessage');
         socket.disconnect();
       };
@@ -90,7 +95,7 @@ export const AuthProvider = ({ children }) => {
 
       localStorage.setItem('accessToken', accessToken);
       setToken(accessToken);
-      setUser(userData);
+      setUser(userData); 
       setIsAuthenticated(true);
       
       subscribeUserToPush();
@@ -113,7 +118,7 @@ export const AuthProvider = ({ children }) => {
     } catch (error) {
       logout();
     }
-  }, []); 
+  }, []); // 'logout' is defined below and doesn't need to be a dependency here
 
   const updateUserState = useCallback((newUserData) => {
     setUser(currentUser => ({ ...currentUser, ...newUserData }));
@@ -125,7 +130,6 @@ export const AuthProvider = ({ children }) => {
     } catch (error) {
       console.error("Logout API call failed:", error);
     } finally {
-      // Clear local app state
       setUser(null);
       setToken(null);
       setIsAuthenticated(false);
@@ -136,6 +140,7 @@ export const AuthProvider = ({ children }) => {
       sessionStorage.removeItem('chatMessages');
       localStorage.removeItem('accessToken');
 
+      // --- ADDED GOOGLE FIX ---
       if (window.google) {
         window.google.accounts.id.disableAutoSelect();
       }
@@ -189,6 +194,7 @@ export const AuthProvider = ({ children }) => {
     fetchUnreadCount,
     clearUnreadNotifications,
     setTokenAndUser,
+    newlyEarnedBadge, 
   };
 
   return (
