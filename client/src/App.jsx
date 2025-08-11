@@ -1,8 +1,10 @@
-import React, { Suspense, lazy } from 'react';
+import React, { Suspense, lazy, useState, useEffect } from 'react';
 import { Routes, Route } from 'react-router-dom';
 import Layout from './components/layout/Layout';
 import ProtectedRoute from './components/auth/ProtectedRoute';
 import Spinner from './components/common/Spinner';
+import SplashScreen from './components/common/SplashScreen';
+import { AnimatePresence } from 'framer-motion';
 
 // --- LAZY-LOAD ALL MAJOR PAGE COMPONENTS ---
 const Home = lazy(() => import('./pages/Home'));
@@ -21,40 +23,80 @@ const MessagesPage = lazy(() => import('./pages/MessagesPage'));
 const LeaderboardPage = lazy(() => import('./pages/LeaderboardPage'));
 const LuckyRollPage = lazy(() => import('./pages/LuckyRollPage'));
 
-const PageLoader = () => (
+// A reusable loader component for Suspense, now with customizable text
+const PageLoader = ({ text = "Loading page..." }) => (
   <div className="flex justify-center items-center h-screen">
-    <Spinner text="Loading page..." />
+    <Spinner text={text} />
   </div>
 );
 
 function App() {
+  // --- THIS IS THE CORRECTED LOGIC ---
+  // Initialize state directly from sessionStorage to prevent flicker on refresh.
+  const [isAppLoading, setIsAppLoading] = useState(() => {
+    // If 'hasLoadedBefore' is true, we are not loading. Otherwise, we are.
+    return !sessionStorage.getItem('hasLoadedBefore');
+  });
+
+  useEffect(() => {
+    // This effect now only handles the timer for the very first launch.
+    if (isAppLoading) {
+      const timer = setTimeout(() => {
+        setIsAppLoading(false);
+      }, 2500); // Adjust time as needed
+
+      // Mark that the app has loaded for this session so the splash doesn't show again.
+      sessionStorage.setItem('hasLoadedBefore', 'true');
+      
+      return () => clearTimeout(timer);
+    }
+  }, [isAppLoading]);
+
   return (
-    <Suspense fallback={<PageLoader />}>
-      <Routes>
-        <Route path="/" element={<Layout />}>
-          {/* All routes are now lazy-loaded */}
-          <Route index element={<Home />} />
-          <Route path="login" element={<Login />} />
-          <Route path="register" element={<Register />} />
-          <Route path="verify-otp" element={<VerifyOtpPage />} />
-          <Route path="reset-password" element={<ResetPasswordPage />} />
-          <Route path="auth/success" element={<AuthSuccessPage />} />
-          <Route path="skills/:skillId" element={<SingleSkillPage />} />
-          <Route path="profile/:username" element={<ProfilePage />} />
-          <Route path="leaderboard" element={<LeaderboardPage />} />
-          
-          {/* Protected Routes */}
-          <Route element={<ProtectedRoute />}>
-            <Route path="my-skills" element={<MySkillsPage />} />
-            <Route path="skills/new" element={<CreateSkillPage />} />
-            <Route path="dashboard" element={<Dashboard />} />
-            <Route path="messages" element={<MessagesPage />} />
-            <Route path="profile/edit" element={<EditProfilePage />} />
-            <Route path="lucky-roll" element={<LuckyRollPage />} />
-          </Route>
-        </Route>
-      </Routes>
-    </Suspense>
+    <>
+      <AnimatePresence>
+        {isAppLoading && <SplashScreen />}
+      </AnimatePresence>
+
+      {/* The rest of the app only renders after the initial load is handled */}
+      {!isAppLoading && (
+        <Suspense fallback={<PageLoader />}>
+          <Routes>
+            <Route path="/" element={<Layout />}>
+              {/* Public Routes */}
+              <Route index element={<Home />} />
+              <Route path="login" element={<Login />} />
+              <Route path="register" element={<Register />} />
+              <Route path="verify-otp" element={<VerifyOtpPage />} />
+              <Route path="reset-password" element={<ResetPasswordPage />} />
+              
+              <Route 
+                path="auth/success" 
+                element={
+                  <Suspense fallback={<PageLoader text="Logging in..." />}>
+                    <AuthSuccessPage />
+                  </Suspense>
+                } 
+              />
+              
+              <Route path="skills/:skillId" element={<SingleSkillPage />} />
+              <Route path="profile/:username" element={<ProfilePage />} />
+              <Route path="leaderboard" element={<LeaderboardPage />} />
+              
+              {/* Protected Routes */}
+              <Route element={<ProtectedRoute />}>
+                <Route path="my-skills" element={<MySkillsPage />} />
+                <Route path="skills/new" element={<CreateSkillPage />} />
+                <Route path="dashboard" element={<Dashboard />} />
+                <Route path="messages" element={<MessagesPage />} />
+                <Route path="profile/edit" element={<EditProfilePage />} />
+                <Route path="lucky-roll" element={<LuckyRollPage />} />
+              </Route>
+            </Route>
+          </Routes>
+        </Suspense>
+      )}
+    </>
   );
 }
 
