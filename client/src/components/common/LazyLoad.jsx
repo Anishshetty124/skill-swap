@@ -8,15 +8,13 @@ const LazyLoad = ({ children, placeholderHeight = 'h-64' }) => {
   useEffect(() => {
     const observer = new IntersectionObserver(
       ([entry]) => {
-        // When the placeholder is about to enter the viewport,
-        // set isVisible to true to render the actual component.
         if (entry.isIntersecting) {
           setIsVisible(true);
           observer.unobserve(placeholderRef.current);
         }
       },
       {
-        rootMargin: '0px 0px 200px 0px', // Load 200px before it's visible
+        rootMargin: '0px 0px 200px 0px', 
       }
     );
 
@@ -35,7 +33,6 @@ const LazyLoad = ({ children, placeholderHeight = 'h-64' }) => {
     return children;
   }
 
-  // While the component is off-screen, show a simple placeholder
   return (
     <div ref={placeholderRef} className={`w-full flex items-center justify-center bg-slate-100 dark:bg-slate-800 rounded-lg ${placeholderHeight}`}>
       <Spinner text={null} size="sm" />

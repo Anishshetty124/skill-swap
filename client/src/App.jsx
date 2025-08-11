@@ -1,24 +1,25 @@
-import React, { Suspense } from 'react';
+import React, { Suspense, lazy } from 'react';
 import { Routes, Route } from 'react-router-dom';
 import Layout from './components/layout/Layout';
-import Home from './pages/Home';
-import Login from './pages/Login';
-import Register from './pages/Register';
-import SingleSkillPage from './pages/SingleSkillPage';
-import ProfilePage from './pages/ProfilePage';
-import VerifyOtpPage from './pages/VerifyOtpPage';
-import ResetPasswordPage from './pages/ResetPasswordPage';
-import AuthSuccessPage from './pages/AuthSuccessPage';
 import ProtectedRoute from './components/auth/ProtectedRoute';
 import Spinner from './components/common/Spinner';
-import LuckyRollPage from './pages/LuckyRollPage';
 
-const MySkillsPage = React.lazy(() => import('./pages/MySkillsPage'));
-const CreateSkillPage = React.lazy(() => import('./pages/CreateSkillPage'));
-const Dashboard = React.lazy(() => import('./pages/Dashboard'));
-const EditProfilePage = React.lazy(() => import('./pages/EditProfilePage'));
-const MessagesPage = React.lazy(() => import('./pages/MessagesPage'));
-const LeaderboardPage = React.lazy(() => import('./pages/LeaderboardPage'));
+// --- LAZY-LOAD ALL MAJOR PAGE COMPONENTS ---
+const Home = lazy(() => import('./pages/Home'));
+const Login = lazy(() => import('./pages/Login'));
+const Register = lazy(() => import('./pages/Register'));
+const SingleSkillPage = lazy(() => import('./pages/SingleSkillPage'));
+const ProfilePage = lazy(() => import('./pages/ProfilePage'));
+const VerifyOtpPage = lazy(() => import('./pages/VerifyOtpPage'));
+const ResetPasswordPage = lazy(() => import('./pages/ResetPasswordPage'));
+const AuthSuccessPage = lazy(() => import('./pages/AuthSuccessPage'));
+const MySkillsPage = lazy(() => import('./pages/MySkillsPage'));
+const CreateSkillPage = lazy(() => import('./pages/CreateSkillPage'));
+const Dashboard = lazy(() => import('./pages/Dashboard'));
+const EditProfilePage = lazy(() => import('./pages/EditProfilePage'));
+const MessagesPage = lazy(() => import('./pages/MessagesPage'));
+const LeaderboardPage = lazy(() => import('./pages/LeaderboardPage'));
+const LuckyRollPage = lazy(() => import('./pages/LuckyRollPage'));
 
 const PageLoader = () => (
   <div className="flex justify-center items-center h-screen">
@@ -31,7 +32,7 @@ function App() {
     <Suspense fallback={<PageLoader />}>
       <Routes>
         <Route path="/" element={<Layout />}>
-          {/* Public Routes */}
+          {/* All routes are now lazy-loaded */}
           <Route index element={<Home />} />
           <Route path="login" element={<Login />} />
           <Route path="register" element={<Register />} />
@@ -42,7 +43,7 @@ function App() {
           <Route path="profile/:username" element={<ProfilePage />} />
           <Route path="leaderboard" element={<LeaderboardPage />} />
           
-          {/* Protected Routes (these will now be code-split) */}
+          {/* Protected Routes */}
           <Route element={<ProtectedRoute />}>
             <Route path="my-skills" element={<MySkillsPage />} />
             <Route path="skills/new" element={<CreateSkillPage />} />

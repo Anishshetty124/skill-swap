@@ -9,6 +9,7 @@ import { format } from 'date-fns';
 
 import MessagesPageSkeleton from '../components/messages/MessagePageSkeleton';
 
+// Custom hook to handle clicks outside a specified element
 function useOnClickOutside(ref, handler) {
   useEffect(() => {
     const listener = (event) => {
@@ -63,7 +64,7 @@ const ConversationList = ({ conversations, onSelectConversation, selectedConvers
   </div>
 );
 
-const ChatWindow = ({ selectedConversation, onBack, onClearChat, onReportUser,onDeleteConversation }) => {
+const ChatWindow = ({ selectedConversation, onBack, onClearChat, onDeleteConversation, onReportUser }) => {
   const { user } = useAuth();
   const [messages, setMessages] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -75,10 +76,7 @@ const ChatWindow = ({ selectedConversation, onBack, onClearChat, onReportUser,on
   const [selectedMessages, setSelectedMessages] = useState(new Set());
   const menuRef = useRef();
   let pressTimer = useRef();
-  
-  const [popoverId, setPopoverId] = useState(null);
-  const popoverRef = useRef();
-  
+
   useOnClickOutside(menuRef, () => setIsMenuOpen(false));
 
   useEffect(() => {
@@ -87,7 +85,7 @@ const ChatWindow = ({ selectedConversation, onBack, onClearChat, onReportUser,on
 
   useEffect(() => {
     const getMessages = async () => {
-      if (selectedConversation?._id && selectedConversation._id !== 'new') {
+      if (selectedConversation?._id && !selectedConversation._id.startsWith('new-')) {
         setLoading(true);
         try {
           const res = await apiClient.get(`/messages/${selectedConversation._id}`);
@@ -104,6 +102,7 @@ const ChatWindow = ({ selectedConversation, onBack, onClearChat, onReportUser,on
     getMessages();
   }, [selectedConversation]);
 
+  // Efficient socket listener for messages in THIS chat
   useEffect(() => {
     const handleNewMessage = (newMessage) => {
       if (selectedConversation?._id === newMessage.senderId) {
@@ -155,40 +154,39 @@ const ChatWindow = ({ selectedConversation, onBack, onClearChat, onReportUser,on
     }
   };
 
- const handleSubmit = async (e) => {
-  e.preventDefault();
-  if (!newMessage.trim()) return;
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (!newMessage.trim()) return;
 
-  if (!selectedConversation?._id || selectedConversation._id === 'new') {
-    toast.error("Please wait a moment for the chat to be created before sending a message.");
-    return;
-  }
+    if (!selectedConversation?._id || selectedConversation._id.startsWith('new-')) {
+        toast.error("Please wait a moment for the chat to be created before sending a message.");
+        return;
+    }
 
-  const tempId = Date.now();
-  const optimisticMessage = {
-    _id: tempId,
-    senderId: user._id,
-    message: newMessage,
-    createdAt: new Date().toISOString(),
-    status: 'sending',
+    const tempId = Date.now();
+    const optimisticMessage = {
+      _id: tempId,
+      senderId: user._id,
+      message: newMessage,
+      createdAt: new Date().toISOString(),
+      status: 'sending',
+    };
+
+    setMessages(prev => [...prev, optimisticMessage]);
+    setNewMessage("");
+
+    try {
+      const res = await apiClient.post(`/messages/send/${selectedConversation._id}`, { message: newMessage });
+      setMessages(prev =>
+        prev.map(msg => (msg._id === tempId ? { ...res.data.data, status: 'sent' } : msg))
+      );
+    } catch (error) {
+      toast.error(error.response?.data?.message || "Failed to send message.");
+      setMessages(prev =>
+        prev.map(msg => (msg._id === tempId ? { ...msg, status: 'failed' } : msg))
+      );
+    }
   };
-
-  setMessages(prev => [...prev, optimisticMessage]);
-  setNewMessage("");
-
-  try {
-    const res = await apiClient.post(`/messages/send/${selectedConversation._id}`, { message: newMessage });
-    setMessages(prev =>
-      prev.map(msg => (msg._id === tempId ? { ...res.data.data, status: 'sent' } : msg))
-    );
-  } catch (error) {
-    toast.error(error.response?.data?.message || "Failed to send message.");
-    setMessages(prev =>
-      prev.map(msg => (msg._id === tempId ? { ...msg, status: 'failed' } : msg))
-    );
-  }
-};
-
 
   const handleTouchStart = (message) => {
     if (message.senderId !== user._id) return;
@@ -211,7 +209,7 @@ const ChatWindow = ({ selectedConversation, onBack, onClearChat, onReportUser,on
   
   return (
     <div className="flex flex-col h-full bg-slate-50 dark:bg-slate-800">
-      {/* Header (Stays fixed at the top) */}
+      {/* Header */}
       {selectionMode ? (
         <div className="p-4 border-b border-slate-200 dark:border-slate-700 flex justify-between items-center bg-white dark:bg-slate-800 flex-shrink-0">
           <button onClick={() => { setSelectionMode(false); setSelectedMessages(new Set()); }}>
@@ -244,6 +242,7 @@ const ChatWindow = ({ selectedConversation, onBack, onClearChat, onReportUser,on
               {isMenuOpen && (
                   <div className="absolute right-0 mt-2 w-48 bg-white dark:bg-slate-900 rounded-md shadow-lg z-10 border dark:border-slate-700 divide-y dark:divide-slate-700">
                       <button onClick={() => { onClearChat(); setIsMenuOpen(false); }} className="w-full text-left px-4 py-2 text-sm text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800">Clear Chat</button>
+                      {/* --- DELETE CONVERSATION BUTTON RE-ADDED --- */}
                       <button onClick={() => { onDeleteConversation(); setIsMenuOpen(false); }} className="w-full text-left px-4 py-2 text-sm text-red-500 hover:bg-slate-100 dark:hover:bg-slate-800">Delete Conversation</button>
                       <button onClick={() => { onReportUser(); setIsMenuOpen(false); }} className="w-full text-left px-4 py-2 text-sm text-red-500 hover:bg-slate-100 dark:hover:bg-slate-800">Report User</button>
                   </div>
@@ -252,7 +251,7 @@ const ChatWindow = ({ selectedConversation, onBack, onClearChat, onReportUser,on
         </div>
       )}
 
-      {/* Message List (This is now the only scrollable part) */}
+      {/* Message List */}
       <div className="flex-1 p-4 overflow-y-auto">
         {loading && <p className="text-center">Loading messages...</p>}
         {!loading && messages.map(msg => (
@@ -275,7 +274,7 @@ const ChatWindow = ({ selectedConversation, onBack, onClearChat, onReportUser,on
         <div ref={messagesEndRef} />
       </div>
 
-      {/* Input Form (Stays fixed at the bottom) */}
+      {/* Input Form */}
       <form onSubmit={handleSubmit} className="p-4 border-t border-slate-200 dark:border-slate-700 flex items-center gap-2 flex-shrink-0 bg-white dark:bg-slate-800">
         <input 
           type="text" 
@@ -292,6 +291,7 @@ const ChatWindow = ({ selectedConversation, onBack, onClearChat, onReportUser,on
   );
 };
 
+// Main Page Component
 const MessagesPage = () => {
   const [conversations, setConversations] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -316,15 +316,13 @@ const MessagesPage = () => {
         const existingConv = fetchedConversations.find(c => c.participant._id === newChatUser._id);
 
         if (!existingConv) {
-          // Add placeholder if not found
           const newConvPlaceholder = {
-            _id: `new-${newChatUser._id}`, // unique temp id
+            _id: `new-${newChatUser._id}`,
             participant: newChatUser,
+            unreadCount: 0
           };
           fetchedConversations = [newConvPlaceholder, ...fetchedConversations];
         }
-
-        // Select new conversation and clear location state
         setSelectedConversation(newChatUser);
         navigate(location.pathname, { replace: true, state: {} });
       }
@@ -342,23 +340,44 @@ const MessagesPage = () => {
     fetchConversations();
   }, [fetchConversations]);
 
+  // Efficiently update conversation list on new message without full reload
   useEffect(() => {
-    const handleNewMessage = () => {
-      fetchConversations();
+    const handleNewMessageUpdate = (newMessage) => {
+        setConversations(prevConvs => {
+            const convIndex = prevConvs.findIndex(c => c.participant._id === newMessage.senderId);
+            // If the conversation is not in the list, just refetch everything
+            if (convIndex === -1) {
+                fetchConversations();
+                return prevConvs;
+            }
+            // If it is, update it and move it to the top
+            const updatedConv = {
+                ...prevConvs[convIndex],
+                lastMessage: {
+                    message: newMessage.message,
+                    createdAt: newMessage.createdAt,
+                },
+                // Increment unread count only if the chat is not currently selected
+                unreadCount: selectedConversation?._id !== newMessage.senderId 
+                    ? (prevConvs[convIndex].unreadCount || 0) + 1 
+                    : 0,
+            };
+            const otherConvs = prevConvs.filter(c => c.participant._id !== newMessage.senderId);
+            return [updatedConv, ...otherConvs];
+        });
+        fetchUnreadCount();
     };
 
-    socket?.on('newMessage', handleNewMessage);
-
+    socket?.on('newMessage', handleNewMessageUpdate);
     return () => {
-      socket?.off('newMessage', handleNewMessage);
+      socket?.off('newMessage', handleNewMessageUpdate);
     };
-  }, [socket, fetchConversations]);
+  }, [socket, fetchConversations, selectedConversation, fetchUnreadCount]);
+
 
   const handleSelectConversation = useCallback(
-    async (participant, e) => {
-      if (e) e.preventDefault();
+    async (participant) => {
       setSelectedConversation(participant);
-
       const conv = conversations.find(c => c.participant._id === participant._id);
 
       if (conv && conv.unreadCount > 0) {
@@ -379,17 +398,14 @@ const MessagesPage = () => {
   );
 
   const handleClearChat = async () => {
-    if (!selectedConversation || selectedConversation._id === 'new') return;
-    if (
-      window.confirm(
-        'Are you sure you want to clear this entire chat history? This cannot be undone.'
-      )
-    ) {
+    if (!selectedConversation || selectedConversation._id.startsWith('new-')) return;
+    if (window.confirm('Are you sure you want to clear this entire chat history? This cannot be undone.')) {
       try {
         const conv = conversations.find(c => c.participant._id === selectedConversation._id);
         if (conv) {
           await apiClient.delete(`/messages/conversation/${conv._id}`);
-          setSelectedConversation(prev => ({ ...prev }));
+          // Re-trigger message fetch to show empty chat window
+          setSelectedConversation(prev => ({ ...prev })); 
           toast.success('Chat history cleared.');
         }
       } catch (error) {
@@ -398,11 +414,15 @@ const MessagesPage = () => {
     }
   };
  
-   const handleDeleteConversation = async () => {
+  // --- DELETE CONVERSATION HANDLER RE-ADDED ---
+  const handleDeleteConversation = async () => {
     if (!selectedConversation) return;
     
     const conv = conversations.find(c => c.participant._id === selectedConversation._id);
-    if (!conv || conv._id === 'new') return;
+    if (!conv || conv._id.startsWith('new-')) {
+        toast.error("Cannot delete a conversation that hasn't started.");
+        return;
+    }
 
     if (window.confirm("Are you sure you want to permanently delete this entire conversation? This cannot be undone.")) {
         try {
@@ -411,7 +431,6 @@ const MessagesPage = () => {
             setConversations(prev => prev.filter(c => c._id !== conv._id));
             setSelectedConversation(null); 
             fetchUnreadCount();
-
             toast.success("Conversation deleted.");
         } catch (error) {
             toast.error("Failed to delete conversation.");
@@ -421,11 +440,7 @@ const MessagesPage = () => {
 
   const handleReportUser = async () => {
     if (!selectedConversation) return;
-    if (
-      window.confirm(
-        `Are you sure you want to report ${selectedConversation.username} for inappropriate behavior?`
-      )
-    ) {
+    if (window.confirm(`Are you sure you want to report ${selectedConversation.username} for inappropriate behavior?`)) {
       try {
         await apiClient.post(`/messages/report/${selectedConversation._id}`);
         toast.success('User reported. Our team will review the chat history.');
@@ -455,7 +470,7 @@ const MessagesPage = () => {
             selectedConversation={selectedConversation}
             onBack={() => setSelectedConversation(null)}
             onClearChat={handleClearChat}
-            onDeleteConversation={handleDeleteConversation}
+            onDeleteConversation={handleDeleteConversation} // Prop re-added
             onReportUser={handleReportUser}
           />
         ) : (
@@ -482,7 +497,5 @@ const MessagesPage = () => {
     </div>
   );
 };
-
-
 
 export default MessagesPage;

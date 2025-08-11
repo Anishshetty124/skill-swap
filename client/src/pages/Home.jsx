@@ -89,22 +89,18 @@ const Home = () => {
     []
   );
 
-  // Initial load: parallelize skills and placeholders
   useEffect(() => {
-    setLoading(true);
-    Promise.all([
-      fetchSkills(1, true),
-      fetchYoutubePlaceholders()
-    ]).finally(() => setLoading(false));
-    // Cleanup debounce
-    return () => {
-      debouncedKeywordFetch.cancel();
-      debouncedLocationFetch.cancel();
-      debouncedYoutubeFetch.cancel();
-    };
-  }, []);
+  fetchSkills(1, true); 
 
-  // Keyword suggestions
+  fetchYoutubePlaceholders();
+
+  return () => {
+    debouncedKeywordFetch.cancel();
+    debouncedLocationFetch.cancel();
+    debouncedYoutubeFetch.cancel();
+  };
+}, []);
+
   const fetchKeywordSuggestions = async (query) => {
     if (query.length > 1) {
       const response = await apiClient.get(`/skills/keyword-suggestions?search=${query}`);
@@ -495,6 +491,7 @@ const Home = () => {
                     src={video.snippet.thumbnails.high.url}
                     alt={video.snippet.title}
                     className="w-full h-48 object-cover"
+                    loading="lazy"
                   />
                   <div className="p-4">
                     <h3 className="font-bold text-slate-800 dark:text-white group-hover:text-accent-500">

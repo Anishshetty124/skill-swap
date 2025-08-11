@@ -13,6 +13,15 @@ export default {
           '600': '#2563eb', 
         }
       },
+      keyframes: {
+        wave: {
+          '0%, 40%, 100%': { transform: 'translateY(0)' },
+          '20%': { transform: 'translateY(-8px)' },
+        },
+      },
+      animation: {
+        wave: 'wave 1.2s linear infinite',
+      },
     },
   },
   plugins: [],

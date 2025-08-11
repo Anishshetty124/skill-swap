@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { io } from 'socket.io-client';
 import { toast } from 'react-toastify'; 
 import apiClient from '../api/axios';
-import { subscribeUserToPush } from '../push-notifications'; // 👈 New import
+import { subscribeUserToPush } from '../push-notifications';
 
 const AuthContext = createContext(null);
 
@@ -22,7 +22,6 @@ export const AuthProvider = ({ children }) => {
     }
   });
   const [totalUnreadCount, setTotalUnreadCount] = useState(0);
-  const [newlyEarnedBadge, setNewlyEarnedBadge] = useState(null);
   const navigate = useNavigate();
 
   const clearUnreadNotifications = useCallback(() => {
@@ -70,9 +69,7 @@ export const AuthProvider = ({ children }) => {
       socket.on('new_notification', (data) => {
         toast.success(data.message);
       });
-
-      socket.off('new_badge_earned');
-    
+      
       socket.off('newMessage');
       socket.on('newMessage', () => {
         fetchUnreadCount();
@@ -86,8 +83,6 @@ export const AuthProvider = ({ children }) => {
     }
   }, [isAuthenticated, user, fetchUnreadCount]);
 
-  
-
   const login = useCallback(async (credentials) => {
     try {
       const response = await apiClient.post('/users/login', credentials);
@@ -97,8 +92,7 @@ export const AuthProvider = ({ children }) => {
       setToken(accessToken);
       setUser(userData);
       setIsAuthenticated(true);
-
-      // --- NEW: Subscribe to push notifications on login ---
+      
       subscribeUserToPush();
 
       navigate('/');
@@ -119,7 +113,7 @@ export const AuthProvider = ({ children }) => {
     } catch (error) {
       logout();
     }
-  }, []);
+  }, []); 
 
   const updateUserState = useCallback((newUserData) => {
     setUser(currentUser => ({ ...currentUser, ...newUserData }));
@@ -129,16 +123,23 @@ export const AuthProvider = ({ children }) => {
     try {
       await apiClient.post('/users/logout');
     } catch (error) {
-      console.error("Logout failed:", error);
+      console.error("Logout API call failed:", error);
     } finally {
+      // Clear local app state
       setUser(null);
       setToken(null);
       setIsAuthenticated(false);
       setBookmarks([]);
       setChatMessages([]);
-      sessionStorage.removeItem('chatMessages');
       setTotalUnreadCount(0);
+      
+      sessionStorage.removeItem('chatMessages');
       localStorage.removeItem('accessToken');
+
+      if (window.google) {
+        window.google.accounts.id.disableAutoSelect();
+      }
+
       navigate('/login');
     }
   }, [navigate]);

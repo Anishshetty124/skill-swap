@@ -13,35 +13,35 @@ profanity.add(profanity.getDictionary('hi'));
 profanity.add(profanity.getDictionary('kn'));
 
 const getMessages = asyncHandler(async (req, res) => {
-	const { id: userToChatId } = req.params;
-	const senderId = req.user._id;
+    const { id: userToChatId } = req.params;
+    const senderId = req.user._id;
 
-	const conversation = await Conversation.findOne({
-		participants: { $all: [senderId, userToChatId] },
-	}).populate("messages");
+    const conversation = await Conversation.findOne({
+        participants: { $all: [senderId, userToChatId] },
+    }).populate("messages");
 
-	if (!conversation) {
-		return res.status(200).json(new ApiResponse(200, [], "No messages found"));
-	}
+    if (!conversation) {
+        return res.status(200).json(new ApiResponse(200, [], "No messages found"));
+    }
 
-	const messages = conversation.messages;
+    const messages = conversation.messages;
 
-	res.status(200).json(new ApiResponse(200, messages, "Messages fetched successfully"));
+    res.status(200).json(new ApiResponse(200, messages, "Messages fetched successfully"));
 });
 
 
 const sendMessage = asyncHandler(async (req, res) => {
-	const { message } = req.body;
-	const { id: receiverId } = req.params;
-	const senderId = req.user._id;
+    const { message } = req.body;
+    const { id: receiverId } = req.params;
+    const senderId = req.user._id;
 
     if (profanity.check(message)) {
         throw new ApiError(400, "Message contains inappropriate language.");
     }
 
-	let conversation = await Conversation.findOne({
-		participants: { $all: [senderId, receiverId] },
-	});
+    let conversation = await Conversation.findOne({
+        participants: { $all: [senderId, receiverId] },
+    });
 
     if (!conversation) {
         const acceptedProposal = await Proposal.findOne({
@@ -55,38 +55,40 @@ const sendMessage = asyncHandler(async (req, res) => {
             throw new ApiError(403, "You can only chat with users you have an accepted swap with.");
         }
 
-		conversation = await Conversation.create({
-			participants: [senderId, receiverId],
-		});
-	}
+        conversation = await Conversation.create({
+            participants: [senderId, receiverId],
+        });
+    }
 
-	const newMessage = new Message({
+    const newMessage = new Message({
         senderId,
         receiverId,
         message,
         conversationId: conversation._id
     });
-	
+    
     if (newMessage) {
-		conversation.messages.push(newMessage._id);
+        conversation.messages.push(newMessage._id);
         conversation.lastMessage = newMessage._id;
-	}
+    }
 
-	await Promise.all([conversation.save(), newMessage.save()]);
+    await Promise.all([conversation.save(), newMessage.save()]);
 
-	const receiverSocketId = getReceiverSocketId(receiverId);
-	if (receiverSocketId) {
-		io.to(receiverSocketId).emit("newMessage", newMessage);
-	}
+    const receiverSocketId = getReceiverSocketId(receiverId);
+    if (receiverSocketId) {
+        io.to(receiverSocketId).emit("newMessage", newMessage);
+    }
 
-  const pushPayload = {
-    title: `New Message from ${req.user.username}`,
-    body: message,
-    url: '/messages'
-  };
-  await sendPushNotification(receiverId, pushPayload);
+    // --- THIS IS THE CORRECTED CODE ---
+    const pushPayload = {
+        title: `New Message from ${req.user.username}`,
+        body: message,
+        // The URL is now an absolute path, which the service worker can open correctly.
+        url: `${process.env.FRONTEND_URL}/messages` 
+    };
+    await sendPushNotification(receiverId, pushPayload);
 
-	res.status(201).json(new ApiResponse(201, newMessage, "Message sent successfully"));
+    res.status(201).json(new ApiResponse(201, newMessage, "Message sent successfully"));
 });
 
 
@@ -94,10 +96,8 @@ const getConversations = asyncHandler(async (req, res) => {
     const loggedInUserId = req.user._id;
 
     const conversations = await Conversation.aggregate([
-        // Stage 1: Find all conversations the current user is a part of
         { $match: { participants: loggedInUserId } },
 
-        // Stage 2: Get the details of the other participant
         {
             $lookup: {
                 from: 'users',
@@ -107,7 +107,6 @@ const getConversations = asyncHandler(async (req, res) => {
             }
         },
 
-        // Stage 3: Get the details of the last message
         {
             $lookup: {
                 from: 'messages',
@@ -117,7 +116,6 @@ const getConversations = asyncHandler(async (req, res) => {
             }
         },
 
-        // Stage 4: Reshape the data for the frontend
         {
             $project: {
                 _id: 1,
@@ -138,7 +136,6 @@ const getConversations = asyncHandler(async (req, res) => {
             }
         },
 
-        // Stage 5: Calculate the unread count for each conversation
         {
             $lookup: {
                 from: 'messages',
@@ -162,7 +159,6 @@ const getConversations = asyncHandler(async (req, res) => {
             }
         },
 
-        // Stage 6: Final formatting
         {
             $project: {
                 _id: 1,
@@ -179,7 +175,6 @@ const getConversations = asyncHandler(async (req, res) => {
             }
         },
 
-        // Stage 7: Sort by the most recent conversation
         { $sort: { updatedAt: -1 } }
     ]);
 
@@ -208,9 +203,9 @@ const deleteMessage = asyncHandler(async (req, res) => {
 
     const otherParticipantId = conversation.participants.find(p => !p.equals(userId)).toString();
     const receiverSocketId = getReceiverSocketId(otherParticipantId);
-	if (receiverSocketId) {
-		io.to(receiverSocketId).emit("messageDeleted", { messageId, conversationId: conversation._id });
-	}
+    if (receiverSocketId) {
+        io.to(receiverSocketId).emit("messageDeleted", { messageId, conversationId: conversation._id });
+    }
 
     res.status(200).json(new ApiResponse(200, {}, "Message deleted successfully"));
 });
