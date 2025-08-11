@@ -92,7 +92,7 @@ const CreateSkillPage = () => {
         </div>
         
         <div>
-          <label className="block text-sm font-medium mb-1">Title</label>
+          <label htmlFor="title" className="block text-sm font-medium mb-1">Title</label>
           <input type="text" name="title" value={formData.title} onChange={handleChange} required className="w-full px-3 py-2 mt-1 bg-white dark:bg-slate-700 rounded-md"/>
         </div>
 

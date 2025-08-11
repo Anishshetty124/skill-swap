@@ -7,7 +7,7 @@ A feature-rich, full-stack web application built on the MERN stack where users t
 
 -----
 
-### **Live Demo:** [**skillswap-demo.netlify.app**](https://skillswap-demo.netlify.app)
+Live website Link: skilswap.netlify.app
 
 SkillSwap is an innovative, full-stack web application built with the MERN stack (MongoDB, Express.js, React.js, Node.js). It functions as a dynamic marketplace that empowers users to exchange their skills and knowledge through a unique virtual credit system, fostering a vibrant community of collaborative learning and mutual growth.
 
@@ -326,7 +326,7 @@ You should now be able to access the SkillSwap application in your browser at `h
 | `CLOUDINARY_CLOUD_NAME`| Your Cloudinary cloud name. | `your-cloud-name` |
 | `CLOUDINARY_API_KEY`| Your Cloudinary API key. | `1234567890` |
 | `CLOUDINARY_API_SECRET`| Your Cloudinary API secret. | `a-b-c-d-e-f` |
-| `GOOGLE_API_KEY` | Your API key from Google AI Studio. | `AIzaSy...` |
+| `GOOGLE_API_KEYs` | Your API key from Google AI Studio. | `AIzaSy...` |
 
 ##### Client (`/client/.env`)
 
@@ -365,7 +365,7 @@ The React client is a static application and can be deployed to services like **
       * **Build command:** `npm run build`
       * **Publish directory:** `client/dist`
 5.  **Add your production environment variable:**
-      * `VITE_API_BASE_URL` = The live URL of your deployed backend (e.g., `https://skillswap-backend.onrender.com/api/v1`).
+      * `VITE_API_BASE_URL` = https://skillswap-production-32b3.up.railway.app
 6.  **Deploy\!** Netlify will build your React app and deploy the static files globally.
 
 
@@ -378,104 +378,5 @@ Distributed under the MIT License. See `LICENSE` file for more information.
 ### 📞 Contact
 anish shetty - anishshetty124@gmail.com
 
-Project Link: [https://github.com/your-username/skillswap](https://www.google.com/search?q=https://github.com/your-username/skillswap)
+Project Link: https://github.com/Anishshetty124/skillswap.git
 
-
-
-detailed folder structure:
-
-
-skillswap/
-├── client/
-│   ├── public/
-│   │   └── vite.svg
-│   ├── src/
-│   │   ├── api/
-│   │   │   └── axios.js
-│   │   ├── assets/
-│   │   │   └── (images, fonts, etc.)
-│   │   ├── components/
-│   │   │   ├── auth/
-│   │   │   │   └── ProtectedRoute.jsx
-│   │   │   ├── common/
-│   │   │   │   └── AiChat.jsx
-│   │   │   ├── dashboard/
-│   │   │   │   ├── ProposalCard.jsx
-│   │   │   │   └── ShareContactModal.jsx
-│   │   │   ├── layout/
-│   │   │   │   ├── Footer.jsx
-│   │   │   │   ├── Layout.jsx
-│   │   │   │   └── Navbar.jsx
-│   │   │   ├── profile/
-│   │   │   │   ├── Badge.jsx
-│   │   │   │   ├── ResetPasswordModal.jsx
-│   │   │   │   └── UpdateEmailModal.jsx
-│   │   │   ├── proposals/
-│   │   │   │   └── ProposalModal.jsx
-│   │   │   └── skills/
-│   │   │       ├── SkillCard.jsx
-│   │   │       └── SkillCardSkeleton.jsx
-│   │   ├── context/
-│   │   │   ├── AuthContext.jsx
-│   │   │   ├── SocketContext.jsx
-│   │   │   └── ThemeContext.jsx
-│   │   ├── pages/
-│   │   │   ├── ChatPage.jsx
-│   │   │   ├── CreateSkillPage.jsx
-│   │   │   ├── Dashboard.jsx
-│   │   │   ├── EditProfilePage.jsx
-│   │   │   ├── Home.jsx
-│   │   │   ├── Login.jsx
-│   │   │   ├── MessagesPage.jsx
-│   │   │   ├── MySkillsPage.jsx
-│   │   │   ├── ProfilePage.jsx
-│   │   │   ├── Register.jsx
-│   │   │   ├── ResetPasswordPage.jsx
-│   │   │   ├── SingleSkillPage.jsx
-│   │   │   └── VerifyOtpPage.jsx
-│   │   ├── App.jsx
-│   │   ├── index.css
-│   │   └── main.jsx
-│   ├── .env
-│   ├── .env.production
-│   ├── .eslintrc.cjs
-│   ├── .gitignore
-│   ├── index.html
-│   ├── package.json
-│   ├── postcss.config.js
-│   └── tailwind.config.js
-│
-└── server/
-    ├── config/
-    │   └── db.js
-    ├── controllers/
-    │   ├── message.controller.js
-    │   ├── proposal.controller.js
-    │   ├── skill.controller.js
-    │   └── user.controller.js
-    ├── middlewares/
-    │   └── auth.middleware.js
-    ├── models/
-    │   ├── conversation.model.js
-    │   ├── message.model.js
-    │   ├── proposal.model.js
-    │   ├── skill.model.js
-    │   └── user.model.js
-    ├── routes/
-    │   ├── message.routes.js
-    │   ├── proposal.routes.js
-    │   ├── skill.routes.js
-    │   └── user.routes.js
-    ├── socket/
-    │   └── socket.js
-    ├── utils/
-    │   ├── asyncHandler.js
-    │   ├── ApiError.js
-    │   ├── ApiResponse.js
-    │   ├── badgeManager.js
-    │   └── cronJobs.js
-    ├── .env
-    ├── .gitignore
-    ├── package.json
-    ├── seed.js
-    └── server.js

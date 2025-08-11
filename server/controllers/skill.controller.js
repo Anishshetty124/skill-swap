@@ -26,30 +26,23 @@ const generateTags = (text) => {
 };
 
 const createSkill = asyncHandler(async (req, res) => {
-  const { title, description, category, level, costInCredits, creditsOffered, type, tags } = req.body;
+  const { title, description, category, level, costInCredits, creditsOffered, type } = req.body;
   const userId = req.user._id;
 
   if (!title || !description || !category || !level || !type) {
-    throw new ApiError(400, "title, description, category, level, and type are required.");
+    throw new ApiError(400, "All required fields must be filled out.");
   }
-
-  const genAI = new GoogleGenerativeAI(process.env.GOOGLE_API_KEY);
-  const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
 
   const validationPrompt = `
     Analyze the following skill title and description.
     Is this a legitimate, safe-for-work, learnable skill or topic?
-    It must not be abusive, hateful, dangerous, or completely nonsensical (like "hgjbhgyugvh").
     Title: "${title}"
     Description: "${description}"
-    Respond with only the word "YES" if it is a valid skill, and only "NO" if it is not.
+    Respond with only "YES" or "NO".
   `;
-
   try {
-    const validationResult = await model.generateContent(validationPrompt);
-    const validationResponse = await validationResult.response;
-    const decision = validationResponse.text().trim().toUpperCase();
-
+    const validationText = await callGeminiWithFallback({ prompt: validationPrompt, context: 'generate' });
+    const decision = validationText.trim().toUpperCase();
     if (decision !== 'YES') {
       throw new ApiError(400, "This does not appear to be a valid skill. Please try a different topic.");
     }
@@ -58,6 +51,9 @@ const createSkill = asyncHandler(async (req, res) => {
     if (error instanceof ApiError) throw error;
     throw new ApiError(500, "Could not validate the skill topic at this time.");
   }
+
+  const combinedTextForTags = `${title} ${description}`;
+  const generatedTags = generateTags(combinedTextForTags);
 
   const skill = await Skill.create({
     user: userId,
@@ -68,7 +64,7 @@ const createSkill = asyncHandler(async (req, res) => {
     costInCredits: type === 'OFFER' ? costInCredits : undefined,
     creditsOffered: type === 'REQUEST' ? creditsOffered : undefined,
     type,
-    tags,
+    tags: generatedTags,
   });
 
   if (skill.type === 'OFFER') {
