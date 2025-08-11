@@ -71,7 +71,6 @@ export const AuthProvider = ({ children }) => {
         toast.success(data.message);
       });
 
-      // --- RE-ADDED YOUR MISSING BADGE LOGIC ---
       socket.off('new_badge_earned');
       
       socket.off('newMessage');
@@ -118,7 +117,7 @@ export const AuthProvider = ({ children }) => {
     } catch (error) {
       logout();
     }
-  }, []); // 'logout' is defined below and doesn't need to be a dependency here
+  }, []); 
 
   const updateUserState = useCallback((newUserData) => {
     setUser(currentUser => ({ ...currentUser, ...newUserData }));
@@ -140,7 +139,6 @@ export const AuthProvider = ({ children }) => {
       sessionStorage.removeItem('chatMessages');
       localStorage.removeItem('accessToken');
 
-      // --- ADDED GOOGLE FIX ---
       if (window.google) {
         window.google.accounts.id.disableAutoSelect();
       }

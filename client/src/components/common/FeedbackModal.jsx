@@ -19,7 +19,7 @@ const FeedbackModal = ({ isOpen, onClose }) => {
       const response = await apiClient.post('/feedback', { feedbackType, message });
       toast.success(response.data.message);
       setMessage('');
-      onClose(); // Close the modal on success
+      onClose(); 
     } catch (error) {
       toast.error(error.response?.data?.message || "Failed to send feedback.");
     } finally {

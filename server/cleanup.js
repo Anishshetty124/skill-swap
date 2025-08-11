@@ -34,7 +34,6 @@ const cleanupDuplicateConversations = async () => {
     let deletedCount = 0;
 
     for (const group of duplicates) {
-      // Keep the first document, delete the rest
       const [firstDoc, ...docsToDelete] = group.docs;
       const result = await Conversation.deleteMany({ _id: { $in: docsToDelete } });
       deletedCount += result.deletedCount;

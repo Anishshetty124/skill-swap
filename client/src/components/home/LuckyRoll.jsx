@@ -4,37 +4,25 @@ import { useAuth } from "../../context/AuthContext";
 import { toast } from "react-toastify";
 import { motion, AnimatePresence } from "framer-motion";
 import Confetti from "react-confetti";
+import { Star } from "lucide-react"; 
 
 const segments = 6;
 const segmentAngle = 360 / segments;
-const radius = 150;
-const center = radius + 10; // add some padding
+const prizes = [3, 6, 4, 9, 8, 12]; 
+const colors = ["#4f46e5", "#3b82f6", "#0ea5e9", "#10b981", "#f59e0b", "#ef4444"]; 
 
-// Helper to create arc path for segments
 function describeArc(x, y, radius, startAngle, endAngle) {
   const start = polarToCartesian(x, y, radius, endAngle);
   const end = polarToCartesian(x, y, radius, startAngle);
   const largeArcFlag = endAngle - startAngle <= 180 ? "0" : "1";
   return [
-    "M",
-    x,
-    y,
-    "L",
-    start.x,
-    start.y,
-    "A",
-    radius,
-    radius,
-    0,
-    largeArcFlag,
-    0,
-    end.x,
-    end.y,
+    "M", x, y,
+    "L", start.x, start.y,
+    "A", radius, radius, 0, largeArcFlag, 0, end.x, end.y,
     "Z",
   ].join(" ");
 }
 
-// Convert polar coords to Cartesian
 function polarToCartesian(centerX, centerY, radius, angleInDegrees) {
   const angleInRadians = ((angleInDegrees - 90) * Math.PI) / 180.0;
   return {
@@ -43,84 +31,61 @@ function polarToCartesian(centerX, centerY, radius, angleInDegrees) {
   };
 }
 
-const colors = [
-  "#3b82f6",
-  "#60a5fa",
-  "#2563eb",
-  "#3b82f6",
-  "#60a5fa",
-  "#2563eb",
-];
-
 const SpinWheel = ({ prizeIndex, isSpinning }) => {
-  const spins = 5;
+  const spins = 8; 
   const segmentCenterAngle = prizeIndex * segmentAngle + segmentAngle / 2;
   const finalRotation = spins * 360 - segmentCenterAngle;
+  const center = 160;
 
   return (
     <div className="relative w-[320px] h-[320px] mx-auto">
-      {/* Pointer */}
-      <div
-        style={{
-          position: "absolute",
-          top: 0,
-          left: "50%",
-          transform: "translateX(-50%) rotate(180deg)",
-          width: 0,
-          height: 0,
-          borderLeft: "20px solid transparent",
-          borderRight: "20px solid transparent",
-          borderBottom: "40px solid #2563eb",
-          filter: "drop-shadow(0 0 3px rgba(0,0,0,0.3))",
-          zIndex: 10,
-        }}
-      />
+      {/* Stylish 3D Pointer */}
+    <div className="absolute top-[-10px] left-1/2 -translate-x-1/2 z-20" style={{ filter: "drop-shadow(0 -4px 3px rgba(0,0,0,0.3))" }}>
+  <div className="w-4 h-4 bg-yellow-400 rounded-full absolute bottom-[28px] left-1/2 -translate-x-1/2 border-2 border-white"></div>
+  <div className="w-0 h-0 border-l-[18px] border-l-transparent border-r-[18px] border-r-transparent border-t-[30px] border-t-yellow-400"></div>
+</div>
 
-      <motion.svg
-        width={center * 2}
-        height={center * 2}
-        viewBox={`0 0 ${center * 2} ${center * 2}`}
-        style={{ cursor: isSpinning ? "wait" : "pointer" }}
+      <motion.div
+        className="w-full h-full"
         animate={{ rotate: isSpinning ? finalRotation : 0 }}
-        transition={{ duration: isSpinning ? 4 : 0, ease: "easeOut" }}
+        transition={{ duration: isSpinning ? 5 : 0, ease: "easeOut" }}
       >
-        {/* Draw segments */}
-        {[...Array(segments)].map((_, i) => {
-          const startAngle = i * segmentAngle;
-          const endAngle = startAngle + segmentAngle;
-          const path = describeArc(center, center, radius, startAngle, endAngle);
-          // Calculate text position (mid-angle of segment)
-          const textAngle = startAngle + segmentAngle / 2;
-          const textPos = polarToCartesian(
-            center,
-            center,
-            radius * 0.65,
-            textAngle
-          );
-          return (
-            <g key={i}>
-              <path d={path} fill={colors[i % colors.length]} stroke="white" strokeWidth="2" />
-              <text
-                x={textPos.x}
-                y={textPos.y}
-                fill="white"
-                fontSize="28"
-                fontWeight="bold"
-                dominantBaseline="middle"
-                textAnchor="middle"
-                style={{ userSelect: "none", pointerEvents: "none" }}
-              >
-                {i + 1}
-              </text>
-            </g>
-          );
-        })}
-        {/* Circle center to cover pointer base */}
-        <circle cx={center} cy={center} r={30} fill="#2563eb" />
-      </motion.svg>
+        <svg width="320" height="320" viewBox="0 0 320 320" className="drop-shadow-2xl">
+          <g>
+            {[...Array(segments)].map((_, i) => {
+              const startAngle = i * segmentAngle;
+              const endAngle = startAngle + segmentAngle;
+              const path = describeArc(center, center, 150, startAngle, endAngle);
+              const textAngle = startAngle + segmentAngle / 2;
+              const textPos = polarToCartesian(center, center, 110, textAngle);
+              return (
+                <g key={i}>
+                  <path d={path} fill={colors[i]} stroke="#ffffff" strokeWidth="4" />
+                  <text
+                    x={textPos.x}
+                    y={textPos.y}
+                    fill="white"
+                    fontSize="24"
+                    fontWeight="bold"
+                    dominantBaseline="middle"
+                    textAnchor="middle"
+                    transform={`rotate(${textAngle}, ${textPos.x}, ${textPos.y})`}
+                    style={{ userSelect: "none", pointerEvents: "none" }}
+                  >
+                    {prizes[i]}
+                  </text>
+                </g>
+              );
+            })}
+            <circle cx={center} cy={center} r="40" fill="#ffffff" stroke="#e5e7eb" strokeWidth="6" />
+            <Star size={40} color="#f59e0b" style={{ transform: 'translate(140px, 140px)' }} />
+          </g>
+        </svg>
+      </motion.div>
     </div>
   );
 };
+
 
 const LuckyRoll = () => {
   const { user, updateUserState } = useAuth();
@@ -190,7 +155,7 @@ const LuckyRoll = () => {
     try {
       const response = await apiClient.post("/rewards/claim");
       const earnedPrizeIndex = response.data.data.prize;
-      const earnedPrizeValue = earnedPrizeIndex + 1;
+      const earnedPrizeValue = prizes[earnedPrizeIndex]; 
 
       setPrizeIndex(earnedPrizeIndex);
 
@@ -201,7 +166,7 @@ const LuckyRoll = () => {
         setIsAvailable(false);
         setIsRolling(false);
         setShowConfetti(true);
-      }, 4000);
+      }, 5500); 
     } catch (error) {
       toast.error(error.response?.data?.message || "Failed to claim reward.");
       setIsRolling(false);
@@ -237,28 +202,32 @@ const LuckyRoll = () => {
 
   return (
     <div className="p-8 bg-gradient-to-br from-blue-500 to-cyan-400 text-white rounded-2xl shadow-xl text-center relative overflow-hidden max-w-lg mx-auto border-4 border-blue-300/40 hover:border-blue-400 transition-all duration-300">
+      {/* Improved Confetti Effect */}
+      {showConfetti && <Confetti recycle={false} numberOfPieces={400} tweenDuration={10000} />}
+      
       <h2 className="text-3xl font-extrabold mb-2 tracking-wide drop-shadow-md">Daily Lucky Roll</h2>
       <p className="opacity-90 mb-6 text-lg font-semibold drop-shadow-sm">
         Feeling lucky? Spin the wheel once a day to win free Swap Credits!
       </p>
 
-      <div className="my-8 flex justify-center items-center gap-4 relative">
+      <div className="my-8 flex justify-center items-center gap-4 relative h-[320px]">
         <SpinWheel prizeIndex={prizeIndex} isSpinning={isRolling} />
-        <AnimatePresence>
-          {prize && (
-            <motion.div
-              initial={{ scale: 0 }}
-              animate={{ scale: 1 }}
-              exit={{ scale: 0 }}
-              className="absolute top-full left-1/2 transform -translate-x-1/2 mt-4 w-full px-4"
-            >
-              <h3 className="font-bold text-4xl drop-shadow-lg text-center select-none">
-                🎉 You Won {prize} Credits! 🎉
-              </h3>
-            </motion.div>
-          )}
-        </AnimatePresence>
       </div>
+
+      <AnimatePresence>
+        {prize && (
+          <motion.div
+            initial={{ scale: 0, y: 50 }}
+            animate={{ scale: 1, y: 0 }}
+            exit={{ scale: 0 }}
+            className="my-4"
+          >
+            <h3 className="font-bold text-4xl drop-shadow-lg text-yellow-300 select-none">
+              🎉 You Won {prize} Credits! 🎉
+            </h3>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       <motion.button
         onClick={handleRoll}
@@ -273,8 +242,6 @@ const LuckyRoll = () => {
       <p className="mt-6 text-sm opacity-80 max-w-xs mx-auto">
         💡 Pro tip: Come back every day and keep spinning for more Swap Credits!
       </p>
-
-      {showConfetti && <Confetti recycle={false} numberOfPieces={200} />}
     </div>
   );
 };

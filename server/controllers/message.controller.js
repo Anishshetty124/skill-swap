@@ -6,6 +6,7 @@ import { Message } from '../models/message.model.js';
 import { getReceiverSocketId, io } from '../socket/socket.js';
 import { User } from '../models/user.model.js';
 import { Proposal } from '../models/proposal.model.js'; 
+import { Skill } from '../models/skill.model.js';
 import profanity from 'leo-profanity'; 
 import { sendPushNotification } from '../utils/pushNotifier.js';
 profanity.loadDictionary(); 
@@ -259,6 +260,12 @@ const reportUser = asyncHandler(async (req, res) => {
     const reportedUserSocketId = getReceiverSocketId(userIdToReport);
 
     if (updatedUser.reportCount >= 5) {
+        
+        await Skill.updateMany(
+            { "ratings.user": updatedUser._id },
+            { $pull: { ratings: { user: updatedUser._id } } }
+        );
+
         await updatedUser.deleteOne(); 
         
         if (reportedUserSocketId) {
@@ -274,7 +281,6 @@ const reportUser = asyncHandler(async (req, res) => {
 
     return res.status(200).json(new ApiResponse(200, {}, "User has been reported."));
 });
-
 
 
 const markAllAsRead = asyncHandler(async (req, res) => {

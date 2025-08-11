@@ -5,7 +5,7 @@ import { MagnifyingGlassIcon as SearchIcon, UserGroupIcon, ArrowsRightLeftIcon }
 import { Link } from 'react-router-dom';
 import RecommendedSkills from '../components/home/RecommendedSkills';
 import LeaderboardPreview from '../components/home/LeaderboardPreview';
-import { ArrowDownCircleIcon } from 'lucide-react';
+import { ArrowDownCircleIcon, Gift } from 'lucide-react';
 import LazyLoad from '../components/common/LazyLoad';
 
 const SkillCard = React.lazy(() => import('../components/skills/SkillCard'));
@@ -72,7 +72,6 @@ const Home = () => {
     }
   };
 
-  // Debounced YouTube fetch
   const debouncedYoutubeFetch = useCallback(
     debounce(async (keyword) => {
       if (!keyword) return setYoutubeVideos([]);
@@ -110,7 +109,6 @@ const Home = () => {
     }
   };
 
-  // Location suggestions
   const fetchLocationSuggestions = async (query) => {
     if (query.length > 1) {
       const response = await apiClient.get(`/skills/locations?search=${query}`);
@@ -120,11 +118,9 @@ const Home = () => {
     }
   };
 
-  // Debounced fetches
   const debouncedKeywordFetch = useCallback(debounce(fetchKeywordSuggestions, 300), []);
   const debouncedLocationFetch = useCallback(debounce(fetchLocationSuggestions, 300), []);
 
-  // Handlers
   const handleKeywordChange = (e) => {
     const value = e.target.value;
     setFilters(prev => ({ ...prev, keywords: value }));
@@ -554,39 +550,40 @@ const Home = () => {
 
 
      <LazyLoad>
-      <div
-        className="
-    mt-16 text-center p-8 rounded-2xl shadow-lg max-w-xl mx-auto
-    bg-gradient-to-br from-yellow-50 via-yellow-100 to-yellow-200
-    dark:from-yellow-900 dark:via-yellow-800 dark:to-yellow-900
-    ring-2 ring-yellow-300/50 dark:ring-yellow-600/70
-  "
-      >
-        <h2 className="text-3xl font-extrabold mb-4 text-yellow-600 dark:text-yellow-300 drop-shadow-sm">
-          Feeling Lucky?
+  <div className="mt-16 text-center p-8 rounded-2xl shadow-xl max-w-xl mx-auto bg-gradient-to-br from-slate-800 to-slate-900 border border-blue-500/20 relative overflow-hidden">
+    
+    {/* Decorative Glow Effects */}
+    <div className="absolute -top-1/2 -left-1/2 w-full h-full bg-blue-500/10 rounded-full filter blur-3xl animate-pulse"></div>
+    <div className="absolute -bottom-1/2 -right-1/2 w-full h-full bg-cyan-500/10 rounded-full filter blur-3xl animate-pulse" style={{ animationDelay: '2s' }}></div>
+
+    <div className="relative z-10 flex flex-col items-center">
+        {/* Icon */}
+        <div className="mb-4 p-3 bg-slate-700/50 rounded-full border border-slate-600">
+            <Gift className="h-8 w-8 text-cyan-400" />
+        </div>
+
+        <h2 className="text-3xl font-extrabold mb-4 text-slate-100 drop-shadow-md">
+            Feeling Lucky?
         </h2>
-        <p className="text-yellow-700 dark:text-yellow-200 mb-6 max-w-xl mx-auto leading-relaxed text-lg">
-          Try your luck with our{" "}
-          <span className="font-semibold underline decoration-yellow-500 dark:decoration-yellow-400">
-            Daily Lucky Roll
-          </span>{" "}
-          and win free Swap Credits to help you on your learning journey!
+
+        <p className="text-slate-400 mb-8 max-w-md mx-auto leading-relaxed text-lg">
+            Try your luck with our{" "}
+            <span className="font-semibold text-cyan-400">
+                Daily Lucky Roll
+            </span>{" "}
+            and win free Swap Credits to help you on your learning journey!
         </p>
+
+        {/* High-Contrast Button */}
         <Link
-          to="/lucky-roll"
-          className="
-      inline-block px-10 py-3
-      bg-yellow-400 hover:bg-yellow-500
-      text-yellow-900 font-semibold rounded-full shadow-md
-      transition-colors tracking-wide
-      ring-1 ring-yellow-500/70 hover:ring-yellow-600
-      dark:bg-yellow-600 dark:text-yellow-100 dark:hover:bg-yellow-700
-    "
+            to="/lucky-roll"
+            className="inline-block px-10 py-3 bg-white text-slate-900 font-bold rounded-full shadow-lg transition-transform duration-300 transform hover:scale-105 hover:shadow-cyan-500/20"
         >
-          Try the Lucky Roll
+            Try the Lucky Roll
         </Link>
-      </div>
-       </LazyLoad>
+    </div>
+  </div>
+</LazyLoad>
 
       <div className="mt-16 text-center">
         <h2 className="text-3xl font-bold mb-8">How SkillSwap Works</h2>

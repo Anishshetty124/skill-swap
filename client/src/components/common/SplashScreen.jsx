@@ -9,14 +9,12 @@ const SplashScreen = () => {
   return (
     <motion.div
       className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-slate-900"
-      // Animation for fading out the splash screen
       initial={{ opacity: 1 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
       transition={{ duration: 0.5 }}
     >
       <motion.div
-        // Animation for the logo itself (a subtle pulse)
         animate={{
           scale: [1, 1.05, 1],
         }}

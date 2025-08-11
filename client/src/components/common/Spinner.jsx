@@ -7,7 +7,6 @@ import React from 'react';
  * @param {string} [props.text='Loading...'] - The text to display below the spinner. Can be an empty string.
  */
 const Spinner = ({ size = 'md', text = 'Loading...' }) => {
-  // Defines the size of the individual dots
   const sizeClasses = {
     sm: 'h-2 w-2',
     md: 'h-3 w-3',

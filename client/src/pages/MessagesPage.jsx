@@ -9,7 +9,6 @@ import { format } from 'date-fns';
 
 import MessagesPageSkeleton from '../components/messages/MessagePageSkeleton';
 
-// Custom hook to handle clicks outside a specified element
 function useOnClickOutside(ref, handler) {
   useEffect(() => {
     const listener = (event) => {
@@ -102,7 +101,6 @@ const ChatWindow = ({ selectedConversation, onBack, onClearChat, onDeleteConvers
     getMessages();
   }, [selectedConversation]);
 
-  // Efficient socket listener for messages in THIS chat
   useEffect(() => {
     const handleNewMessage = (newMessage) => {
       if (selectedConversation?._id === newMessage.senderId) {
@@ -340,24 +338,20 @@ const MessagesPage = () => {
     fetchConversations();
   }, [fetchConversations]);
 
-  // Efficiently update conversation list on new message without full reload
   useEffect(() => {
     const handleNewMessageUpdate = (newMessage) => {
         setConversations(prevConvs => {
             const convIndex = prevConvs.findIndex(c => c.participant._id === newMessage.senderId);
-            // If the conversation is not in the list, just refetch everything
             if (convIndex === -1) {
                 fetchConversations();
                 return prevConvs;
             }
-            // If it is, update it and move it to the top
             const updatedConv = {
                 ...prevConvs[convIndex],
                 lastMessage: {
                     message: newMessage.message,
                     createdAt: newMessage.createdAt,
                 },
-                // Increment unread count only if the chat is not currently selected
                 unreadCount: selectedConversation?._id !== newMessage.senderId 
                     ? (prevConvs[convIndex].unreadCount || 0) + 1 
                     : 0,
@@ -404,7 +398,6 @@ const MessagesPage = () => {
         const conv = conversations.find(c => c.participant._id === selectedConversation._id);
         if (conv) {
           await apiClient.delete(`/messages/conversation/${conv._id}`);
-          // Re-trigger message fetch to show empty chat window
           setSelectedConversation(prev => ({ ...prev })); 
           toast.success('Chat history cleared.');
         }
@@ -414,7 +407,6 @@ const MessagesPage = () => {
     }
   };
  
-  // --- DELETE CONVERSATION HANDLER RE-ADDED ---
   const handleDeleteConversation = async () => {
     if (!selectedConversation) return;
     

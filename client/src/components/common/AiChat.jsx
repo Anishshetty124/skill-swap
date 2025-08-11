@@ -20,7 +20,6 @@ const AiChat = () => {
   const [isListening, setIsListening] = useState(false);
   const recognitionRef = useRef(null);
 
-  // Keep inputRef in sync with input state
   useEffect(() => {
     inputRef.current = input;
   }, [input]);
@@ -40,7 +39,6 @@ const AiChat = () => {
 
     recognition.onresult = (event) => {
       const transcript = event.results[0][0].transcript;
-      // Append transcript to current input value from ref
       setInput((prev) =>
         (inputRef.current ? inputRef.current + " " : "") + transcript
       );

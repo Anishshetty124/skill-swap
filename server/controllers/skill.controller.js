@@ -314,7 +314,6 @@ const rateSkill = asyncHandler(async (req, res) => {
   return res.status(200).json(new ApiResponse(200, updatedSkill.ratings, "Thank you for your rating!"));
 });
 
-
 const getYoutubePlaceholders = asyncHandler(async (req, res) => {
   const allTopics = Object.values(categorySubtopics).flat();
   const shuffled = allTopics.sort(() => 0.5 - Math.random());
@@ -360,6 +359,40 @@ const getRecommendedSkills = asyncHandler(async (req, res) => {
   return res.status(200).json(new ApiResponse(200, skillsWithAvgRating, "Recommended skills fetched successfully"));
 });
 
+const callGeminiWithFallback = async (params) => {
+  const apiKeys = process.env.GOOGLE_API_KEYS?.split(',').map(key => key.trim());
+
+  if (!apiKeys || apiKeys.length === 0 || !apiKeys[0]) {
+    throw new ApiError(500, "No Google API keys are configured on the server.");
+  }
+
+  for (let i = 0; i < apiKeys.length; i++) {
+    const key = apiKeys[i];
+    try {
+      const genAI = new GoogleGenerativeAI(key);
+      const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+
+      let result;
+      if (params.context === 'chat') {
+        const chat = model.startChat({ history: params.history, systemInstruction: params.systemInstruction });
+        result = await chat.sendMessage(params.query);
+      } else {
+        result = await model.generateContent(params.prompt);
+      }
+      
+      const response = await result.response;
+      return response.text();
+
+    } catch (error) {
+      console.error(`Google AI Error with API Key ${i + 1}:`, error.message);
+      if (i === apiKeys.length - 1) {
+        throw new ApiError(500, "The AI service is currently unavailable after trying all available keys.");
+      }
+    }
+  }
+};
+
+
 const generateAiContent = asyncHandler(async (req, res) => {
   const { context, title, type, query, history } = req.body;
 
@@ -367,26 +400,17 @@ const generateAiContent = asyncHandler(async (req, res) => {
     throw new ApiError(400, "A context is required.");
   }
 
-  const genAI = new GoogleGenerativeAI(process.env.GOOGLE_API_KEY);
-  const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
-  let prompt;
-  let chatHistory = history || [];
+  let text;
 
   if (context === "generate-description") {
     if (!title || !type) throw new ApiError(400, "Title and type are required.");
 
-    const validationPrompt = `Is the following a legitimate, safe-for-work, learnable skill or topic? Answer with only "YES" or "NO".\n\nTopic: "${title}"`;
-
+    const validationPrompt = `Is the following a legitimate, safe-for-work, non abusive, learnable skill or topic? Answer with only "YES" or "NO".\n\nTopic: "${title}"`;
     try {
-      const validationResult = await model.generateContent(validationPrompt);
-      const validationResponse = await validationResult.response;
-      const decision = validationResponse.text().trim().toUpperCase();
-
+      const validationText = await callGeminiWithFallback({ prompt: validationPrompt, context: 'generate' });
+      const decision = validationText.trim().toUpperCase();
       if (decision !== "YES") {
-        throw new ApiError(
-          400,
-          "This does not appear to be a valid skill. Please try a different topic."
-        );
+        throw new ApiError(400, "This does not appear to be a valid skill. Please try a different topic.");
       }
     } catch (error) {
       console.error("AI Validation Error:", error);
@@ -394,51 +418,32 @@ const generateAiContent = asyncHandler(async (req, res) => {
       throw new ApiError(500, "Could not validate the skill topic.");
     }
 
-    prompt =
-      type === "OFFER"
-        ? `Generate a friendly and engaging 1-2 sentence description for a skill-swapping website. The user is offering to teach: "${title}".`
-        : `Generate a friendly and engaging 1-2 sentence description for a skill-swapping website. The user is requesting to learn: "${title}".`;
+    const prompt = type === "OFFER"
+      ? `Generate a friendly and engaging 1-2 sentence description for a skill-swapping website. The user is offering to teach: "${title}".`
+      : `Generate a friendly and engaging 1-2 sentence description for a skill-swapping website. The user is requesting to learn: "${title}".`;
+    
+    text = await callGeminiWithFallback({ prompt, context: 'generate' });
+
   } else if (context === "ask-ai") {
     if (!query) throw new ApiError(400, "A query is required for the AI chat.");
+    
+    const systemInstruction = {
+      role: "system",
+      parts: [{ text: `You are "SkillBot", a friendly AI assistant for a skill-swapping website. Your purpose is to answer questions about learnable skills. Use Markdown for formatting. If asked about a non-skill topic, you MUST politely decline with this exact phrase: "I can only answer questions about skills. Please try another topic!"` }],
+    };
+
+    text = await callGeminiWithFallback({
+      context: 'chat',
+      query,
+      history: history || [],
+      systemInstruction
+    });
+
   } else {
     throw new ApiError(400, "Invalid AI context provided.");
   }
 
-  try {
-    if (context === "ask-ai") {
-      const chat = model.startChat({
-        history: chatHistory,
-        systemInstruction: {
-          role: "system",
-          parts: [
-            {
-              text: `You are "SkillBot", a friendly AI assistant for a skill-swapping website. Your purpose is to answer questions about learnable skills. Use Markdown for formatting. If asked about a non-skill topic, you MUST politely decline with this exact phrase: "I can only answer questions about skills. Please try another topic!"`,
-            },
-          ],
-        },
-      });
-      const result = await chat.sendMessage(query);
-      const response = await result.response;
-      const text = response.text();
-      return res
-        .status(200)
-        .json(
-          new ApiResponse(200, { response: text }, "AI response generated successfully")
-        );
-    } else {
-      const result = await model.generateContent(prompt);
-      const response = await result.response;
-      const text = response.text();
-      return res
-        .status(200)
-        .json(
-          new ApiResponse(200, { response: text }, "AI response generated successfully")
-        );
-    }
-  } catch (error) {
-    console.error("Google AI Error:", error);
-    throw new ApiError(500, "The AI service is currently unavailable.");
-  }
+  return res.status(200).json(new ApiResponse(200, { response: text }, "AI response generated successfully"));
 });
 
 const getYoutubeTutorials = asyncHandler(async (req, res) => {

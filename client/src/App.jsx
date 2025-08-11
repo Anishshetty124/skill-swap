@@ -6,7 +6,6 @@ import Spinner from './components/common/Spinner';
 import SplashScreen from './components/common/SplashScreen';
 import { AnimatePresence } from 'framer-motion';
 
-// --- LAZY-LOAD ALL MAJOR PAGE COMPONENTS ---
 const Home = lazy(() => import('./pages/Home'));
 const Login = lazy(() => import('./pages/Login'));
 const Register = lazy(() => import('./pages/Register'));
@@ -23,7 +22,7 @@ const MessagesPage = lazy(() => import('./pages/MessagesPage'));
 const LeaderboardPage = lazy(() => import('./pages/LeaderboardPage'));
 const LuckyRollPage = lazy(() => import('./pages/LuckyRollPage'));
 
-// A reusable loader component for Suspense, now with customizable text
+
 const PageLoader = ({ text = "Loading page..." }) => (
   <div className="flex justify-center items-center h-screen">
     <Spinner text={text} />

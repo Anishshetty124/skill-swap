@@ -8,7 +8,7 @@ import AiChat from '../common/AiChat';
 import { useAuth } from '../../context/AuthContext';
 import { XMarkIcon } from '@heroicons/react/24/solid';
 import FeedbackModal from '../common/FeedbackModal';
-import PushNotificationManager from '../common/PushNotificationManager';  // keep this as you had it before
+import PushNotificationManager from '../common/PushNotificationManager';  
 
 const CustomCloseButton = ({ closeToast }) => (
   <button onClick={closeToast} className="p-1">

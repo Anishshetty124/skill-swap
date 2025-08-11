@@ -40,7 +40,6 @@ const Dashboard = () => {
       if (proposals.length === 0) setLoading(true);
       setError('');
       const response = await apiClient.get(`/proposals?type=${activeTab}`);
-      // Keep both filters: requestedSkill check + archived filtering
       const validProposals = response.data.data
         .filter(p => p.requestedSkill)
         .filter(p => !p.archivedBy?.includes(user?._id));

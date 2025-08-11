@@ -85,7 +85,6 @@ const SingleSkillPage = () => {
           setUserRating(0);
         }
 
-        // Only request matches if the owner is viewing their REQUEST
         if (user?._id === fetchedSkill?.user?._id && fetchedSkill.type === 'REQUEST') {
           const matchesResponse = await apiClient.get(`/skills/${skillId}/matches`);
           const fetchedMatches = matchesResponse.data?.data || [];

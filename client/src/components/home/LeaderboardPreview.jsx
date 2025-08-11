@@ -10,7 +10,6 @@ const LeaderboardPreview = () => {
     const fetchTopUsers = async () => {
       try {
         const response = await apiClient.get('/users/leaderboard');
-        // Show only the top 3 users on the home page
         setTopUsers(response.data.data.slice(0, 3));
       } catch (error) {
         console.error("Failed to fetch top users for preview.");
@@ -22,7 +21,6 @@ const LeaderboardPreview = () => {
   }, []);
 
   if (loading) {
-    // A simple skeleton loader for the preview
     return (
       <div className="animate-pulse space-y-4">
         {[...Array(3)].map((_, i) => (

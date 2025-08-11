@@ -96,7 +96,6 @@ const handleCompleteSwap = async () => {
     const response = await apiClient.patch(`/proposals/${proposal._id}/complete`);
     const updatedProposal = response.data?.data;
 
-    // Defensive merge: preserve nested skill objects if server didn't include them
     const merged = {
       ...proposal,
       ...updatedProposal,

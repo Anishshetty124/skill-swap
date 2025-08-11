@@ -11,9 +11,7 @@ const Badge = ({ name }) => {
     },
     'Skill Sharer': {
       icon: <AcademicCapIcon />,
-      // Brighter blue (Tailwind's blue-400 to blue-600)
       color: 'from-blue-400 to-blue-600',
-      // Very subtle blue glow
       glow: 'shadow-[0_0_4px_0_rgba(59,130,246,0.2)]',
       tooltip: 'Shared at least one skill',
     },
@@ -37,17 +35,13 @@ const Badge = ({ name }) => {
     },
     'Swap Starter': {
       icon: <SparklesIcon />,
-      // Brighter green, more modern
       color: 'from-green-400 to-green-600',
-      // Very subtle green glow
       glow: 'shadow-[0_0_3px_0_rgba(34,197,94,0.15)]',
       tooltip: 'Completed 1st swap',
     },
     'Silver Swapper': {
       icon: <SparklesIcon />,
-      // Slightly lighter slate gray with blueish tint
       color: 'from-slate-400 to-slate-600',
-      // Very subtle glow with blue-gray color
       glow: 'shadow-[0_0_3px_0_rgba(148,163,184,0.15)]',
       tooltip: 'Completed 5+ swaps',
     },

@@ -133,7 +133,7 @@ const Navbar = () => {
     </>
   );
 
-  // Links for Mobile View (Button Style)
+  // Links for Mobile View 
   const mobileNavLinks = (
     <div className="flex flex-col items-stretch divide-y divide-slate-300 dark:divide-slate-700 p-2">
       <Link

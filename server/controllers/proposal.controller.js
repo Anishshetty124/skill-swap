@@ -286,7 +286,6 @@ const completeSwap = asyncHandler(async (req, res) => {
       }
       await user.save({ validateBeforeSave: false });
     }
-    // ------------------------------------
 
     const proposerSocketId = getReceiverSocketId(proposal.proposer._id.toString());
     const receiverSocketId = getReceiverSocketId(proposal.receiver._id.toString());
