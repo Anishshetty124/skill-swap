@@ -37,7 +37,7 @@ const Dashboard = () => {
 
   const fetchProposals = useCallback(async () => {
     try {
-      if (proposals.length === 0) setLoading(true);
+      setLoading(true);
       setError('');
       const response = await apiClient.get(`/proposals?type=${activeTab}`);
       const validProposals = response.data.data

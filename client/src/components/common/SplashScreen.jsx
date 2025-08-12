@@ -1,32 +1,31 @@
-import React from 'react';
 import { motion } from 'framer-motion';
-
+import React, { useState, useEffect } from 'react';
 
 const SplashScreen = () => {
+  const [isStandalone, setIsStandalone] = useState(false);
+
+useEffect(() => {
+  if (window.matchMedia('(display-mode: standalone)').matches) {
+    setIsStandalone(true);
+  }
+}, []);
   return (
-    <motion.div
-      className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-slate-900"
+     <motion.div
+      className="fixed inset-0 z-50 flex flex-col items-center justify-center"
+      style={{ backgroundColor: '#121212' }} // Matches the PWA manifest for a seamless transition
       initial={{ opacity: 1 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
       transition={{ duration: 0.5 }}
     >
-      {/* This container now controls the logo's size */}
       <motion.div
-        className="w-24 md:w-32" // Base size for mobile, larger for desktop
-        animate={{
-          scale: [1, 1.05, 1],
-        }}
-        transition={{
-          duration: 2,
-          ease: "easeInOut",
-          repeat: Infinity,
-        }}
+        className="w-32 md:w-48"
+        animate={isStandalone ? {} : { y: ["0%", "-5%", "0%"] }}
+        transition={isStandalone ? {} : { duration: 3, ease: "easeInOut", repeat: Infinity }}
       >
         <img 
           src="/logo.png" 
           alt="SkillSwap Logo" 
-          // The image now fills its container, which has a max width
           className="w-full h-auto rounded-2xl" 
         />
       </motion.div>

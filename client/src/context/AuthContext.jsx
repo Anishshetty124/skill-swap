@@ -4,6 +4,7 @@ import { io } from 'socket.io-client';
 import { toast } from 'react-toastify'; 
 import apiClient from '../api/axios';
 import { subscribeUserToPush } from '../push-notifications';
+import Spinner from '../components/common/Spinner'; // 1. Import the Spinner
 
 const AuthContext = createContext(null);
 
@@ -13,6 +14,8 @@ export const AuthProvider = ({ children }) => {
   const [isAuthenticated, setIsAuthenticated] = useState(!!localStorage.getItem('accessToken'));
   const [bookmarks, setBookmarks] = useState([]);
   const [loading, setLoading] = useState(true);
+  // --- 2. Add a new state to manage the login process ---
+  const [isLoggingIn, setIsLoggingIn] = useState(false);
   const [chatMessages, setChatMessages] = useState(() => {
     try {
       const savedMessages = sessionStorage.getItem('chatMessages');
@@ -59,7 +62,7 @@ export const AuthProvider = ({ children }) => {
       setLoading(false);
     };
     checkUserStatus();
-  }, [token, user, fetchUnreadCount]); // Added 'user' to dependency array
+  }, [token, user, fetchUnreadCount]);
 
   useEffect(() => {
     if (isAuthenticated && user) {
@@ -87,7 +90,9 @@ export const AuthProvider = ({ children }) => {
     }
   }, [isAuthenticated, user, fetchUnreadCount]);
 
+  // --- 3. Update the login function to use the new state ---
   const login = useCallback(async (credentials) => {
+    setIsLoggingIn(true); // Show the loader
     try {
       const response = await apiClient.post('/users/login', credentials);
       const { user: userData, accessToken } = response.data.data;
@@ -96,16 +101,23 @@ export const AuthProvider = ({ children }) => {
       setToken(accessToken);
       setUser(userData); 
       setIsAuthenticated(true);
-      
       subscribeUserToPush();
 
-      navigate('/');
+      // Wait 1 second before navigating to ensure UI updates
+      setTimeout(() => {
+        navigate('/');
+        setIsLoggingIn(false); // Hide the loader
+      }, 1000);
+
     } catch (error) {
+      setIsLoggingIn(false); // Hide loader on error
       throw error;
     }
   }, [navigate]);
 
+  // --- 4. Update the Google/OAuth login function as well ---
   const setTokenAndUser = useCallback(async (accessToken) => {
+    setIsLoggingIn(true); // Show the loader
     try {
       localStorage.setItem('accessToken', accessToken);
       setToken(accessToken);
@@ -114,10 +126,18 @@ export const AuthProvider = ({ children }) => {
       });
       setUser(response.data.data);
       setIsAuthenticated(true);
+
+      // Wait 1 second before navigating
+      setTimeout(() => {
+        navigate('/');
+        setIsLoggingIn(false);
+      }, 1000);
+
     } catch (error) {
+      setIsLoggingIn(false);
       logout();
     }
-  }, []); 
+  }, [navigate]); // 'logout' is defined below
 
   const updateUserState = useCallback((newUserData) => {
     setUser(currentUser => ({ ...currentUser, ...newUserData }));
@@ -135,15 +155,12 @@ export const AuthProvider = ({ children }) => {
       setBookmarks([]);
       setChatMessages([]);
       setTotalUnreadCount(0);
-      
       sessionStorage.removeItem('chatMessages');
       localStorage.removeItem('accessToken');
-
       if (window.google) {
         window.google.accounts.id.disableAutoSelect();
       }
-
-      navigate('/login');
+      window.location.href = '/login';
     }
   }, [navigate]);
 
@@ -194,6 +211,15 @@ export const AuthProvider = ({ children }) => {
     setTokenAndUser,
     newlyEarnedBadge, 
   };
+
+  // --- 5. Conditionally render the loader for the entire page ---
+  if (isLoggingIn) {
+    return (
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900">
+        <Spinner text="Logging in..." />
+      </div>
+    );
+  }
 
   return (
     <AuthContext.Provider value={authContextValue}>

@@ -414,10 +414,10 @@ const generateAiContent = asyncHandler(async (req, res) => {
       throw new ApiError(500, "Could not validate the skill topic.");
     }
 
-    const prompt = type === "OFFER"
-      ? `Generate a friendly and engaging 1-2 sentence description for a skill-swapping website. The user is offering to teach: "${title}".`
-      : `Generate a friendly and engaging 1-2 sentence description for a skill-swapping website. The user is requesting to learn: "${title}".`;
-    
+     const prompt = type === "OFFER"
+      ? `Generate a friendly and engaging 1-2 sentence skill description from the perspective of a user who is OFFERING to teach. The skill is: "${title}".`
+      : `Generate a friendly and engaging 1-2 sentence skill description from the perspective of a user who is REQUESTING to learn. The skill is: "${title}".`;
+      
     text = await callGeminiWithFallback({ prompt, context: 'generate' });
 
   } else if (context === "ask-ai") {
