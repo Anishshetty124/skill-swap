@@ -115,9 +115,8 @@ export const AuthProvider = ({ children }) => {
     }
   }, [navigate]);
 
-  // --- 4. Update the Google/OAuth login function as well ---
   const setTokenAndUser = useCallback(async (accessToken) => {
-    setIsLoggingIn(true); // Show the loader
+    setIsLoggingIn(true); 
     try {
       localStorage.setItem('accessToken', accessToken);
       setToken(accessToken);
@@ -127,17 +126,16 @@ export const AuthProvider = ({ children }) => {
       setUser(response.data.data);
       setIsAuthenticated(true);
 
-      // Wait 1 second before navigating
       setTimeout(() => {
         navigate('/');
         setIsLoggingIn(false);
-      }, 1000);
+      }, 700);
 
     } catch (error) {
       setIsLoggingIn(false);
       logout();
     }
-  }, [navigate]); // 'logout' is defined below
+  }, [navigate]); 
 
   const updateUserState = useCallback((newUserData) => {
     setUser(currentUser => ({ ...currentUser, ...newUserData }));
