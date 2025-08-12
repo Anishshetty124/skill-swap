@@ -33,7 +33,7 @@ const Layout = () => {
         rtl={false}
         pauseOnFocusLoss
         draggable
-        draggablePercent={40}  
+        draggablePercent={30}  
         pauseOnHover
         theme="colored"
         closeButton={CustomCloseButton}

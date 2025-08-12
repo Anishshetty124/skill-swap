@@ -90,7 +90,6 @@ export const AuthProvider = ({ children }) => {
     }
   }, [isAuthenticated, user, fetchUnreadCount]);
 
-  // --- 3. Update the login function to use the new state ---
   const login = useCallback(async (credentials) => {
     setIsLoggingIn(true); // Show the loader
     try {
@@ -107,7 +106,7 @@ export const AuthProvider = ({ children }) => {
       setTimeout(() => {
         navigate('/');
         setIsLoggingIn(false); // Hide the loader
-      }, 1000);
+      }, 700);
 
     } catch (error) {
       setIsLoggingIn(false); // Hide loader on error
