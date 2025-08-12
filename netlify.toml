@@ -3,7 +3,7 @@
 # This tells Netlify how to build your frontend
 [build]
   base    = "client"
-  publish = "client/dist"
+  publish = "dist"
   command = "npm run build"
 
 # This is the critical rule that fixes the "Page not found" error
@@ -15,3 +15,4 @@
 # This section fixes the new build error
 [functions]
   directory = "server/functions"
+  
