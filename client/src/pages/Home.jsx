@@ -1,16 +1,16 @@
-import React, { useState, useEffect, useCallback, useMemo, Suspense } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, Suspense ,useRef} from 'react';
 import apiClient from '../api/axios';
 import { debounce } from 'lodash';
-import { MagnifyingGlassIcon as SearchIcon, UserGroupIcon, ArrowsRightLeftIcon } from '@heroicons/react/24/solid';
+import { MagnifyingGlassIcon as SearchIcon, UserGroupIcon, ArrowsRightLeftIcon, MagnifyingGlassIcon, XMarkIcon } from '@heroicons/react/24/solid';
 import { Link } from 'react-router-dom';
 import RecommendedSkills from '../components/home/RecommendedSkills';
 import LeaderboardPreview from '../components/home/LeaderboardPreview';
 import { ArrowDownCircleIcon, Gift } from 'lucide-react';
 import LazyLoad from '../components/common/LazyLoad';
 
+const UserSearch = React.lazy(() => import('../components/home/UserSearch'));
 const SkillCard = React.lazy(() => import('../components/skills/SkillCard'));
 const SkillCardSkeleton = React.lazy(() => import('../components/skills/SkillCardSkeleton'));
-
 const SKILLS_LIMIT = 6;
 
 const Home = () => {
@@ -31,11 +31,16 @@ const Home = () => {
   const [showAllSkills, setShowAllSkills] = useState(false);
   const [searchedKeyword, setSearchedKeyword] = useState('');
   const [showScrollButton, setShowScrollButton] = useState(false);
+  const [userSearchQuery, setUserSearchQuery] = useState('');
+  const [userResults, setUserResults] = useState([]);
+  const [userSearchLoading, setUserSearchLoading] = useState(false);
+  const [showUserSearch, setShowUserSearch] = useState(false);
+  const userSearchRef = useRef(null);
   const skillCategories = useMemo(() => [
     'Tech', 'Art', 'Music', 'Writing', 'Marketing', 'Language', 'Fitness', 'Cooking', 'Crafts', 'others'
   ], []);
 
- 
+  
   const buildQueryString = (pageNum = 1, currentFilters = filters, currentLocQuery = locationQuery) => {
     const params = new URLSearchParams({ page: pageNum, limit: SKILLS_LIMIT });
     if (currentFilters.keywords) params.append('keywords', currentFilters.keywords);
@@ -59,6 +64,21 @@ const Home = () => {
       setError('Failed to load skills.');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleUserSearch = async (e) => {
+    e.preventDefault();
+    if (!userSearchQuery.trim()) return;
+
+    setUserSearchLoading(true);
+    try {
+      const response = await apiClient.get(`/users/search?query=${userSearchQuery}`);
+      setUserResults(response.data.data);
+    } catch (error) {
+      console.error("Failed to search for users", error);
+    } finally {
+      setUserSearchLoading(false);
     }
   };
 
@@ -199,6 +219,64 @@ const Home = () => {
     }
   };
 
+
+  useEffect(() => {
+    if (userSearchQuery.trim().length < 2) {
+      setUserResults([]);
+      return;
+    }
+    const debounceTimer = setTimeout(async () => {
+      setUserSearchLoading(true);
+      try {
+        const response = await apiClient.get(`/users/search?query=${userSearchQuery}`);
+        setUserResults(response.data.data);
+      } catch (error) {
+        console.error("Failed to search users", error);
+      } finally {
+        setUserSearchLoading(false);
+      }
+    }, 300);
+    return () => clearTimeout(debounceTimer);
+  }, [userSearchQuery]);
+  
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (userSearchRef.current && !userSearchRef.current.contains(event.target)) {
+        setUserResults([]);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  const handleFilterChange = (e) => {
+    const { name, value } = e.target;
+    setFilters(prev => ({ ...prev, [name]: value }));
+  };
+
+  const handleSkillSearchSubmit = (e) => {
+    if (e) e.preventDefault();
+    setPage(1);
+    setIsSkillSearchActive(true);
+    fetchSkills(1, true, filters);
+    setShowScrollButton(true);
+  };
+
+  const handleClearSkillSearch = () => {
+    const clearedFilters = { keyword: '', category: '', type: '' };
+    setFilters(clearedFilters);
+    setPage(1);
+    setIsSkillSearchActive(false);
+    fetchSkills(1, true, clearedFilters);
+    setShowScrollButton(false);
+  };
+  
+  const handleClearUserSearch = () => {
+    setUserSearchQuery('');
+    setUserResults([]);
+    setShowUserSearch(false);
+  };
+
   const scrollToResults = () => {
     const resultsSection = document.getElementById('search-results');
     if (resultsSection) {
@@ -325,70 +403,13 @@ const Home = () => {
           )}
         </div>
       </form>
-
-      <div className="mb-8 px-4 py-6 w-full md:w-[80%] mx-auto bg-slate-100 dark:bg-slate-800 rounded-2xl shadow-lg transition-colors duration-300">
-        {!showCitySearch ? (
-          <div className="flex flex-col md:flex-row md:items-center md:justify-evenly gap-4 text-center md:text-left">
-            <h2 className="text-xl font-bold">
-              Looking to discover skills or talents in a specific city or
-              location?
-            </h2>
-            <button
-              onClick={() => setShowCitySearch(true)}
-              className="px-6 py-2 bg-blue-600 text-white font-semibold rounded-md hover:bg-blue-700"
-            >
-              Search by City
-            </button>
-          </div>
-        ) : (
-          <form onSubmit={handleCitySearch} className="relative">
-            <label className="block text-sm font-medium mb-1">
-              Search by City Name
-            </label>
-            <div className="flex flex-col sm:flex-row sm:items-center gap-2 w-full">
-              <input
-                type="text"
-                value={locationQuery}
-                onChange={handleLocationInputChange}
-                placeholder="Enter a city or place..."
-                className="flex-grow px-4 py-2 bg-white dark:bg-slate-700 text-slate-800 dark:text-slate-200 border rounded-md"
-                autoComplete="off"
-              />
-              <button
-                type="submit"
-                className="px-6 py-2 bg-blue-600 text-white font-semibold rounded-md hover:bg-blue-700"
-              >
-                Search
-              </button>
-              {locationQuery && (
-                <button
-                  type="button"
-                  onClick={clearCityFilter}
-                  className="px-4 py-2 bg-red-500 text-white font-semibold rounded-md hover:bg-red-600"
-                >
-                  Clear
-                </button>
-              )}
-            </div>
-            {locationSuggestions.length > 0 && (
-              <ul className="absolute z-10 w-full bg-white dark:bg-slate-700 border rounded-md mt-1 shadow-lg">
-                {locationSuggestions.map((s, index) => (
-                  <li
-                    key={index}
-                    className="px-4 py-2 cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-600"
-                    onClick={() => {
-                      setLocationQuery(s.location);
-                      setLocationSuggestions([]);
-                    }}
-                  >
-                    {s.location}
-                  </li>
-                ))}
-              </ul>
-            )}
-          </form>
-        )}
-      </div>
+ <Suspense fallback={
+          // This is a simple placeholder that shows while the component code is loading
+          <div className="mb-8 px-4 py-6 w-full md:w-[80%] mx-auto h-28 bg-slate-100 dark:bg-slate-800 rounded-2xl shadow-lg animate-pulse" />
+        }
+      >
+        <UserSearch />
+      </Suspense>
 
       {currentSearch && !loading && (
         <h2 className="text-2xl font-bold mb-4">

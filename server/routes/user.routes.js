@@ -14,7 +14,8 @@ import {
   resetPassword,
   requestEmailChange,
   verifyEmailChange,
-  getLeaderboard
+  getLeaderboard,
+  searchUsers
 } from "../controllers/user.controller.js";
 import { verifyJWT } from "../middlewares/auth.middleware.js";
 
@@ -23,6 +24,7 @@ const router = Router();
 // ----------- PUBLIC ROUTES -----------
 router.route("/register").post(registerUser);
 router.route("/login").post(loginUser);
+router.route("/search").get(searchUsers);
 router.route("/leaderboard").get(getLeaderboard);
 router.route("/verify-otp").post(verifyOtp);
 router.route("/resend-verification").post(resendVerificationEmail);

@@ -391,6 +391,24 @@ const getLeaderboard = asyncHandler(async (req, res) => {
   return res.status(200).json(new ApiResponse(200, leaderboardData, "Leaderboard fetched successfully"));
 });
 
+const searchUsers = asyncHandler(async (req, res) => {
+  const { query } = req.query;
+  if (!query) {
+    return res.status(200).json(new ApiResponse(200, [], "Please provide a search query."));
+  }
+
+  const searchQuery = new RegExp(query, 'i');
+
+  const users = await User.find({
+    $or: [
+      { username: searchQuery },
+      { firstName: searchQuery },
+      { lastName: searchQuery }
+    ]
+  }).select('username firstName lastName profilePicture'); // Select only the necessary fields
+
+  return res.status(200).json(new ApiResponse(200, users, "Users fetched successfully."));
+});
 export {
   registerUser,
   verifyOtp,
@@ -406,5 +424,6 @@ export {
   resetPassword,
   requestEmailChange,
   verifyEmailChange,
-  getLeaderboard
+  getLeaderboard,
+  searchUsers
 };

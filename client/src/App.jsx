@@ -31,6 +31,9 @@ const PageLoader = ({ text = "Loading page..." }) => (
 
 function App() {
   const [isAppLoading, setIsAppLoading] = useState(() => {
+    if (window.matchMedia('(display-mode: standalone)').matches) {
+      return false;
+    }
     return !sessionStorage.getItem('hasLoadedBefore');
   });
 
@@ -38,7 +41,7 @@ function App() {
     if (isAppLoading) {
       const timer = setTimeout(() => {
         setIsAppLoading(false);
-      }, 2500); 
+      }, 500); 
 
       sessionStorage.setItem('hasLoadedBefore', 'true');
       
@@ -52,43 +55,41 @@ function App() {
         {isAppLoading && <SplashScreen />}
       </AnimatePresence>
 
-      {!isAppLoading && (
-        <Suspense fallback={<PageLoader />}>
-          <Routes>
-            <Route path="/" element={<Layout />}>
-              {/* Public Routes */}
-              <Route index element={<Home />} />
-              <Route path="login" element={<Login />} />
-              <Route path="register" element={<Register />} />
-              <Route path="verify-otp" element={<VerifyOtpPage />} />
-              <Route path="reset-password" element={<ResetPasswordPage />} />
-              
-              <Route 
-                path="auth/success" 
-                element={
-                  <Suspense fallback={<PageLoader text="Logging in..." />}>
-                    <AuthSuccessPage />
-                  </Suspense>
-                } 
-              />
-              
-              <Route path="skills/:skillId" element={<SingleSkillPage />} />
-              <Route path="profile/:username" element={<ProfilePage />} />
-              <Route path="leaderboard" element={<LeaderboardPage />} />
-              
-              {/* Protected Routes */}
-              <Route element={<ProtectedRoute />}>
-                <Route path="my-skills" element={<MySkillsPage />} />
-                <Route path="skills/new" element={<CreateSkillPage />} />
-                <Route path="dashboard" element={<Dashboard />} />
-                <Route path="messages" element={<MessagesPage />} />
-                <Route path="profile/edit" element={<EditProfilePage />} />
-                <Route path="lucky-roll" element={<LuckyRollPage />} />
-              </Route>
+      <Suspense fallback={<PageLoader />}>
+        <Routes>
+          <Route path="/" element={<Layout />}>
+            {/* Public Routes */}
+            <Route index element={<Home />} />
+            <Route path="login" element={<Login />} />
+            <Route path="register" element={<Register />} />
+            <Route path="verify-otp" element={<VerifyOtpPage />} />
+            <Route path="reset-password" element={<ResetPasswordPage />} />
+            
+            <Route 
+              path="auth/success" 
+              element={
+                <Suspense fallback={<PageLoader text="Logging in..." />}>
+                  <AuthSuccessPage />
+                </Suspense>
+              } 
+            />
+            
+            <Route path="skills/:skillId" element={<SingleSkillPage />} />
+            <Route path="profile/:username" element={<ProfilePage />} />
+            <Route path="leaderboard" element={<LeaderboardPage />} />
+            
+            {/* Protected Routes */}
+            <Route element={<ProtectedRoute />}>
+              <Route path="my-skills" element={<MySkillsPage />} />
+              <Route path="skills/new" element={<CreateSkillPage />} />
+              <Route path="dashboard" element={<Dashboard />} />
+              <Route path="messages" element={<MessagesPage />} />
+              <Route path="profile/edit" element={<EditProfilePage />} />
+              <Route path="lucky-roll" element={<LuckyRollPage />} />
             </Route>
-          </Routes>
-        </Suspense>
-      )}
+          </Route>
+        </Routes>
+      </Suspense>
     </>
   );
 }

@@ -449,7 +449,7 @@ const getYoutubeTutorials = asyncHandler(async (req, res) => {
   }
 
   try {
-    const genAI = new GoogleGenerativeAI(process.env.GOOGLE_API_KEY);
+    const genAI = new GoogleGenerativeAI(process.env.GOOGLE_API_KEYS);
     const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash"});
 
     const safetyPrompt = `

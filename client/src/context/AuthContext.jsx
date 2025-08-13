@@ -4,7 +4,7 @@ import { io } from 'socket.io-client';
 import { toast } from 'react-toastify'; 
 import apiClient from '../api/axios';
 import { subscribeUserToPush } from '../push-notifications';
-import Spinner from '../components/common/Spinner'; // 1. Import the Spinner
+import Spinner from '../components/common/Spinner'; 
 
 const AuthContext = createContext(null);
 
