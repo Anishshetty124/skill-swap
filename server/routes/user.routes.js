@@ -15,7 +15,8 @@ import {
   requestEmailChange,
   verifyEmailChange,
   getLeaderboard,
-  searchUsers
+  searchUsers,
+  getChatStatus
 } from "../controllers/user.controller.js";
 import { verifyJWT } from "../middlewares/auth.middleware.js";
 
@@ -46,7 +47,7 @@ router.route("/me/avatar")
 
 router.route("/me/request-email-change").post(requestEmailChange);
 router.route("/me/verify-email-change").post(verifyEmailChange);
-
+router.route("/:profileId/chat-status").get(verifyJWT, getChatStatus);
 // ----------- PUBLIC DYNAMIC ROUTE (MUST BE LAST) -----------
 router.route("/:username").get(getUserProfile);
 

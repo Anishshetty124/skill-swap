@@ -8,6 +8,8 @@ import sgMail from '@sendgrid/mail';
 import jwt from 'jsonwebtoken';
 import opencage from 'opencage-api-client';
 import { Proposal } from '../models/proposal.model.js';
+import { Conversation } from '../models/conversation.model.js';
+import { ChatRequest } from '../models/chatRequest.model.js';
 
 sgMail.setApiKey(process.env.SENDGRID_API_KEY);
 
@@ -395,6 +397,36 @@ const searchUsers = asyncHandler(async (req, res) => {
 
   return res.status(200).json(new ApiResponse(200, users, "Users fetched successfully."));
 });
+
+const getChatStatus = asyncHandler(async (req, res) => {
+    const { profileId } = req.params;
+    const loggedInUserId = req.user._id;
+
+    const conversation = await Conversation.findOne({
+        participants: { $all: [loggedInUserId, profileId] }
+    });
+    if (conversation) {
+        return res.status(200).json(new ApiResponse(200, { status: 'accepted' }));
+    }
+
+    const chatRequest = await ChatRequest.findOne({
+        $or: [
+            { requester: loggedInUserId, receiver: profileId, status: 'pending' },
+            { requester: profileId, receiver: loggedInUserId, status: 'pending' }
+        ]
+    });
+
+    if (!chatRequest) {
+        return res.status(200).json(new ApiResponse(200, { status: 'idle' }));
+    }
+
+    if (chatRequest.requester.equals(loggedInUserId)) {
+        return res.status(200).json(new ApiResponse(200, { status: 'pending_sent' }));
+    } else {
+        return res.status(200).json(new ApiResponse(200, { status: 'pending_received', requestId: chatRequest._id }));
+    }
+});
+
 export {
   registerUser,
   verifyOtp,
@@ -411,5 +443,6 @@ export {
   requestEmailChange,
   verifyEmailChange,
   getLeaderboard,
-  searchUsers
+  searchUsers,
+  getChatStatus
 };

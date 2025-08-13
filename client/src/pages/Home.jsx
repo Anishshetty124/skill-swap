@@ -101,15 +101,26 @@ const Home = () => {
   };
 }, []);
 
-  const fetchKeywordSuggestions = async (query) => {
+const fetchKeywordSuggestions = async (query) => {
     if (query.length > 1) {
-      const response = await apiClient.get(`/skills/keyword-suggestions?search=${query}`);
-      setKeywordSuggestions(response.data.data);
+      try {
+        const response = await apiClient.get(`/skills/keyword-suggestions?search=${query}`);
+        const suggestions = response.data.data || [];
+
+        // Create a unique list of suggestions based on the 'title' property
+        const uniqueSuggestions = [
+          ...new Map(suggestions.map((item) => [item.title, item])).values(),
+        ];
+
+        setKeywordSuggestions(uniqueSuggestions);
+      } catch (error) {
+        console.error("Failed to fetch keyword suggestions:", error);
+        setKeywordSuggestions([]);
+      }
     } else {
       setKeywordSuggestions([]);
     }
   };
-
   const fetchLocationSuggestions = async (query) => {
     if (query.length > 1) {
       const response = await apiClient.get(`/skills/locations?search=${query}`);
@@ -126,12 +137,11 @@ const Home = () => {
     const value = e.target.value;
     setFilters(prev => ({ ...prev, keywords: value }));
     debouncedKeywordFetch(value);
-    setSearchedKeyword(value);
-    debouncedYoutubeFetch(value);
   };
 
   const handleMainSearch = async (e, currentFilters = filters, currentLocQuery = locationQuery) => {
     if (e) e.preventDefault();
+    setShowScrollButton(true);
     setError(''); 
 
     if (currentFilters.keywords && currentFilters.keywords.trim()) {
@@ -165,7 +175,6 @@ const Home = () => {
     setLocationSuggestions([]);
     setSearchedKeyword(currentFilters.keywords);
     debouncedYoutubeFetch(currentFilters.keywords);
-    setShowScrollButton(true);
   };
 
 

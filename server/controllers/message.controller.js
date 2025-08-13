@@ -46,15 +46,15 @@ const sendMessage = asyncHandler(async (req, res) => {
     });
 
     if (!conversation) {
-        const acceptedProposal = await Proposal.findOne({
+        const acceptedRequest = await ChatRequest.findOne({
             $or: [
-                { proposer: senderId, receiver: receiverId, status: 'accepted' },
-                { proposer: receiverId, receiver: senderId, status: 'accepted' }
+                { requester: senderId, receiver: receiverId, status: 'accepted' },
+                { requester: receiverId, receiver: senderId, status: 'accepted' }
             ]
         });
 
-        if (!acceptedProposal) {
-            throw new ApiError(403, "You can only chat with users you have an accepted swap with.");
+        if (!acceptedRequest) {
+            throw new ApiError(403, "You can only send messages after a chat request has been accepted.");
         }
 
         conversation = await Conversation.create({
@@ -84,7 +84,7 @@ const sendMessage = asyncHandler(async (req, res) => {
     const pushPayload = {
         title: `New Message from ${req.user.username}`,
         body: message,
-        url: `${process.env.FRONTEND_URL}/messages` 
+        url: `/messages` 
     };
     await sendPushNotification(receiverId, pushPayload);
 
