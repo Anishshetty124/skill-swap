@@ -102,4 +102,21 @@ const respondToChatRequest = asyncHandler(async (req, res) => {
     return res.status(200).json(new ApiResponse(200, request, `Chat request ${status}.`));
 });
 
-export { sendChatRequest, getChatRequests, respondToChatRequest };
+const archiveChatRequest = asyncHandler(async (req, res) => {
+    const { requestId } = req.params;
+    const userId = req.user._id;
+
+    const request = await ChatRequest.findOneAndUpdate(
+        { _id: requestId, $or: [{ requester: userId }, { receiver: userId }] },
+        { $addToSet: { archivedBy: userId } }, // Add user to the archive list
+        { new: true }
+    );
+
+    if (!request) {
+        throw new ApiError(404, "Request not found or you are not authorized to modify it.");
+    }
+
+    return res.status(200).json(new ApiResponse(200, {}, "Chat request dismissed."));
+});
+
+export { sendChatRequest, getChatRequests, respondToChatRequest, archiveChatRequest };

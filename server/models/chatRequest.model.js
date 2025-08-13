@@ -15,7 +15,11 @@ const chatRequestSchema = new Schema({
         type: String,
         enum: ['pending', 'accepted', 'rejected'],
         default: 'pending'
-    }
+    },
+     archivedBy: [{
+        type: Schema.Types.ObjectId,
+        ref: 'User'
+    }]
 }, { timestamps: true });
 
 chatRequestSchema.index({ requester: 1, receiver: 1, status: 1 }, { unique: true, partialFilterExpression: { status: 'pending' } });

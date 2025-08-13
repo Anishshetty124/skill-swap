@@ -1,62 +1,41 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { useAuth } from '../context/AuthContext';
+import { useNavigate } from 'react-router-dom';
 import apiClient from '../api/axios';
 import ProposalCard from '../components/dashboard/ProposalCard';
-import ProposalCardSkeleton from '../components/dashboard/ProposalCardSkeleton';
 import ChatRequestCard from '../components/dashboard/ChatRequestCard';
+import SentChatRequestCard from '../components/dashboard/SentChatRequestCard'; // Make sure this file exists
 import Spinner from '../components/common/Spinner';
 import { useSocketContext } from '../context/SocketContext';
-import { useLocation } from 'react-router-dom';
 import { toast } from 'react-toastify';
-
-const ProposalList = ({ proposals, type, onUpdate, onDelete }) => {
-  if (proposals.length === 0) {
-    return <p className="text-slate-500 italic mt-4">No {type} proposals found.</p>;
-  }
-  return (
-    <div className="space-y-4">
-      {proposals.map(p => (
-        <ProposalCard
-          key={p._id}
-          proposal={p}
-          type={type}
-          onUpdate={onUpdate}
-          onDelete={onDelete}
-        />
-      ))}
-    </div>
-  );
-};
+import ProposalCardSkeleton from '../components/dashboard/ProposalCardSkeleton';
+import { useAuth } from '../context/AuthContext';
 
 const Dashboard = () => {
   const { user } = useAuth();
-  const { socket } = useSocketContext();
-  const location = useLocation();
-
-  const [activeTab, setActiveTab] = useState('received_proposals'); // default tab
-  const [proposals, setProposals] = useState([]);
-  const [chatRequests, setChatRequests] = useState([]);
+  const [data, setData] = useState([]); // Use a single state for all tab data
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
+  const [activeTab, setActiveTab] = useState('received_proposals');
+  const { socket } = useSocketContext();
+  const navigate = useNavigate();
 
   const fetchData = useCallback(async () => {
+    // Only show the full skeleton loader on the very first load
+    if (data.length === 0) setLoading(true);
     try {
-      setLoading(true);
-      setError('');
       if (activeTab === 'chat_requests') {
-        const res = await apiClient.get('/chat-requests');
-        setChatRequests(res.data.data || []);
+        const response = await apiClient.get('/chat-requests');
+        const validData = (response.data.data || []).filter(p => !p.archivedBy?.includes(user?._id));
+        setData(validData);
       } else {
         const type = activeTab === 'sent_proposals' ? 'sent' : 'received';
-        const res = await apiClient.get(`/proposals?type=${type}`);
-        const validProposals = (res.data.data || [])
-          .filter(p => p.requestedSkill)
-          .filter(p => !p.archivedBy?.includes(user?._id));
-        setProposals(validProposals);
+        const response = await apiClient.get(`/proposals?type=${type}`);
+        // Filter out any items the user has archived
+        const validData = (response.data.data || []).filter(p => !p.archivedBy?.includes(user?._id));
+        setData(validData);
       }
-    } catch (err) {
-      console.error('Failed to fetch data', err);
-      setError(`Failed to fetch ${activeTab.replace('_', ' ')}.`);
+    } catch (error) {
+      console.error("Failed to fetch data", error);
+      toast.error("Could not load dashboard items.");
     } finally {
       setLoading(false);
     }
@@ -64,8 +43,9 @@ const Dashboard = () => {
 
   useEffect(() => {
     fetchData();
-  }, [fetchData, location.state]);
+  }, [fetchData]);
 
+  // Effect for real-time updates from sockets
   useEffect(() => {
     const handleUpdate = () => fetchData();
     socket?.on('swap_completed', handleUpdate);
@@ -78,27 +58,33 @@ const Dashboard = () => {
     };
   }, [socket, fetchData]);
 
-  const handleProposalUpdate = (updatedProposal) => {
-    setProposals(prev =>
-      prev.map(p => (p._id === updatedProposal._id ? updatedProposal : p))
-    );
+  const handleUpdateProposal = (updatedProposal) => {
+    setData(prev => prev.map(p => p._id === updatedProposal._id ? updatedProposal : p));
   };
-
-  const handleProposalDelete = (deletedProposalId) => {
-    setProposals(prev => prev.filter(p => p._id !== deletedProposalId));
+  
+  const handleDismissItem = async (item) => {
+    const isProposal = item._type === 'proposal' || activeTab.includes('proposal');
+    const endpoint = isProposal 
+        ? `/proposals/${item._id}` 
+        : `/chat-requests/${item._id}/archive`;
+    try {
+        await apiClient.delete(endpoint); // Assuming DELETE for proposals, PATCH for chat requests archive
+        setData(prev => prev.filter(i => i._id !== item._id));
+        toast.success("Item dismissed.");
+    } catch (error) {
+        toast.error("Failed to dismiss item.");
+    }
   };
 
   const handleRespondToRequest = async (request, status) => {
     try {
       await apiClient.patch(`/chat-requests/${request._id}/respond`, { status });
       toast.success(`Request ${status}.`);
-
       if (status === 'accepted') {
-        setChatRequests(prev => prev.map(req => 
-          req._id === request._id ? { ...req, status: 'accepted' } : req
-        ));
+        setData(prev => prev.map(req => req._id === request._id ? { ...req, status: 'accepted' } : req));
       } else {
-        setChatRequests(prev => prev.filter(req => req._id !== request._id));
+        // If rejected, update status so the dismiss button can appear
+        setData(prev => prev.map(req => req._id === request._id ? { ...req, status: 'rejected' } : req));
       }
     } catch (error) {
       toast.error("Failed to respond to request.");
@@ -107,83 +93,63 @@ const Dashboard = () => {
 
   const renderContent = () => {
     if (loading) {
-      if (activeTab === 'chat_requests') return <Spinner text="Loading chat requests..." />;
-      return (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {[...Array(4)].map((_, i) => (
-            <ProposalCardSkeleton key={i} />
-          ))}
-        </div>
-      );
+        return (
+            <div className="space-y-4">
+                {[...Array(3)].map((_, i) => <ProposalCardSkeleton key={i} />)}
+            </div>
+        );
     }
-    if (error) {
-      return <p className="text-center text-red-500">{error}</p>;
+    
+    if (data.length === 0) {
+        const message = {
+            received_proposals: "No pending proposals received.",
+            sent_proposals: "You haven't sent any proposals or chat requests.",
+            chat_requests: "No pending chat requests."
+        };
+        return <p className="text-slate-500 italic text-center py-8">{message[activeTab]}</p>;
     }
-    if (activeTab === 'chat_requests') {
-      return chatRequests.length > 0 ? (
-        <div className="space-y-4">
-          {chatRequests.map(req => (
-            <ChatRequestCard key={req._id} request={req} onRespond={handleRespondToRequest} />
-          ))}
-        </div>
-      ) : (
-        <p className="text-slate-500 italic">No pending chat requests.</p>
-      );
-    }
+
     return (
-      <ProposalList
-        proposals={proposals}
-        type={activeTab.split('_')[0]}
-        onUpdate={handleProposalUpdate}
-        onDelete={handleProposalDelete}
-      />
+      <div className="space-y-4">
+        {data.map(item => {
+          if (activeTab === 'chat_requests') {
+            return <ChatRequestCard key={item._id} request={item} type="received" onRespond={handleRespondToRequest} onDismiss={() => handleDismissItem(item)} />;
+          }
+          
+          if (activeTab === 'sent_proposals') {
+            if (item._type === 'chat_request') {
+              return <SentChatRequestCard key={item._id} request={item} />;
+            }
+            return <ProposalCard key={item._id} proposal={item} onUpdate={handleUpdateProposal} onDelete={() => handleDismissItem(item)} />;
+          }
+          
+          if (activeTab === 'received_proposals') {
+            return <ProposalCard key={item._id} proposal={item} onUpdate={handleUpdateProposal} onDelete={() => handleDismissItem(item)} />;
+          }
+          
+          return null;
+        })}
+      </div>
     );
   };
 
-  const tabClass = (tabName) =>
-    `py-4 px-1 border-b-2 font-medium transition-colors duration-200 ${
-      activeTab === tabName
-        ? 'border-accent-500 text-accent-600'
-        : 'border-transparent text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'
-    }`;
-
   return (
-    <div className="max-w-4xl mx-auto px-4 py-8">
+    <div className="max-w-4xl mx-auto">
       <h1 className="text-3xl font-bold mb-6">Your Dashboard</h1>
-
-      {/* Tabs */}
       <div className="border-b border-slate-200 dark:border-slate-700 mb-6">
-        <nav className="flex space-x-8">
-          <button
-            onClick={() => setActiveTab('received_proposals')}
-            className={tabClass('received_proposals')}
-          >
+        <nav className="flex flex-wrap -mb-px space-x-8">
+          <button onClick={() => setActiveTab('received_proposals')} className={`py-4 px-1 border-b-2 font-medium ${activeTab === 'received_proposals' ? 'border-accent-500 text-accent-600' : 'border-transparent text-slate-500 hover:text-slate-700'}`}>
             Received Proposals
           </button>
-          <button
-            onClick={() => setActiveTab('sent_proposals')}
-            className={tabClass('sent_proposals')}
-          >
-            Sent Proposals
+          <button onClick={() => setActiveTab('sent_proposals')} className={`py-4 px-1 border-b-2 font-medium ${activeTab === 'sent_proposals' ? 'border-accent-500 text-accent-600' : 'border-transparent text-slate-500 hover:text-slate-700'}`}>
+            Sent Items
           </button>
-          <button
-            onClick={() => setActiveTab('chat_requests')}
-            className={tabClass('chat_requests')}
-          >
+          <button onClick={() => setActiveTab('chat_requests')} className={`py-4 px-1 border-b-2 font-medium ${activeTab === 'chat_requests' ? 'border-accent-500 text-accent-600' : 'border-transparent text-slate-500 hover:text-slate-700'}`}>
             Chat Requests
-            {chatRequests.length > 0 && (
-              <span className="ml-2 bg-green-500 text-white text-xs font-bold px-2 py-1 rounded-full">
-                {chatRequests.length}
-              </span>
-            )}
           </button>
         </nav>
       </div>
-
-      {/* Content */}
-      <div className="p-6 bg-gray-100 dark:bg-slate-800 rounded-md">
-        {renderContent()}
-      </div>
+      {renderContent()}
     </div>
   );
 };

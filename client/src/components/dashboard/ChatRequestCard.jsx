@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { ChatBubbleLeftRightIcon } from '@heroicons/react/24/solid';
+import { ChatBubbleLeftRightIcon, XCircleIcon } from '@heroicons/react/24/solid';
 
 const StatusBadge = ({ status }) => {
     const baseClasses = "px-2 py-1 text-xs font-semibold rounded-full";
@@ -16,8 +16,7 @@ const StatusBadge = ({ status }) => {
     );
 };
 
-const ChatRequestCard = ({ request, type, onRespond }) => {
-  // Determine who the "other user" is based on the type of card
+const ChatRequestCard = ({ request, type, onRespond, onDismiss }) => {
   const otherUser = type === 'received' ? request.requester : request.receiver;
   const navigate = useNavigate();
 
@@ -41,7 +40,7 @@ const ChatRequestCard = ({ request, type, onRespond }) => {
         </div>
       </Link>
       
-      <div className="flex gap-3 flex-shrink-0">
+      <div className="flex gap-3 flex-shrink-0 items-center">
         {type === 'received' && request.status === 'pending' && (
           <>
             <button onClick={() => onRespond(request, 'accepted')} className="px-4 py-2 text-sm font-semibold text-white bg-green-500 rounded-md hover:bg-green-600">Accept</button>
@@ -53,8 +52,19 @@ const ChatRequestCard = ({ request, type, onRespond }) => {
                 <ChatBubbleLeftRightIcon className="h-5 w-5" /> Chat
             </button>
         )}
+
         {type === 'sent' && (
           <StatusBadge status={request.status} />
+        )}
+
+        {type === 'received' && request.status !== 'pending' && (
+          <button 
+            onClick={() => onDismiss(request._id)} 
+            className="p-1 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
+            title="Dismiss"
+          >
+            <XCircleIcon className="h-6 w-6" />
+          </button>
         )}
       </div>
     </div>
