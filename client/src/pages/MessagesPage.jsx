@@ -6,6 +6,7 @@ import { PaperAirplaneIcon, ArrowLeftIcon, TrashIcon, EllipsisVerticalIcon, XMar
 import { useSocketContext } from '../context/SocketContext';
 import { toast } from 'react-toastify';
 import { format } from 'date-fns';
+import ReportUserModal from '../components/common/ReportUserModal';
 
 import MessagesPageSkeleton from '../components/messages/MessagePageSkeleton';
 
@@ -295,7 +296,8 @@ const MessagesPage = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [selectedConversation, setSelectedConversation] = useState(null);
-
+  const [isReportModalOpen, setIsReportModalOpen] = useState(false);
+  
   const location = useLocation();
   const navigate = useNavigate();
 
@@ -430,17 +432,9 @@ const MessagesPage = () => {
     }
   };
 
-  const handleReportUser = async () => {
+  const handleReportUser = () => {
     if (!selectedConversation) return;
-    if (window.confirm(`Are you sure you want to report ${selectedConversation.username} for inappropriate behavior?`)) {
-      try {
-        await apiClient.post(`/messages/report/${selectedConversation._id}`);
-        toast.success('User reported. Our team will review the chat history.');
-      } catch (error) {
-       const errorMessage = error.response?.data?.message || 'Failed to report user.';
-       toast.error(errorMessage);
-      }
-    }
+    setIsReportModalOpen(true);
   };
 
   if (loading) return <MessagesPageSkeleton />;
@@ -466,6 +460,7 @@ const MessagesPage = () => {
             onDeleteConversation={handleDeleteConversation} // Prop re-added
             onReportUser={handleReportUser}
           />
+          
         ) : (
           <div className="hidden md:flex flex-col items-center justify-center h-full text-center text-slate-500">
             <svg
@@ -487,7 +482,14 @@ const MessagesPage = () => {
           </div>
         )}
       </div>
+      <ReportUserModal
+        isOpen={isReportModalOpen}
+        onClose={() => setIsReportModalOpen(false)}
+        reportedUser={selectedConversation}
+        conversationId={conversations.find(c => c.participant._id === selectedConversation?._id)?._id}
+      />
     </div>
+    
   );
 };
 

@@ -1,74 +1,112 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, Link, useNavigate } from 'react-router-dom'; 
+import { useParams, Link, useNavigate } from 'react-router-dom';
 import apiClient from '../api/axios';
 import { useAuth } from '../context/AuthContext';
 import SkillCard from '../components/skills/SkillCard';
-import { CurrencyDollarIcon, MapPinIcon } from '@heroicons/react/24/solid';
+import { CurrencyDollarIcon, MapPinIcon, HandThumbUpIcon, HandThumbDownIcon } from '@heroicons/react/24/solid';
 import Badge from '../components/profile/Badge';
 import ImageLightbox from '../components/common/ImageLightBox';
 import { useLongPress } from '../hooks/useLongPress';
 import ProfilePageSkeleton from '../components/profile/ProfilePageSkeleton';
 import { toast } from 'react-toastify';
 
+const AuthPrompt = () => (
+  <div className="text-center p-8 bg-white dark:bg-slate-800 rounded-lg shadow-md">
+    <h3 className="font-bold text-xl mb-2">Access Denied</h3>
+    <p className="text-slate-500 mb-6">You must be logged in to view user profiles.</p>
+    <div className="flex justify-center gap-4">
+      <Link to="/login" className="px-6 py-2 bg-accent-600 text-white font-semibold rounded-md hover:bg-accent-700">Login</Link>
+      <Link to="/register" className="px-6 py-2 bg-slate-200 dark:bg-slate-700 font-semibold rounded-md hover:bg-slate-300 dark:hover:bg-slate-600">Register</Link>
+    </div>
+  </div>
+);
+
 const ProfilePage = () => {
   const { username } = useParams();
-  const { user: loggedInUser, isAuthenticated, loading: authLoading } = useAuth(); 
+  const { user: loggedInUser, isAuthenticated, loading: authLoading } = useAuth();
   const navigate = useNavigate();
-  
+
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [isAccessDenied, setIsAccessDenied] = useState(false);
   const [activeTab, setActiveTab] = useState('skills');
   const [showAllSkills, setShowAllSkills] = useState(false);
   const [lightboxImage, setLightboxImage] = useState(null);
 
+  // Reputation system
+  const [likes, setLikes] = useState(0);
+  const [dislikes, setDislikes] = useState(0);
+  const [userVote, setUserVote] = useState(null);
+
   const longPressProps = useLongPress(() => {
     if (profile) {
-        setLightboxImage(profile.profilePicture || `https://api.dicebear.com/8.x/initials/svg?seed=${profile.firstName} ${profile.lastName}`);
+      setLightboxImage(profile.profilePicture || `https://api.dicebear.com/8.x/initials/svg?seed=${profile.firstName} ${profile.lastName}`);
     }
   }, 600);
 
   useEffect(() => {
-    if (authLoading) {
-      return; 
-    }
-
-    if (!isAuthenticated) {
-      toast.info("Please log in or create an account to view user profiles.");
-      navigate('/login');
-      return; 
-    }
+    if (authLoading) return;
 
     const fetchProfile = async () => {
       try {
         setLoading(true);
+        setIsAccessDenied(false);
         const response = await apiClient.get(`/users/${username}`);
-        setProfile(response.data.data);
+        const profileData = response.data.data;
+        setProfile(profileData);
+
+        // Reputation init
+        setLikes(profileData.likes?.length || 0);
+        setDislikes(profileData.dislikes?.length || 0);
+        if (isAuthenticated && loggedInUser) {
+          if (profileData.likes?.includes(loggedInUser._id)) setUserVote('like');
+          else if (profileData.dislikes?.includes(loggedInUser._id)) setUserVote('dislike');
+        }
       } catch (err) {
-        setError('Failed to load user profile.');
+        if (err.response?.status === 401) setIsAccessDenied(true);
+        else setError('Failed to load user profile.');
       } finally {
         setLoading(false);
       }
     };
 
     fetchProfile();
-  }, [username, isAuthenticated, authLoading, navigate]);
+  }, [username, isAuthenticated, loggedInUser, authLoading]);
+
+  const handleReputationAction = async (action) => {
+    if (!isAuthenticated) {
+      toast.info("Please log in to rate profiles.");
+      return;
+    }
+    try {
+      const response = await apiClient.post(`/reputation/${profile._id}`, { action });
+      const { likes, dislikes } = response.data.data;
+      setLikes(likes);
+      setDislikes(dislikes);
+      if (action === 'like') setUserVote(prev => prev === 'like' ? null : 'like');
+      else if (action === 'dislike') setUserVote(prev => prev === 'dislike' ? null : 'dislike');
+    } catch (error) {
+      console.error(`Failed to ${action} profile`, error);
+    }
+  };
 
   const isOwner = loggedInUser?.username === username;
 
   if (authLoading || loading) return <ProfilePageSkeleton />;
+  if (isAccessDenied) return <AuthPrompt />;
   if (error) return <p className="text-center p-10 text-red-500">{error}</p>;
   if (!profile) return <p className="text-center p-10">User not found.</p>;
 
   const skillsWithUser = profile.skills.map(skill => ({
     ...skill,
-    user: { 
-      _id: profile._id, 
-      username: profile.username, 
-      profilePicture: profile.profilePicture 
+    user: {
+      _id: profile._id,
+      username: profile.username,
+      profilePicture: profile.profilePicture
     }
   }));
-  
+
   const topCategories = [...new Set(profile.skills.map(skill => skill.category))];
   const displayedSkills = showAllSkills ? skillsWithUser : skillsWithUser.slice(0, 6);
 
@@ -77,7 +115,7 @@ const ProfilePage = () => {
       <div className="bg-white dark:bg-slate-800 p-6 md:p-8 rounded-lg shadow-lg mb-8">
         <div className="flex flex-col md:flex-row md:justify-between items-center md:items-start gap-4">
           <div className="flex flex-col md:flex-row items-center text-center md:text-left gap-6">
-            <img 
+            <img
               {...longPressProps}
               className="w-24 h-24 md:w-28 md:h-28 rounded-full object-cover border-4 border-accent-500"
               src={profile.profilePicture || `https://api.dicebear.com/8.x/initials/svg?seed=${profile.firstName} ${profile.lastName}`}
@@ -91,73 +129,100 @@ const ProfilePage = () => {
               </p>
               {profile.locationString && (
                 <div className="flex items-center justify-center md:justify-start text-sm text-slate-500 mt-2">
-                  <MapPinIcon className="h-4 w-4 mr-1"/>
+                  <MapPinIcon className="h-4 w-4 mr-1" />
                   <span>{profile.locationString}</span>
                 </div>
               )}
               {profile.bio ? (
-              <p className="text-slate-600 dark:text-slate-400 mt-2">{profile.bio}</p>
+                <p className="text-slate-600 dark:text-slate-400 mt-2">{profile.bio}</p>
               ) : isOwner ? (
-                <p className="text-slate-500 italic mt-2">You haven't written a bio yet. Click 'Edit Profile' to add one.</p>
-                ) : (
-    <p className="text-slate-500 italic mt-2">This user has not written a bio yet.</p>
-)}
+                <p className="text-slate-500 italic mt-2">You haven't written a bio yet.</p>
+              ) : (
+                <p className="text-slate-500 italic mt-2">This user has not written a bio yet.</p>
+              )}
+              {/* Social Links */}
               <div className="flex items-center justify-center md:justify-start space-x-4 mt-4 text-blue-500 font-semibold">
                 {profile.socials?.github && <a href={profile.socials.github} target="_blank" rel="noopener noreferrer" className="hover:underline">GitHub</a>}
                 {profile.socials?.linkedin && <a href={profile.socials.linkedin} target="_blank" rel="noopener noreferrer" className="hover:underline">LinkedIn</a>}
                 {profile.socials?.website && <a href={profile.socials.website} target="_blank" rel="noopener noreferrer" className="hover:underline">Website</a>}
               </div>
+              {/* Reputation */}
+              {!isOwner && isAuthenticated && (
+                <div className="flex justify-center md:justify-start gap-4 mt-4">
+                  <button
+                    onClick={() => handleReputationAction('like')}
+                    className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm font-semibold transition-colors ${
+                      userVote === 'like'
+                        ? 'bg-green-500 text-white'
+                        : 'bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600'
+                    }`}
+                  >
+                    <HandThumbUpIcon className="h-5 w-5" />
+                    <span>{likes}</span>
+                  </button>
+                  <button
+                    onClick={() => handleReputationAction('dislike')}
+                    className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm font-semibold transition-colors ${
+                      userVote === 'dislike'
+                        ? 'bg-red-500 text-white'
+                        : 'bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600'
+                    }`}
+                  >
+                    <HandThumbDownIcon className="h-5 w-5" />
+                    <span>{dislikes}</span>
+                  </button>
+                </div>
+              )}
             </div>
           </div>
-          
-            {isOwner && (
-             <div className="flex items-center gap-2 flex-shrink-0">
-               <Link to="/my-skills" className="px-4 py-2 text-sm font-semibold text-white bg-blue-500 dark:bg-blue-700 shadow-md rounded-md hover:bg-blue-700 dark:hover:bg-blue-800">
-                 My Skills
-               </Link>
-               <Link to="/profile/edit" className="px-4 py-2 text-sm font-semibold text-white bg-cyan-500 dark:bg-cyan-600  hover:bg-cyan-800 rounded-md dark:hover:bg-cyan-700">
-                 Edit Profile
-               </Link>
-             </div>
-           )}
+          {isOwner && (
+            <div className="flex items-center gap-2 flex-shrink-0">
+              <Link to="/my-skills" className="px-4 py-2 text-sm font-semibold text-white bg-blue-500 dark:bg-blue-700 shadow-md rounded-md hover:bg-blue-700 dark:hover:bg-blue-800">My Skills</Link>
+              <Link to="/profile/edit" className="px-4 py-2 text-sm font-semibold text-white bg-cyan-500 dark:bg-cyan-600 hover:bg-cyan-800 rounded-md dark:hover:bg-cyan-700">Edit Profile</Link>
+            </div>
+          )}
         </div>
-        
+
+        {/* Stats & Categories */}
         <div className="border-t dark:border-slate-700 ml-9 mt-6 pt-6 flex flex-col md:flex-row gap-6">
           <div className="flex-1">
-  <h3 className="text-lg font-semibold mb-2">Statistics</h3>
-  <div className="space-y-2 text-sm text-slate-600 dark:text-slate-400">
-    <p><strong>Skills Offered:</strong> {profile.skillsOfferedCount}</p>
-    <p><strong>Swaps Completed:</strong> {profile.swapsCompleted}</p>
-    <div className="flex items-center gap-1">
-        <strong>Swap Credits:</strong> 
-        <span className="flex items-center font-bold text-amber-500">
-            <CurrencyDollarIcon className="h-4 w-4 mr-1" />
-            {profile.swapCredits}
-        </span>
-    </div>
-  </div>
-</div>
+            <h3 className="text-lg font-semibold mb-2">Statistics</h3>
+            <div className="space-y-2 text-sm text-slate-600 dark:text-slate-400">
+              <p><strong>Skills Offered:</strong> {profile.skillsOfferedCount}</p>
+              <p><strong>Swaps Completed:</strong> {profile.swapsCompleted}</p>
+              <div className="flex items-center gap-1">
+                <strong>Swap Credits:</strong>
+                <span className="flex items-center font-bold text-amber-500">
+                  <CurrencyDollarIcon className="h-4 w-4 mr-1" />
+                  {profile.swapCredits}
+                </span>
+              </div>
+            </div>
+          </div>
           <div className="flex-1">
             <h3 className="text-lg font-semibold mb-2">Top Categories</h3>
             <div className="flex flex-wrap gap-2">
-              {topCategories.length > 0 ? topCategories.map(cat => (
-                <span key={cat} className="bg-blue-100 dark:bg-blue-900/50 text-blue-800 dark:text-blue-300 text-xs font-medium px-2.5 py-0.5 rounded-full">{cat}</span>
-              )) : <p className="text-sm text-slate-500 italic">No categories yet.</p>}
+              {topCategories.length > 0
+                ? topCategories.map(cat => (
+                  <span key={cat} className="bg-blue-100 dark:bg-blue-900/50 text-blue-800 dark:text-blue-300 text-xs font-medium px-2.5 py-0.5 rounded-full">{cat}</span>
+                ))
+                : <p className="text-sm text-slate-500 italic">No categories yet.</p>}
             </div>
           </div>
         </div>
+
+        {/* Achievements */}
         <div className="border-t dark:border-slate-700 mt-6 pt-6">
           <h3 className="text-lg font-semibold mb-3">Achievements</h3>
           <div className="flex flex-wrap gap-2">
-            {profile.badges && profile.badges.length > 0 ? (
-              profile.badges.map(badgeName => <Badge key={badgeName} name={badgeName} />)
-            ) : (
-              <p className="text-sm text-slate-500 italic">No achievements yet.</p>
-            )}
+            {profile.badges?.length > 0
+              ? profile.badges.map(badgeName => <Badge key={badgeName} name={badgeName} />)
+              : <p className="text-sm text-slate-500 italic">No achievements yet.</p>}
           </div>
         </div>
       </div>
 
+      {/* Tabs */}
       <div className="mb-6 border-b border-slate-200 dark:border-slate-700">
         <nav className="flex space-x-8">
           <button onClick={() => setActiveTab('skills')} className={`py-4 px-1 border-b-2 font-medium ${activeTab === 'skills' ? 'border-accent-500 text-accent-600' : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300'}`}>Skills Offered</button>
@@ -165,6 +230,7 @@ const ProfilePage = () => {
         </nav>
       </div>
 
+      {/* Skills / Bookmarks */}
       <div>
         {activeTab === 'skills' && (
           skillsWithUser.length > 0 ? (
@@ -197,11 +263,7 @@ const ProfilePage = () => {
             </p>
           )
         )}
-<ImageLightbox 
-        src={lightboxImage} 
-        alt="Profile Picture" 
-        onClose={() => setLightboxImage(null)} 
-      />
+        <ImageLightbox src={lightboxImage} alt="Profile Picture" onClose={() => setLightboxImage(null)} />
       </div>
     </div>
   );

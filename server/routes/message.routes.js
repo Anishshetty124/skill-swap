@@ -20,6 +20,7 @@ router.get('/conversations', getConversations);
 router.get('/:id', getMessages);
 router.post('/send/:id', sendMessage);
 router.delete('/message/:messageId', deleteMessage); 
+router.route('/report/:conversationId').post(reportUser);
 router.delete('/conversation/:conversationId', clearConversation);
 router.delete('/conversation/:conversationId/delete', deleteConversation);
 router.post('/report/:userIdToReport', reportUser);

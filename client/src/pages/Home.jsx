@@ -194,20 +194,7 @@ const Home = () => {
   };
 
 
-  useEffect(() => {
-    const debounceTimer = setTimeout(async () => {
-      setUserSearchLoading(true);
-      try {
-        const response = await apiClient.get(`/users/search?query=${userSearchQuery}`);
-        setUserResults(response.data.data);
-      } catch (error) {
-        console.error("Failed to search users", error);
-      } finally {
-        setUserSearchLoading(false);
-      }
-    }, 300);
-    return () => clearTimeout(debounceTimer);
-  }, [userSearchQuery]);
+  
   
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -375,11 +362,11 @@ const Home = () => {
       </div>
         <div className="flex flex-col sm:flex-row justify-end gap-2">
           <button
-            type="submit"
-            className="w-full sm:w-auto px-6 py-2 bg-blue-600 text-white font-semibold rounded-md hover:bg-blue-700"
+          type="submit"
+          className="w-full sm:w-auto px-6 py-2 bg-blue-600 text-white font-semibold rounded-md hover:bg-blue-700"
           >
-            Filter
-          </button>
+          Filter
+         </button>
           {isMainFilterActive && (
             <button
               type="button"

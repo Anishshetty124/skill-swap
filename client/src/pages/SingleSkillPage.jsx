@@ -2,17 +2,22 @@ import React, { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import apiClient from '../api/axios';
 import { useAuth } from '../context/AuthContext';
-import ProposalModal from '../components/proposals/ProposalModal';
 import SkillCard from '../components/skills/SkillCard';
+import { StarIcon, MapPinIcon, FlagIcon } from '@heroicons/react/24/solid';
+import Spinner from '../components/common/Spinner';
+import ProposalModal from '../components/proposals/ProposalModal';
 import { toast } from 'react-toastify';
 
 const StarRating = ({ rating }) => {
   const stars = [];
   for (let i = 1; i <= 5; i++) {
     stars.push(
-      <span key={i} className={i <= rating ? 'text-yellow-400' : 'text-gray-300'}>
-        ★
-      </span>
+      <StarIcon
+        key={i}
+        className={`h-5 w-5 ${
+          i <= rating ? 'text-yellow-400' : 'text-gray-300'
+        }`}
+      />
     );
   }
   return <div className="flex">{stars}</div>;
@@ -26,14 +31,18 @@ const StarRatingInput = ({ currentRating, onRate }) => {
         <button
           key={star}
           type="button"
-          className={`text-3xl transition-colors ${
-            star <= (hoverRating || currentRating) ? 'text-yellow-400' : 'text-gray-300'
-          }`}
+          className="focus:outline-none"
           onClick={() => onRate(star)}
           onMouseEnter={() => setHoverRating(star)}
           onMouseLeave={() => setHoverRating(0)}
         >
-          ★
+          <StarIcon
+            className={`h-8 w-8 transition-colors ${
+              star <= (hoverRating || currentRating)
+                ? 'text-yellow-400'
+                : 'text-gray-300'
+            }`}
+          />
         </button>
       ))}
     </div>
@@ -52,6 +61,10 @@ const SingleSkillPage = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [avgRating, setAvgRating] = useState(0);
   const [userRating, setUserRating] = useState(0);
+
+  // --- Reporting state ---
+  const [isReported, setIsReported] = useState(false);
+  const [reporting, setReporting] = useState(false);
 
   useEffect(() => {
     const fetchSkillAndMatches = async () => {
@@ -72,29 +85,48 @@ const SingleSkillPage = () => {
         }
         setSkill(fetchedSkill);
 
+        // Check if already reported
+        if (
+          isAuthenticated &&
+          user &&
+          fetchedSkill.reportedBy?.includes(user._id)
+        ) {
+          setIsReported(true);
+        }
+
+        // Ratings logic
         const ratingsArr = fetchedSkill.ratings || [];
         if (ratingsArr.length > 0) {
-          const total = ratingsArr.reduce((acc, r) => acc + (r?.rating || 0), 0);
+          const total = ratingsArr.reduce(
+            (acc, r) => acc + (r?.rating || 0),
+            0
+          );
           const avg = total / ratingsArr.length;
           setAvgRating(Number.isFinite(avg) ? avg : 0);
-          const myRating = ratingsArr.find((r) => r?.user?._id === user?._id);
-          if (myRating) setUserRating(myRating.rating);
-          else setUserRating(0);
+          const myRating = ratingsArr.find(
+            (r) => r?.user?._id === user?._id
+          );
+          setUserRating(myRating ? myRating.rating : 0);
         } else {
           setAvgRating(0);
           setUserRating(0);
         }
 
-        if (user?._id === fetchedSkill?.user?._id && fetchedSkill.type === 'REQUEST') {
-          const matchesResponse = await apiClient.get(`/skills/${skillId}/matches`);
+        // Matches logic
+        if (
+          user?._id === fetchedSkill?.user?._id &&
+          fetchedSkill.type === 'REQUEST'
+        ) {
+          const matchesResponse = await apiClient.get(
+            `/skills/${skillId}/matches`
+          );
           const fetchedMatches = matchesResponse.data?.data || [];
           setMatches((fetchedMatches || []).filter(Boolean));
         } else {
           setMatches([]);
         }
       } catch (err) {
-        console.error(err);
-        setError('Something went wrong while fetching the skill.');
+        setError('Failed to load skill details.');
       } finally {
         setLoading(false);
       }
@@ -130,10 +162,15 @@ const SingleSkillPage = () => {
 
       const ratingsArr = updatedSkill?.ratings || [];
       if (ratingsArr.length > 0) {
-        const total = ratingsArr.reduce((acc, r) => acc + (r?.rating || 0), 0);
+        const total = ratingsArr.reduce(
+          (acc, r) => acc + (r?.rating || 0),
+          0
+        );
         const avg = total / ratingsArr.length;
         setAvgRating(Number.isFinite(avg) ? avg : 0);
-        const myRating = ratingsArr.find((r) => r?.user?._id === user?._id);
+        const myRating = ratingsArr.find(
+          (r) => r?.user?._id === user?._id
+        );
         setUserRating(myRating ? myRating.rating : 0);
       } else {
         setAvgRating(0);
@@ -145,10 +182,31 @@ const SingleSkillPage = () => {
     }
   };
 
+  const handleReportSkill = async () => {
+    if (
+      !window.confirm(
+        'Are you sure you want to report this skill for inappropriate content?'
+      )
+    ) {
+      return;
+    }
+    setReporting(true);
+    try {
+      await apiClient.post(`/skills/${skillId}/report`);
+      toast.success('Skill reported. Our team will review it shortly.');
+      setIsReported(true);
+    } catch (error) {
+      toast.error(error.response?.data?.message || 'Failed to report skill.');
+    } finally {
+      setReporting(false);
+    }
+  };
+
   const isOwner = isAuthenticated && user?._id === skill?.user?._id;
   const canPropose = isAuthenticated && !isOwner;
+  const safeAvg = Number.isFinite(avgRating) ? avgRating.toFixed(1) : '0.0';
 
-  if (loading) return <p className="text-center p-10">Loading...</p>;
+  if (loading) return <Spinner text="Loading skill details..." />;
   if (error) {
     return (
       <div className="text-center p-10 text-blue-600">
@@ -172,66 +230,97 @@ const SingleSkillPage = () => {
   }
   if (!skill) return <p className="text-center p-10">Skill not found.</p>;
 
-  const skillTypeColor = skill.type === 'OFFER' ? 'text-blue-500' : 'text-green-500';
-  const safeAvg = Number.isFinite(avgRating) ? avgRating.toFixed(1) : '0.0';
-
   return (
     <div className="max-w-4xl mx-auto py-8">
-      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-8">
-        <div className="flex justify-between items-start mb-4">
-          <h1 className="text-4xl font-bold text-gray-900 dark:text-white">{skill.title}</h1>
-          <span className={`text-lg font-bold ${skillTypeColor}`}>{skill.type}</span>
+      <div className="bg-white dark:bg-slate-800 rounded-lg shadow-md p-6">
+        <div className="flex justify-between items-start">
+          <h1 className="text-3xl font-bold mb-2">{skill.title}</h1>
+          {!isOwner && isAuthenticated && (
+            <button
+              onClick={handleReportSkill}
+              disabled={isReported || reporting}
+              className="flex items-center gap-2 px-3 py-1 text-sm rounded-full text-slate-500 hover:bg-red-100 hover:text-red-600 dark:hover:bg-red-900/50 dark:hover:text-red-400 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              title={
+                isReported
+                  ? 'You have already reported this skill'
+                  : 'Report this skill'
+              }
+            >
+              <FlagIcon className="h-4 w-4" />
+              <span>{isReported ? 'Reported' : 'Report'}</span>
+            </button>
+          )}
         </div>
 
         <div className="flex items-center mb-6">
-          <span className="text-sm font-semibold bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200 px-3 py-1 rounded-full mr-4">
-            {skill.category}
-          </span>
+           <span className="text-sm font-semibold bg-indigo-100 text-indigo-800 dark:bg-indigo-800 dark:text-indigo-100 px-3 py-1 rounded-full mr-2">
+    {skill.type || 'OFFER'}
+  </span>
+  <span className="text-sm font-semibold bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200 px-3 py-1 rounded-full mr-4">
+    {skill.category}
+  </span>
           <Link
             to={`/profile/${skill.user?.username || ''}`}
             className="text-sm text-gray-600 dark:text-gray-400 hover:underline"
           >
             Posted by:{' '}
-            <span className="font-medium text-indigo-600 dark:text-indigo-400">{skill.user?.username || 'Unknown'}</span>
+            <span className="font-medium text-indigo-600 dark:text-indigo-400">
+              {skill.user?.username || 'Unknown'}
+            </span>
           </Link>
         </div>
 
-        <p className="text-gray-700 dark:text-gray-300 whitespace-pre-wrap leading-relaxed">{skill.description}</p>
+        <p className="text-gray-700 dark:text-gray-300 whitespace-pre-wrap leading-relaxed">
+          {skill.description}
+        </p>
 
-        <div className="mt-8 border-t dark:border-gray-700 pt-6">
-          <h3 className="text-xl font-semibold mb-4">Details</h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-gray-600 dark:text-gray-400">
-            <p>
-              <strong>Level:</strong> {skill.level}
-            </p>
-            <p className="md:col-span-2">
-              <strong>Seeking in Return:</strong> {skill.desiredSkill || 'Open to offers'}
-            </p>
-            <p>
-              <strong>Location:</strong> {skill.locationString}
-            </p>
-          </div>
-        </div>
+        <div className="mt-6">
+  <h3 className="text-lg font-semibold mb-2">Details</h3>
+  <ul className="space-y-1 text-gray-700 dark:text-gray-300">
+    <li>
+      <span className="font-medium">Level:</span> {skill.level || 'Not specified'}
+    </li>
+    <li>
+      <span className="font-medium">Seeking in Return:</span>{' '}
+      {skill.seeking || 'Open to offers'}
+    </li>
+    <li className="flex items-center">
+      <MapPinIcon className="h-4 w-4 mr-1" />
+      <span>{skill.location || 'Remote'}</span>
+    </li>
+  </ul>
+</div>
 
+        {/* Rating Section */}
         <div className="mt-8 border-t dark:border-gray-700 pt-6">
           <h3 className="text-xl font-semibold mb-2">Skill Rating</h3>
           <div className="flex items-center gap-4 mb-4">
             <p className="font-bold text-lg">{safeAvg} / 5</p>
-            <p className="text-sm text-gray-500">({(skill?.ratings || []).length} ratings)</p>
+            <p className="text-sm text-gray-500">
+              ({(skill?.ratings || []).length} ratings)
+            </p>
           </div>
 
           {isAuthenticated && !isOwner && (
             <div className="mb-4">
               <p className="text-sm font-medium mb-2">Your Rating:</p>
-              <StarRatingInput currentRating={userRating} onRate={handleRateSkill} />
+              <StarRatingInput
+                currentRating={userRating}
+                onRate={handleRateSkill}
+              />
             </div>
           )}
 
           {(skill.ratings || []).filter(Boolean).length > 0 && (
             <div className="space-y-2 mt-4">
               {(skill.ratings || []).filter(Boolean).map((r, idx) => (
-                <div key={r._id || r.user?._id || `rating-${idx}`} className="flex items-center justify-between text-sm">
-                  <span className="text-gray-600 dark:text-gray-400">{r.user?.username || 'A user'}</span>
+                <div
+                  key={r._id || r.user?._id || `rating-${idx}`}
+                  className="flex items-center justify-between text-sm"
+                >
+                  <span className="text-gray-600 dark:text-gray-400">
+                    {r.user?.username || 'A user'}
+                  </span>
                   <StarRating rating={r?.rating || 0} />
                 </div>
               ))}
@@ -239,6 +328,7 @@ const SingleSkillPage = () => {
           )}
         </div>
 
+        {/* Action buttons */}
         <div className="mt-8 flex justify-center items-center gap-4">
           {canPropose && (
             <button
@@ -257,24 +347,30 @@ const SingleSkillPage = () => {
               {deleting ? 'Deleting...' : 'Delete Skill'}
             </button>
           )}
-          {!isAuthenticated && !isOwner && (
-            <p className="text-md text-gray-300 italic">Please log in to propose a swap.</p>
-          )}
         </div>
       </div>
 
       {(matches || []).filter(Boolean).length > 0 && (
         <div className="mt-12">
-          <h2 className="text-2xl font-bold mb-4">Top Matches For Your Request</h2>
+          <h2 className="text-2xl font-bold mb-4">
+            Top Matches For Your Request
+          </h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
             {(matches || []).filter(Boolean).map((matchSkill) => (
-              <SkillCard key={matchSkill._id || matchSkill?.id} skill={matchSkill} />
+              <SkillCard
+                key={matchSkill._id || matchSkill?.id}
+                skill={matchSkill}
+              />
             ))}
           </div>
         </div>
       )}
 
-      <ProposalModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} requestedSkill={skill} />
+      <ProposalModal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        requestedSkill={skill}
+      />
     </div>
   );
 };

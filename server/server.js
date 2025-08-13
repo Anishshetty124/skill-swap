@@ -22,6 +22,7 @@ import authRouter from './routes/auth.routes.js';
 import feedbackRouter from './routes/feedback.routes.js';
 import pushRouter from './routes/push.routes.js';
 import rewardRouter from './routes/reward.routes.js';
+import reputationRouter from './routes/reputation.routes.js';
 
 dotenv.config({ path: './.env' });
 
@@ -71,6 +72,7 @@ app.use('/api/v1/messages', messageRouter);
 app.use('/api/v1/feedback', feedbackRouter);
 app.use('/api/v1/push', pushRouter);
 app.use('/api/v1/rewards', rewardRouter);
+app.use('/api/v1/reputation', reputationRouter);
 
 app.use((err, req, res, next) => {
   if (err instanceof ApiError) {

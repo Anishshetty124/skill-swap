@@ -7,6 +7,7 @@ import { User } from '../models/user.model.js';
 import { Proposal } from '../models/proposal.model.js';
 import natural from 'natural';
 import { GoogleGenerativeAI, HarmBlockThreshold, HarmCategory } from '@google/generative-ai';
+import { getReceiverSocketId } from '../socket/socket.js';
 
 const { WordTokenizer, TfIdf } = natural;
 
@@ -469,6 +470,61 @@ const checkKeywordSafety = asyncHandler(async (req, res) => {
   }
 });
 
+const reportSkill = asyncHandler(async (req, res) => {
+    const { skillId } = req.params;
+    const reporterId = req.user._id;
+
+    if (!mongoose.Types.ObjectId.isValid(skillId)) {
+        throw new ApiError(400, "Invalid skill ID.");
+    }
+
+    const skill = await Skill.findById(skillId);
+    if (!skill) {
+        throw new ApiError(404, "Skill not found.");
+    }
+
+    if (skill.user.equals(reporterId)) {
+        throw new ApiError(400, "You cannot report your own skill.");
+    }
+
+    if (skill.reportedBy.includes(reporterId)) {
+        throw new ApiError(400, "You have already reported this skill.");
+    }
+
+    const updatedSkill = await Skill.findByIdAndUpdate(
+        skillId,
+        {
+            $inc: { reportCount: 1 },
+            $addToSet: { reportedBy: reporterId } 
+        },
+        { new: true } 
+    ).populate('user', 'username'); 
+
+    if (!updatedSkill) {
+        throw new ApiError(404, "Skill not found after attempting to update.");
+    }
+
+    const ownerSocketId = getReceiverSocketId(updatedSkill.user._id.toString());
+
+    if (updatedSkill.reportCount >= 5) {
+        await Skill.findByIdAndDelete(skillId);
+        
+        if (ownerSocketId) {
+            io.to(ownerSocketId).emit('new_notification', {
+                message: `Your skill "${updatedSkill.title}" has been removed due to multiple reports.`
+            });
+        }
+        
+    } else {
+        if (ownerSocketId) {
+            io.to(ownerSocketId).emit('new_notification', {
+                message: `Warning: Your skill "${updatedSkill.title}" has been reported. (${updatedSkill.reportCount}/5)`
+            });
+        }
+    }
+
+    return res.status(200).json(new ApiResponse(200, {}, "Skill has been reported. Thank you for your feedback."));
+});
 
 export {
   createSkill,
@@ -488,5 +544,6 @@ export {
   getYoutubePlaceholders,
   getRecommendedSkills,
   generateAiContent,
-  checkKeywordSafety
+  checkKeywordSafety,
+  reportSkill
 };

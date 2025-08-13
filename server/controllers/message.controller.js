@@ -8,6 +8,7 @@ import { User } from '../models/user.model.js';
 import { Proposal } from '../models/proposal.model.js'; 
 import { Skill } from '../models/skill.model.js';
 import profanity from 'leo-profanity'; 
+import { Report } from '../models/report.model.js';
 import { sendPushNotification } from '../utils/pushNotifier.js';
 profanity.loadDictionary(); 
 profanity.add(profanity.getDictionary('hi'));
@@ -231,55 +232,58 @@ const clearConversation = asyncHandler(async (req, res) => {
 });
 
 const reportUser = asyncHandler(async (req, res) => {
-    const { userIdToReport } = req.params;
-    const reporterId = req.user._id; 
+    const { conversationId } = req.params;
+    const { reason } = req.body;
+    const reporterId = req.user._id;
 
-    if (reporterId.equals(userIdToReport)) {
-        throw new ApiError(400, "You cannot report yourself.");
+    if (!reason || reason.trim() === '') {
+        throw new ApiError(400, "A reason is required to report a user.");
     }
 
-    const userToReport = await User.findById(userIdToReport);
-
-    if (!userToReport) {
-        throw new ApiError(404, "User to report not found.");
+    const conversation = await Conversation.findById(conversationId);
+    if (!conversation) {
+        throw new ApiError(404, "Conversation not found.");
     }
 
-    if (userToReport.reportedBy.includes(reporterId)) {
-        throw new ApiError(400, "You have already reported this user.");
+    const reportedUserId = conversation.participants.find(p => !p.equals(reporterId));
+    if (!reportedUserId) {
+        throw new ApiError(400, "Could not identify the user to report in this conversation.");
     }
 
-    const updatedUser = await User.findByIdAndUpdate(
-        userIdToReport,
-        { 
-            $inc: { reportCount: 1 },
-            $push: { reportedBy: reporterId } 
-        },
-        { new: true }
-    );
+    const existingReport = await Report.findOne({
+        reporter: reporterId,
+        reportedUser: reportedUserId,
+        conversationId: conversationId
+    });
 
-    const reportedUserSocketId = getReceiverSocketId(userIdToReport);
-
-    if (updatedUser.reportCount >= 5) {
-        
-        await Skill.updateMany(
-            { "ratings.user": updatedUser._id },
-            { $pull: { ratings: { user: updatedUser._id } } }
-        );
-
-        await updatedUser.deleteOne(); 
-        
-        if (reportedUserSocketId) {
-            io.to(reportedUserSocketId).emit('account_deleted', { message: "Your account has been deleted due to multiple reports of misconduct." });
-        }
-        console.log(`User ${updatedUser.username} deleted due to excessive reports.`);
-
-    } else if (updatedUser.reportCount >= 2) {
-        if (reportedUserSocketId) {
-            io.to(reportedUserSocketId).emit('new_notification', { message: "Warning: Your account has received multiple reports for inappropriate behavior. Further violations may result in account termination." });
-        }
+    if (existingReport) {
+        throw new ApiError(400, "You have already reported this user for this conversation.");
     }
 
-    return res.status(200).json(new ApiResponse(200, {}, "User has been reported."));
+    await Report.create({
+        reporter: reporterId,
+        reportedUser: reportedUserId,
+        conversationId: conversationId,
+        reason: reason
+    });
+    
+    const reportedUserSocketId = getReceiverSocketId(reportedUserId.toString());
+    const notificationMessage = "You have been reported for inappropriate conduct. Our moderation team will review the case. Further violations may lead to account suspension.";
+
+    if (reportedUserSocketId) {
+        io.to(reportedUserSocketId).emit('new_notification', {
+            message: notificationMessage
+        });
+    }
+
+    const pushPayload = {
+        title: 'Account Warning',
+        body: notificationMessage,
+        url: '/messages' // Or a link to a community guidelines page
+    };
+    await sendPushNotification(reportedUserId, pushPayload);
+
+    return res.status(200).json(new ApiResponse(200, {}, "User has been reported. Our moderation team will review the details shortly."));
 });
 
 

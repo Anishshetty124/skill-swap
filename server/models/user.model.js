@@ -49,7 +49,9 @@ const userSchema = new mongoose.Schema({
   swapsCompleted: { type: Number, default: 0 },
   skillsOfferedCount: { type: Number, default: 0 },
   badges: { type: [{ type: String, unique: true }], default: [] },
-  lastLuckyRoll: { type: Date }
+  lastLuckyRoll: { type: Date },
+   likes: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
+  dislikes: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }]
 }, { timestamps: true });
 
 userSchema.index({ location: '2dsphere' });

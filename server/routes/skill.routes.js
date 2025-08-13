@@ -17,7 +17,8 @@ import {
   getAllSkillsUnpaginated,
   generateAiContent,
   getRecommendedSkills,
-  checkKeywordSafety
+  checkKeywordSafety,
+  reportSkill
 } from '../controllers/skill.controller.js';
 import { verifyJWT } from '../middlewares/auth.middleware.js';
 
@@ -47,5 +48,6 @@ router.route('/:skillId')
 router.route('/:skillId/matches').get(getMatchingSkills);
 router.route('/:skillId/bookmark').post(bookmarkSkill).delete(unbookmarkSkill);
 router.route('/:skillId/rate').post(rateSkill);
+router.route('/:skillId/report').post(reportSkill);
 
 export default router;
