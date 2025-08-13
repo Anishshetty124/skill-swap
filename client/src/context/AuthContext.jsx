@@ -14,7 +14,6 @@ export const AuthProvider = ({ children }) => {
   const [isAuthenticated, setIsAuthenticated] = useState(!!localStorage.getItem('accessToken'));
   const [bookmarks, setBookmarks] = useState([]);
   const [loading, setLoading] = useState(true);
-  // --- 2. Add a new state to manage the login process ---
   const [isLoggingIn, setIsLoggingIn] = useState(false);
   const [chatMessages, setChatMessages] = useState(() => {
     try {
@@ -102,14 +101,13 @@ export const AuthProvider = ({ children }) => {
       setIsAuthenticated(true);
       subscribeUserToPush();
 
-      // Wait 1 second before navigating to ensure UI updates
       setTimeout(() => {
         navigate('/');
-        setIsLoggingIn(false); // Hide the loader
+        setIsLoggingIn(false); 
       }, 700);
 
     } catch (error) {
-      setIsLoggingIn(false); // Hide loader on error
+      setIsLoggingIn(false); 
       throw error;
     }
   }, [navigate]);
@@ -209,7 +207,6 @@ export const AuthProvider = ({ children }) => {
     newlyEarnedBadge, 
   };
 
-  // --- 5. Conditionally render the loader for the entire page ---
   if (isLoggingIn) {
     return (
       <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900">

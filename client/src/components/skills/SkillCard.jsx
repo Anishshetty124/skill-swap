@@ -58,7 +58,7 @@ const SkillCard = ({ skill, hideUser = false }) => {
           <div className="flex flex-col items-center justify-center">
             <span className="font-bold text-lg text-yellow-400 flex items-center justify-center">
               <StarIcon className="h-4 w-4 mr-1"/>
-              {skill.averageRating || 0}
+              {parseFloat(skill.averageRating.toFixed(1)) || 0}
             </span>
             <span className="text-xs">({skill.ratings?.length || 0} Ratings)</span>
           </div>

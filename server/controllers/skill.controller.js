@@ -99,19 +99,11 @@ const getAllSkills = asyncHandler(async (req, res) => {
     .skip((page - 1) * limit)
     .limit(parseInt(limit));
 
-  const skillsWithAvgRating = skills.map(skill => {
-    let averageRating = 0;
-    if (skill.ratings && skill.ratings.length > 0) {
-      const totalRating = skill.ratings.reduce((acc, r) => acc + r.rating, 0);
-      averageRating = (totalRating / skill.ratings.length).toFixed(1);
-    }
-    return { ...skill.toObject(), averageRating };
-  });
 
   const totalDocuments = await Skill.countDocuments(query);
   const totalPages = Math.ceil(totalDocuments / limit);
 
-  return res.status(200).json(new ApiResponse(200, { skills: skillsWithAvgRating, totalPages, currentPage: parseInt(page), totalSkills: totalDocuments }, "Skills fetched successfully"));
+  return res.status(200).json(new ApiResponse(200, { skills, totalPages, currentPage: parseInt(page), totalSkills: totalDocuments }, "Skills fetched successfully"));
 });
 
 const getAllSkillsUnpaginated = asyncHandler(async (req, res) => {
@@ -127,18 +119,11 @@ const getAllSkillsUnpaginated = asyncHandler(async (req, res) => {
 
   const skills = await Skill.find(query)
     .populate({ path: 'user', select: 'username profilePicture' })
-    .sort(keywords ? { score: { $meta: 'textScore' } } : { createdAt: -1 });
+    .sort(keywords ? { score: { $meta: 'textScore' } } : { createdAt: -1 })
+    .limit(500);
 
-  const skillsWithAvgRating = skills.map(skill => {
-    let averageRating = 0;
-    if (skill.ratings && skill.ratings.length > 0) {
-      const totalRating = skill.ratings.reduce((acc, r) => acc + r.rating, 0);
-      averageRating = (totalRating / skill.ratings.length).toFixed(1);
-    }
-    return { ...skill.toObject(), averageRating };
-  });
   
-  return res.status(200).json(new ApiResponse(200, { skills: skillsWithAvgRating }, "All skills fetched successfully"));
+  return res.status(200).json(new ApiResponse(200, { skills }, "All skills fetched successfully"));
 });
 
 
@@ -198,10 +183,10 @@ const deleteSkill = asyncHandler(async (req, res) => {
     await User.findByIdAndUpdate(userId, { $inc: { skillsOfferedCount: -1 } });
   }
 
-  await Skill.findByIdAndDelete(skillId);
-  await Proposal.deleteMany({ $or: [{ requestedSkill: skillId }, { offeredSkill: skillId }] });
+  await skill.deleteOne();
 
-  return res.status(200).json(new ApiResponse(200, {}, "Skill and associated proposals deleted successfully"));
+
+  return res.status(200).json(new ApiResponse(200, {}, "Skill deleted successfully"));
 });
 
 const getNearbySkills = asyncHandler(async (req, res) => {
@@ -237,15 +222,11 @@ const getKeywordSuggestions = asyncHandler(async (req, res) => {
     return res.status(200).json(new ApiResponse(200, [], "Query too short"));
   }
 
-  const allTitles = await Skill.distinct('title');
+  const regex = new RegExp('^' + escapeRegex(search), 'i');
 
-  const suggestions = allTitles.map(title => {
-    const similarity = natural.JaroWinklerDistance(search.toLowerCase(), title.toLowerCase());
-    return { title, similarity };
-  })
-  .filter(item => item.similarity > 0.8)
-  .sort((a, b) => b.similarity - a.similarity)
-  .slice(0, 5);
+  const suggestions = await Skill.find({ title: { $regex: regex } })
+    .limit(5) 
+    .select('title'); 
 
   return res.status(200).json(new ApiResponse(200, suggestions, "Keyword suggestions fetched"));
 });
@@ -261,14 +242,9 @@ const getMatchingSkills = asyncHandler(async (req, res) => {
     $or: [{ category: requestSkill.category }, { tags: { $in: requestSkill.tags } }]
   }).populate('user', 'username profilePicture');
   const scoredMatches = potentialMatches.map(match => {
-    let averageRating = 0;
-    if (match.ratings && match.ratings.length > 0) {
-      const totalRating = match.ratings.reduce((acc, r) => acc + r.rating, 0);
-      averageRating = (totalRating / match.ratings.length).toFixed(1);
-    }
     let score = (match.category === requestSkill.category) ? 10 : 0;
     score += match.tags.filter(tag => requestSkill.tags.includes(tag)).length * 5;
-    return { ...match.toObject(), score, averageRating }; 
+    return { ...match.toObject(), score }; 
   }).sort((a, b) => b.score - a.score);
 
   return res.status(200).json(new ApiResponse(200, scoredMatches.slice(0, 5), "Matching skills fetched"));
@@ -343,16 +319,7 @@ const getRecommendedSkills = asyncHandler(async (req, res) => {
       .populate('user', 'username');
   }
   
-   const skillsWithAvgRating = recommendedSkills.map(skill => {
-    let averageRating = 0;
-    if (skill.ratings && skill.ratings.length > 0) {
-      const totalRating = skill.ratings.reduce((acc, r) => acc + r.rating, 0);
-      averageRating = (totalRating / skill.ratings.length).toFixed(1);
-    }
-    return { ...skill.toObject(), averageRating };
-  });
-
-  return res.status(200).json(new ApiResponse(200, skillsWithAvgRating, "Recommended skills fetched successfully"));
+   return res.status(200).json(new ApiResponse(200, recommendedSkills, "Recommended skills fetched successfully"));
 });
 
 const callGeminiWithFallback = async (params) => {
@@ -449,24 +416,22 @@ const getYoutubeTutorials = asyncHandler(async (req, res) => {
   }
 
   try {
-    const genAI = new GoogleGenerativeAI(process.env.GOOGLE_API_KEYS);
-    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash"});
-
     const safetyPrompt = `
     Is the following search query about a legitimate, safe-for-work, non-abusive, non-badword, learnable skill?
     Query: "${keyword}"
     Respond with only "YES" or "NO".
   `;
     
-    const safetyResult = await model.generateContent(safetyPrompt);
-    const safetyResponse = await safetyResult.response;
-    const decision = safetyResponse.text().trim().toUpperCase();
+    const validationText = await callGeminiWithFallback({ prompt: safetyPrompt, context: 'generate' });
+    const decision = validationText.trim().toUpperCase();
 
     if (decision !== 'YES') {
+      console.log(`Query "${keyword}" blocked by safety filter.`);
       return res.status(200).json(new ApiResponse(200, [], "Query blocked by safety filter."));
     }
   } catch (error) {
-    console.error("AI Safety Check Failed (will proceed without it):", error);
+    console.error("AI Safety Check Failed (blocking search):", error);
+    return res.status(200).json(new ApiResponse(200, [], "Could not verify search term."));
   }
   
   const youtubeApiUrl = `https://www.googleapis.com/youtube/v3/search?part=snippet&q=${encodeURIComponent(keyword)}%20tutorial&type=video&maxResults=6&key=${process.env.YOUTUBE_API_KEY}`;
@@ -486,6 +451,25 @@ const getYoutubeTutorials = asyncHandler(async (req, res) => {
 
 
 
+const checkKeywordSafety = asyncHandler(async (req, res) => {
+  const { keyword } = req.body;
+  if (!keyword || !keyword.trim()) {
+    return res.status(200).json(new ApiResponse(200, { isSafe: true }, "No keyword to check."));
+  }
+  
+  const safetyPrompt = `Is the following search query about a legitimate, safe-for-work, non-abusive, non-badword, learnable skill? Query: "${keyword}" Respond with only "YES" or "NO".`;
+  
+  try {
+    const validationText = await callGeminiWithFallback({ prompt: safetyPrompt, context: 'generate' });
+    const isSafe = validationText.trim().toUpperCase() === 'YES';
+    return res.status(200).json(new ApiResponse(200, { isSafe }, "Safety check complete."));
+  } catch (error) {
+    console.error("AI Safety Check Failed in checkKeywordSafety:", error);
+    return res.status(200).json(new ApiResponse(200, { isSafe: false }, "Safety check failed, blocking by default."));
+  }
+});
+
+
 export {
   createSkill,
   getAllSkills,
@@ -503,5 +487,6 @@ export {
   getYoutubeTutorials,
   getYoutubePlaceholders,
   getRecommendedSkills,
-  generateAiContent
+  generateAiContent,
+  checkKeywordSafety
 };

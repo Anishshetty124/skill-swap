@@ -15,6 +15,7 @@ const SKILLS_LIMIT = 6;
 
 const Home = () => {
   const [skills, setSkills] = useState([]);
+  const [sortBy, setSortBy] = useState('createdAt'); 
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
   const [loading, setLoading] = useState(true);
@@ -22,9 +23,7 @@ const Home = () => {
   const [filters, setFilters] = useState({ keywords: '', category: '', level: '' });
   const [locationQuery, setLocationQuery] = useState('');
   const [keywordSuggestions, setKeywordSuggestions] = useState([]);
-  const [locationSuggestions, setLocationSuggestions] = useState([]);
   const [currentSearch, setCurrentSearch] = useState('');
-  const [showCitySearch, setShowCitySearch] = useState(false);
   const [youtubeVideos, setYoutubeVideos] = useState([]);
   const [youtubeLoading, setYoutubeLoading] = useState(false);
   const [youtubePlaceholders, setYoutubePlaceholders] = useState([]);
@@ -32,9 +31,6 @@ const Home = () => {
   const [searchedKeyword, setSearchedKeyword] = useState('');
   const [showScrollButton, setShowScrollButton] = useState(false);
   const [userSearchQuery, setUserSearchQuery] = useState('');
-  const [userResults, setUserResults] = useState([]);
-  const [userSearchLoading, setUserSearchLoading] = useState(false);
-  const [showUserSearch, setShowUserSearch] = useState(false);
   const userSearchRef = useRef(null);
   const skillCategories = useMemo(() => [
     'Tech', 'Art', 'Music', 'Writing', 'Marketing', 'Language', 'Fitness', 'Cooking', 'Crafts', 'others'
@@ -64,21 +60,6 @@ const Home = () => {
       setError('Failed to load skills.');
     } finally {
       setLoading(false);
-    }
-  };
-
-  const handleUserSearch = async (e) => {
-    e.preventDefault();
-    if (!userSearchQuery.trim()) return;
-
-    setUserSearchLoading(true);
-    try {
-      const response = await apiClient.get(`/users/search?query=${userSearchQuery}`);
-      setUserResults(response.data.data);
-    } catch (error) {
-      console.error("Failed to search for users", error);
-    } finally {
-      setUserSearchLoading(false);
     }
   };
 
@@ -149,13 +130,32 @@ const Home = () => {
     debouncedYoutubeFetch(value);
   };
 
-  const handleMainSearch = (e, currentFilters = filters, currentLocQuery = locationQuery) => {
+  const handleMainSearch = async (e, currentFilters = filters, currentLocQuery = locationQuery) => {
     if (e) e.preventDefault();
+    setError(''); 
+
+    if (currentFilters.keywords && currentFilters.keywords.trim()) {
+      try {
+        setLoading(true); 
+        const safetyResponse = await apiClient.post('/skills/check-safety', { keyword: currentFilters.keywords });
+        
+        if (!safetyResponse.data.data.isSafe) {
+          setError("This search term is not allowed. Please try a different skill.");
+          setSkills([]); 
+          setLoading(false); 
+          return; 
+        }
+      } catch (apiError) {
+        console.error("Failed to perform safety check", apiError);
+        setLoading(false);
+      }
+    }
     let searchTerms = [];
     if (currentFilters.keywords) searchTerms.push(currentFilters.keywords);
     if (currentFilters.category) searchTerms.push(currentFilters.category);
     if (currentFilters.level) searchTerms.push(currentFilters.level);
     if (currentLocQuery) searchTerms.push(currentLocQuery);
+    
     setCurrentSearch(searchTerms.join(', '));
     setPage(1);
     setHasMore(true);
@@ -168,20 +168,6 @@ const Home = () => {
     setShowScrollButton(true);
   };
 
-  const handleCitySearch = (e, currentFilters = filters, currentLocQuery = locationQuery) => {
-    if (e) e.preventDefault();
-    let searchTerms = [];
-    if (currentFilters.keywords) searchTerms.push(currentFilters.keywords);
-    if (currentFilters.category) searchTerms.push(currentFilters.category);
-    if (currentFilters.level) searchTerms.push(currentFilters.level);
-    if (currentLocQuery) searchTerms.push(currentLocQuery);
-    setCurrentSearch(searchTerms.join(', '));
-    setPage(1);
-    setHasMore(true);
-    setSkills([]);
-    fetchSkills(1, true, currentFilters, currentLocQuery);
-    setLocationSuggestions([]);
-  };
 
   const loadMoreSkills = () => {
     const nextPage = page + 1;
@@ -197,18 +183,6 @@ const Home = () => {
     setShowScrollButton(false);
   };
 
-  const clearCityFilter = () => {
-    setLocationQuery('');
-    setShowCitySearch(false);
-    handleCitySearch(null, filters, '');
-  };
-
-  const handleLocationInputChange = (e) => {
-    const value = e.target.value;
-    setLocationQuery(value);
-    debouncedLocationFetch(value);
-  };
-
   const handleShowLess = () => {
     setPage(1);
     setHasMore(true);
@@ -221,10 +195,6 @@ const Home = () => {
 
 
   useEffect(() => {
-    if (userSearchQuery.trim().length < 2) {
-      setUserResults([]);
-      return;
-    }
     const debounceTimer = setTimeout(async () => {
       setUserSearchLoading(true);
       try {
@@ -271,11 +241,6 @@ const Home = () => {
     setShowScrollButton(false);
   };
   
-  const handleClearUserSearch = () => {
-    setUserSearchQuery('');
-    setUserResults([]);
-    setShowUserSearch(false);
-  };
 
   const scrollToResults = () => {
     const resultsSection = document.getElementById('search-results');
@@ -289,6 +254,16 @@ const Home = () => {
   const displayedSkills = showAllSkills ? skills : skills.slice(0, 6);
   const isMainFilterActive = filters.keywords || filters.category || filters.level;
 
+  const sortedSkills = useMemo(() => {
+    const skillsToSort = [...skills];
+    
+    if (sortBy === 'averageRating') {
+      skillsToSort.sort((a, b) => (b.averageRating || 0) - (a.averageRating || 0));
+    } else {
+      skillsToSort.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+    }
+    return skillsToSort;
+  }, [skills, sortBy]); 
   return (
     <div>
       <div className="w-full bg-gradient-to-r dark:from-blue-600 dark:to-cyan-500 from-blue-300 to-cyan-200 text-blue-900 dark:text-white text-center rounded-lg py-20 transition-all duration-300">
@@ -385,6 +360,19 @@ const Home = () => {
             <option className="bg-white dark:bg-slate-700">Expert</option>
           </select>
         </div>
+        <div>
+        <label htmlFor="sort-by" className="block text-sm font-medium mb-1">Sort By</label>
+        <select
+          id="sort-by"
+          name="sortBy"
+          value={sortBy}
+          onChange={(e) => setSortBy(e.target.value)}
+          className="w-full px-3 py-2 mt-1 bg-white dark:bg-slate-700 text-slate-800 dark:text-slate-200 border rounded-md"
+        >
+          <option value="createdAt">Newest</option>
+          <option value="averageRating">Top Rated</option>
+        </select>
+      </div>
         <div className="flex flex-col sm:flex-row justify-end gap-2">
           <button
             type="submit"
@@ -402,9 +390,9 @@ const Home = () => {
             </button>
           )}
         </div>
+        {error && <p className="text-red-500 text-center font-semibold mb-4">{error}</p>}
       </form>
- <Suspense fallback={
-          // This is a simple placeholder that shows while the component code is loading
+      <Suspense fallback={
           <div className="mb-8 px-4 py-6 w-full md:w-[80%] mx-auto h-28 bg-slate-100 dark:bg-slate-800 rounded-2xl shadow-lg animate-pulse" />
         }
       >
@@ -444,9 +432,8 @@ const Home = () => {
               id="search-results"
               className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6"
             >
-              {skills.map((skill) => (
-                <SkillCard key={skill._id} skill={skill} />
-              ))}
+              {sortedSkills.map((skill) => (
+               <SkillCard key={skill._id} skill={skill} />))}
             </div>
             <div className="text-center mt-8">
               {hasMore ? (

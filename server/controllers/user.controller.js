@@ -289,21 +289,7 @@ const getUserProfile = asyncHandler(async (req, res) => {
     Skill.find({ bookmarkedBy: user._id }).populate('user', 'username profilePicture').sort({ createdAt: -1 })
   ]);
   
-  const calculateAvgRating = (skillList) => {
-    return skillList.map(skill => {
-      let averageRating = 0;
-      if (skill.ratings && skill.ratings.length > 0) {
-        const totalRating = skill.ratings.reduce((acc, r) => acc + r.rating, 0);
-        averageRating = (totalRating / skill.ratings.length).toFixed(1);
-      }
-      return { ...skill.toObject(), averageRating };
-    });
-  };
-
-  const skillsWithAvgRating = calculateAvgRating(skills);
-  const bookmarksWithAvgRating = calculateAvgRating(bookmarks);
-
-  const profileData = { ...user.toObject(), skillsOfferedCount, swapsCompleted, skills: skillsWithAvgRating, bookmarks: bookmarksWithAvgRating, badges: earnedBadges };
+ const profileData = { ...user.toObject(), skillsOfferedCount, swapsCompleted, skills, bookmarks, badges: earnedBadges };
   return res.status(200).json(new ApiResponse(200, profileData, "User profile fetched successfully"));
 });
 

@@ -16,7 +16,8 @@ import {
   getYoutubePlaceholders,
   getAllSkillsUnpaginated,
   generateAiContent,
-  getRecommendedSkills
+  getRecommendedSkills,
+  checkKeywordSafety
 } from '../controllers/skill.controller.js';
 import { verifyJWT } from '../middlewares/auth.middleware.js';
 
@@ -25,6 +26,7 @@ const router = Router();
 router.route('/all').get(getAllSkillsUnpaginated);
 router.route('/keyword-suggestions').get(getKeywordSuggestions);
 router.route('/locations').get(getLocationSuggestions);
+router.route("/check-safety").post(checkKeywordSafety);
 router.route('/youtube-tutorials').get(getYoutubeTutorials);
 router.route('/youtube-placeholders').get(getYoutubePlaceholders);
 router.route('/nearby').get(getNearbySkills);

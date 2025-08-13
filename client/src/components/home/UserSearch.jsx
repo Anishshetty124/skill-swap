@@ -10,7 +10,6 @@ const UserSearch = () => {
   const [userSearchLoading, setUserSearchLoading] = useState(false);
   const userSearchRef = useRef(null);
 
-  // Effect for live searching/recommendations
   useEffect(() => {
     if (userSearchQuery.trim().length < 2) {
       setUserResults([]);
@@ -49,7 +48,7 @@ const UserSearch = () => {
     try {
       const response = await apiClient.get(`/users/search?query=${userSearchQuery}`);
       setUserResults(response.data.data);
-    } catch (error) {
+    } catch (error){
       console.error("Failed to search for users", error);
     } finally {
       setUserSearchLoading(false);
@@ -82,20 +81,28 @@ const UserSearch = () => {
             Search by Name or Username
           </label>
           <div className="flex flex-col sm:flex-row sm:items-center gap-2 w-full">
-            <input
-              type="text"
-              value={userSearchQuery}
-              onChange={(e) => setUserSearchQuery(e.target.value)}
-              placeholder="Enter a name or username..."
-              className="flex-grow px-4 py-2 bg-white dark:bg-slate-700 text-slate-800 dark:text-slate-200 border rounded-md"
-              autoComplete="off"
-            />
-            <button
-              type="submit"
-              className="px-6 py-2 bg-blue-600 text-white font-semibold rounded-md hover:bg-blue-700"
-            >
-              Search
-            </button>
+            {/* A new div to position the icon inside the input field */}
+            <div className="relative flex-grow">
+              <input
+                type="text"
+                value={userSearchQuery}
+                onChange={(e) => setUserSearchQuery(e.target.value)}
+                placeholder="Enter a name or username..."
+                // Added right padding (pr-10) to make space for the icon
+                className="w-full flex-grow px-4 pr-10 py-2 bg-white dark:bg-slate-700 text-slate-800 dark:text-slate-200 border rounded-md"
+                autoComplete="off"
+              />
+              {/* This button wraps the icon and submits the form */}
+              <button 
+                type="submit" 
+                className="absolute inset-y-0 right-0 flex items-center pr-3 text-slate-500 hover:text-blue-600"
+                aria-label="Search"
+              >
+                <MagnifyingGlassIcon className="h-5 w-5" />
+              </button>
+            </div>
+            
+
             {userSearchQuery && (
               <button
                 type="button"

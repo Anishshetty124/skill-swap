@@ -30,7 +30,9 @@ const skillSchema = new Schema({
     min: 0
   },
   desiredSkill: { type: String, trim: true },
-}, { timestamps: true });
+}, { timestamps: true,
+    toJSON: { virtuals: true }, 
+    toObject: { virtuals: true }  });
  
 skillSchema.index({ title: 'text', description: 'text', tags: 'text' });
 skillSchema.index({ geoCoordinates: '2dsphere' });
@@ -46,5 +48,16 @@ skillSchema.pre('deleteOne', { document: true, query: false }, async function(ne
     next(error);
   }
 });
+
+skillSchema.virtual('averageRating').get(function() {
+  if (this.ratings && this.ratings.length > 0) {
+    const totalRating = this.ratings.reduce((acc, r) => acc + r.rating, 0);
+    return totalRating / this.ratings.length;
+  }
+  return 0; 
+});
+
+
+
 
 export const Skill = mongoose.model('Skill', skillSchema);
