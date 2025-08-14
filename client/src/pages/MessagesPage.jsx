@@ -5,9 +5,8 @@ import { useLocation, useNavigate, Link } from 'react-router-dom';
 import { PaperAirplaneIcon, ArrowLeftIcon, TrashIcon, EllipsisVerticalIcon, XMarkIcon, ExclamationTriangleIcon, ArrowPathIcon } from '@heroicons/react/24/solid';
 import { useSocketContext } from '../context/SocketContext';
 import { toast } from 'react-toastify';
-import { format } from 'date-fns';
+import { format, isToday, isYesterday, parseISO } from 'date-fns';
 import ReportUserModal from '../components/common/ReportUserModal';
-
 import MessagesPageSkeleton from '../components/messages/MessagePageSkeleton';
 
 function useOnClickOutside(ref, handler) {
@@ -205,6 +204,55 @@ const ChatWindow = ({ selectedConversation, onBack, onClearChat, onDeleteConvers
     setSelectionMode(true);
     setSelectedMessages(new Set([message._id]));
   };
+
+  // --- NEW: Function to render date separators ---
+  const renderMessagesWithDates = () => {
+    let lastDate = null;
+    return messages.map((msg, index) => {
+        const messageDate = parseISO(msg.createdAt);
+        const messageDay = format(messageDate, 'yyyy-MM-dd');
+        let dateSeparator = null;
+
+        if (messageDay !== lastDate) {
+            lastDate = messageDay;
+            let dateText = '';
+            if (isToday(messageDate)) {
+                dateText = 'Today';
+            } else if (isYesterday(messageDate)) {
+                dateText = 'Yesterday';
+            } else {
+                dateText = format(messageDate, 'MMMM d, yyyy');
+            }
+            dateSeparator = (
+                <div key={`date-${messageDay}`} className="text-center my-4">
+                    <span className="px-2 py-1 bg-slate-200 dark:bg-slate-700 text-slate-500 dark:text-slate-400 text-xs font-semibold rounded-full">
+                        {dateText}
+                    </span>
+                </div>
+            );
+        }
+
+        return (
+            <React.Fragment key={msg._id}>
+                {dateSeparator}
+                <div 
+                  className={`flex flex-col mb-4 ${msg.senderId === user._id ? 'items-end' : 'items-start'}`}
+                  onClick={() => handleMessageClick(msg)}
+                  onTouchStart={() => handleTouchStart(msg)}
+                  onTouchEnd={handleTouchEnd}
+                  onContextMenu={(e) => handleContextMenu(e, msg)}
+                >
+                  <div className={`px-4 py-2 rounded-2xl max-w-md relative transition-colors ${selectedMessages.has(msg._id) ? 'bg-blue-300 dark:bg-blue-900' : msg.senderId === user._id ? 'bg-blue-500 text-white' : 'bg-purple-300 dark:bg-purple-600'}`}>
+                    {msg.message}
+                  </div>
+                  <p className="text-xs text-slate-400 mt-1 px-2">
+                    {format(messageDate, 'p')}
+                  </p>
+                </div>
+            </React.Fragment>
+        );
+    });
+  };
   
   return (
     <div className="flex flex-col h-full bg-slate-50 dark:bg-slate-800">
@@ -241,7 +289,6 @@ const ChatWindow = ({ selectedConversation, onBack, onClearChat, onDeleteConvers
               {isMenuOpen && (
                   <div className="absolute right-0 mt-2 w-48 bg-white dark:bg-slate-900 rounded-md shadow-lg z-10 border dark:border-slate-700 divide-y dark:divide-slate-700">
                       <button onClick={() => { onClearChat(); setIsMenuOpen(false); }} className="w-full text-left px-4 py-2 text-sm text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800">Clear Chat</button>
-                      {/* --- DELETE CONVERSATION BUTTON RE-ADDED --- */}
                       <button onClick={() => { onDeleteConversation(); setIsMenuOpen(false); }} className="w-full text-left px-4 py-2 text-sm text-red-500 hover:bg-slate-100 dark:hover:bg-slate-800">Delete Conversation</button>
                       <button onClick={() => { onReportUser(); setIsMenuOpen(false); }} className="w-full text-left px-4 py-2 text-sm text-red-500 hover:bg-slate-100 dark:hover:bg-slate-800">Report User</button>
                   </div>
@@ -253,23 +300,7 @@ const ChatWindow = ({ selectedConversation, onBack, onClearChat, onDeleteConvers
       {/* Message List */}
       <div className="flex-1 p-4 overflow-y-auto">
         {loading && <p className="text-center">Loading messages...</p>}
-        {!loading && messages.map(msg => (
-          <div 
-            key={msg._id} 
-            className={`flex flex-col mb-4 ${msg.senderId === user._id ? 'items-end' : 'items-start'}`}
-            onClick={() => handleMessageClick(msg)}
-            onTouchStart={() => handleTouchStart(msg)}
-            onTouchEnd={handleTouchEnd}
-            onContextMenu={(e) => handleContextMenu(e, msg)}
-          >
-            <div className={`px-4 py-2 rounded-2xl max-w-md relative transition-colors ${selectedMessages.has(msg._id) ? 'bg-blue-300 dark:bg-blue-900' : msg.senderId === user._id ? 'bg-blue-500 text-white' : 'bg-purple-300 dark:bg-purple-600'}`}>
-              {msg.message}
-            </div>
-            <p className="text-xs text-slate-400 mt-1 px-2">
-              {format(new Date(msg.createdAt), 'p')}
-            </p>
-          </div>
-        ))}
+        {!loading && renderMessagesWithDates()}
         <div ref={messagesEndRef} />
       </div>
 
@@ -302,7 +333,7 @@ const MessagesPage = () => {
   const navigate = useNavigate();
 
   const { fetchUnreadCount } = useAuth();
-  const { socket } = useSocketContext();  
+  const { socket } = useSocketContext(); 	
 
   const fetchConversations = useCallback(async () => {
     try {
@@ -457,7 +488,7 @@ const MessagesPage = () => {
             selectedConversation={selectedConversation}
             onBack={() => setSelectedConversation(null)}
             onClearChat={handleClearChat}
-            onDeleteConversation={handleDeleteConversation} // Prop re-added
+            onDeleteConversation={handleDeleteConversation}
             onReportUser={handleReportUser}
           />
           
