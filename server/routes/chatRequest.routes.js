@@ -3,7 +3,7 @@ import {
     sendChatRequest,
     getChatRequests,
     respondToChatRequest,
-    archiveChatRequest
+    deleteChatRequest
 } from '../controllers/chatRequest.controller.js';
 import { verifyJWT } from '../middlewares/auth.middleware.js';
 
@@ -17,5 +17,6 @@ router.route('/:receiverId').post(sendChatRequest);
 
 router.route('/:requestId/respond').patch(respondToChatRequest);
 
-router.route('/:requestId/archive').patch(archiveChatRequest);
+router.route('/:requestId').delete(deleteChatRequest);
+
 export default router;

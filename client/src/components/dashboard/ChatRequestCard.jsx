@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { ChatBubbleLeftRightIcon, XCircleIcon } from '@heroicons/react/24/solid';
+import { ChatBubbleLeftRightIcon, TrashIcon } from '@heroicons/react/24/solid';
 
 const StatusBadge = ({ status }) => {
     const baseClasses = "px-2 py-1 text-xs font-semibold rounded-full";
@@ -16,9 +16,19 @@ const StatusBadge = ({ status }) => {
     );
 };
 
-const ChatRequestCard = ({ request, type, onRespond, onDismiss }) => {
+const ChatRequestCard = ({ request, type, onRespond, onDelete }) => {
+  // Determine who the "other user" is based on the type of card
   const otherUser = type === 'received' ? request.requester : request.receiver;
   const navigate = useNavigate();
+
+  if (!otherUser) {
+    // Gracefully handle cases where the other user's account might have been deleted
+    return (
+        <div className="p-4 bg-slate-100 dark:bg-slate-800 rounded-lg shadow-md">
+            <p className="text-slate-500 italic">This chat request is no longer valid as the user's account has been removed.</p>
+        </div>
+    );
+  }
 
   const handleGoToChat = () => {
     navigate('/messages', { state: { newConversationWith: otherUser } });
@@ -34,13 +44,14 @@ const ChatRequestCard = ({ request, type, onRespond, onDismiss }) => {
         />
         <div>
           <p className="font-semibold">
-            {type === 'received' ? `${otherUser.firstName} ${otherUser.lastName}` : `Request to ${otherUser.firstName} ${otherUser.lastName}`}
+            {type === 'received' ? `Request from ${otherUser.firstName} ${otherUser.lastName}` : `Request to ${otherUser.firstName} ${otherUser.lastName}`}
           </p>
           <p className="text-sm text-slate-500">@{otherUser.username}</p>
         </div>
       </Link>
       
       <div className="flex gap-3 flex-shrink-0 items-center">
+        {/* --- RECEIVED REQUESTS --- */}
         {type === 'received' && request.status === 'pending' && (
           <>
             <button onClick={() => onRespond(request, 'accepted')} className="px-4 py-2 text-sm font-semibold text-white bg-green-500 rounded-md hover:bg-green-600">Accept</button>
@@ -52,18 +63,23 @@ const ChatRequestCard = ({ request, type, onRespond, onDismiss }) => {
                 <ChatBubbleLeftRightIcon className="h-5 w-5" /> Chat
             </button>
         )}
+        {type === 'received' && request.status === 'rejected' && (
+            <StatusBadge status={request.status} />
+        )}
 
+        {/* --- SENT REQUESTS --- */}
         {type === 'sent' && (
           <StatusBadge status={request.status} />
         )}
 
-        {type === 'received' && request.status !== 'pending' && (
+        {/* --- DELETE BUTTON (for non-pending received requests, or any sent request) --- */}
+        {(type === 'sent' || (type === 'received' && request.status !== 'pending')) && (
           <button 
-            onClick={() => onDismiss(request._id)} 
-            className="p-1 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
-            title="Dismiss"
+            onClick={() => onDelete(request._id)} 
+            className="p-1 text-slate-400 hover:text-red-500"
+            title="Delete this request"
           >
-            <XCircleIcon className="h-6 w-6" />
+            <TrashIcon className="h-5 w-5" />
           </button>
         )}
       </div>

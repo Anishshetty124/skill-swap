@@ -3,9 +3,9 @@ import {
   createProposal,
   getProposals,
   respondToProposal,
-  archiveProposal,
   updateContactInfo,
-  completeSwap
+  completeSwap,
+  deleteProposal
 } from '../controllers/proposal.controller.js';
 import { verifyJWT } from '../middlewares/auth.middleware.js';
 
@@ -17,8 +17,8 @@ router.route('/')
   .post(createProposal)
   .get(getProposals);
 
-router.route('/:id')
-  .delete(archiveProposal);
+router.route("/:id")
+  .delete(deleteProposal);
 
 router.route('/:id/respond')
   .patch(respondToProposal);

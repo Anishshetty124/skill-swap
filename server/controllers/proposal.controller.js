@@ -10,6 +10,7 @@ import { Conversation } from '../models/conversation.model.js';
 import { Message } from '../models/message.model.js';
 import { getReceiverSocketId, io } from '../socket/socket.js';
 import { sendPushNotification } from '../utils/pushNotifier.js';
+import { ChatRequest } from '../models/chatRequest.model.js';
 
 const createProposal = asyncHandler(async (req, res) => {
   const { requestedSkillId, proposalType, offeredSkillId } = req.body;
@@ -74,22 +75,23 @@ const createProposal = asyncHandler(async (req, res) => {
 });
 
 const getProposals = asyncHandler(async (req, res) => {
-  const { type = 'received' } = req.query;
-  const userId = req.user._id;
+  const { type = 'received' } = req.query;
+  const userId = req.user._id;
 
-  const query = type === 'sent'
-    ? { proposer: userId }
-    : { receiver: userId };
+  const query = type === 'sent'
+    ? { proposer: userId }
+    : { receiver: userId };
 
-  const proposals = await Proposal.find(query)
-    .populate({ path: 'proposer', select: 'username profilePicture' })
-    .populate({ path: 'receiver', select: 'username profilePicture' })
-    .populate({ path: 'requestedSkill', select: 'title category costInCredits type' })
-    .populate({ path: 'offeredSkill', select: 'title category type' })
-    .sort({ createdAt: -1 });
+  const proposals = await Proposal.find(query)
+    .populate({ path: 'proposer', select: 'username firstName lastName profilePicture' })
+    .populate({ path: 'receiver', select: 'username firstName lastName profilePicture' })
+    .populate({ path: 'requestedSkill', select: 'title category costInCredits type' })
+    .populate({ path: 'offeredSkill', select: 'title category type' })
+    .sort({ createdAt: -1 });
 
-  return res.status(200).json(new ApiResponse(200, proposals, 'Proposals fetched successfully'));
+  return res.status(200).json(new ApiResponse(200, proposals, 'Proposals fetched successfully'));
 });
+
 
 const respondToProposal = asyncHandler(async (req, res) => {
   const { id } = req.params;
@@ -178,26 +180,29 @@ const respondToProposal = asyncHandler(async (req, res) => {
 });
 
 
-const archiveProposal = asyncHandler(async (req, res) => {
-  const { id } = req.params;
-  const userId = req.user._id;
+const deleteProposal = asyncHandler(async (req, res) => {
+    const { id } = req.params;
+    const userId = req.user._id;
 
-  const proposal = await Proposal.findById(id);
-  if (!proposal) throw new ApiError(404, "Proposal not found");
+    const proposal = await Proposal.findOne({
+        _id: id,
+        $or: [{ proposer: userId }, { receiver: userId }]
+    });
 
-  if (!proposal.proposer.equals(userId) && !proposal.receiver.equals(userId)) {
-    throw new ApiError(403, "You are not authorized to modify this proposal.");
-  }
+    if (!proposal) {
+        throw new ApiError(404, "Proposal not found or you are not authorized to modify it.");
+    }
 
-  // Add the user to the archivedBy array
-  const archivedByIds = proposal.archivedBy.map(uid => uid.toString());
-  if (!archivedByIds.includes(userId.toString())) {
-    proposal.archivedBy.push(userId);
-  }
-
-  await proposal.save();
-
-  return res.status(200).json(new ApiResponse(200, {}, "Proposal has been removed from your dashboard."));
+    if (proposal.status === 'completed') {
+        if (!proposal.archivedBy.includes(userId)) {
+            proposal.archivedBy.push(userId);
+            await proposal.save();
+        }
+        return res.status(200).json(new ApiResponse(200, {}, "Completed swap has been removed from your dashboard."));
+    } else {
+        await proposal.deleteOne();
+        return res.status(200).json(new ApiResponse(200, {}, "Proposal has been permanently deleted."));
+    }
 });
 
 const updateContactInfo = asyncHandler(async (req, res) => {
@@ -317,7 +322,7 @@ export {
   createProposal,
   getProposals,
   respondToProposal,
-  archiveProposal,
+  deleteProposal,
   updateContactInfo,
   completeSwap
 };

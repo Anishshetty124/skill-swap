@@ -55,11 +55,16 @@ const sendChatRequest = asyncHandler(async (req, res) => {
 });
 
 const getChatRequests = asyncHandler(async (req, res) => {
-    const userId = req.user._id;
-    const requests = await ChatRequest.find({ receiver: userId, status: 'pending' })
-        .populate('requester', 'username firstName lastName profilePicture');
+  const userId = req.user._id;
+  
+  const requests = await ChatRequest.find({
+    $or: [{ requester: userId }, { receiver: userId }]
+  })
+  .populate('requester', 'username firstName lastName profilePicture')
+  .populate('receiver', 'username firstName lastName profilePicture')
+  .sort({ createdAt: -1 });
 
-    return res.status(200).json(new ApiResponse(200, requests, "Pending chat requests fetched."));
+  return res.status(200).json(new ApiResponse(200, requests, "All chat requests fetched."));
 });
 
 const respondToChatRequest = asyncHandler(async (req, res) => {
@@ -71,15 +76,15 @@ const respondToChatRequest = asyncHandler(async (req, res) => {
         throw new ApiError(400, "Invalid status. Must be 'accepted' or 'rejected'.");
     }
 
-    const request = await ChatRequest.findById(requestId).populate('requester', 'username');
+    const request = await ChatRequest.findById(requestId).populate('requester receiver');
+
     if (!request) throw new ApiError(404, "Chat request not found.");
-    if (!request.receiver.equals(receiverId)) throw new ApiError(403, "You are not authorized to respond to this request.");
+    if (!request.receiver._id.equals(receiverId)) throw new ApiError(403, "You are not authorized to respond to this request.");
     if (request.status !== 'pending') throw new ApiError(400, `This request has already been ${request.status}.`);
 
     request.status = status;
     await request.save();
 
-    // --- New logic: Create conversation if accepted ---
     if (status === 'accepted') {
         const conversationExists = await Conversation.findOne({
             participants: { $all: [request.requester._id, receiverId] }
@@ -91,32 +96,32 @@ const respondToChatRequest = asyncHandler(async (req, res) => {
         }
     }
 
-    // Send real-time socket notification to requester
     const requesterSocketId = getReceiverSocketId(request.requester._id.toString());
     if (requesterSocketId) {
         io.to(requesterSocketId).emit('new_notification', {
-            message: `${req.user.username} has ${status} your chat request.`
+            message: `${request.receiver.username} has ${status} your chat request.`
         });
     }
 
     return res.status(200).json(new ApiResponse(200, request, `Chat request ${status}.`));
 });
-
-const archiveChatRequest = asyncHandler(async (req, res) => {
+const deleteChatRequest = asyncHandler(async (req, res) => {
     const { requestId } = req.params;
     const userId = req.user._id;
 
-    const request = await ChatRequest.findOneAndUpdate(
-        { _id: requestId, $or: [{ requester: userId }, { receiver: userId }] },
-        { $addToSet: { archivedBy: userId } }, // Add user to the archive list
-        { new: true }
-    );
+    const request = await ChatRequest.findOne({
+        _id: requestId,
+        $or: [{ requester: userId }, { receiver: userId }] 
+    });
 
     if (!request) {
-        throw new ApiError(404, "Request not found or you are not authorized to modify it.");
+        throw new ApiError(404, "Request not found or you are not authorized to delete it.");
     }
 
-    return res.status(200).json(new ApiResponse(200, {}, "Chat request dismissed."));
+    await request.deleteOne();
+
+    return res.status(200).json(new ApiResponse(200, {}, "Chat request deleted successfully."));
 });
 
-export { sendChatRequest, getChatRequests, respondToChatRequest, archiveChatRequest };
+
+export { sendChatRequest, getChatRequests, respondToChatRequest, deleteChatRequest };
