@@ -83,8 +83,8 @@ const Navbar = () => {
           >
             Dashboard
           </Link>
-          <Link to="/leaderboard" className="text-slate-600 dark:text-slate-300 hover:text-blue-500">
-            Leaderboard
+          <Link to="/explore" className="text-slate-600 dark:text-slate-300 hover:text-blue-500">
+            Explore
           </Link>
           <button
             onClick={handleMessagesClick}
@@ -158,6 +158,9 @@ const Navbar = () => {
             onClick={() => setIsMenuOpen(false)}
           >
             Dashboard
+          </Link>
+          <Link to="/explore" className="block w-full text-left py-3 px-3 rounded-md text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700" onClick={() => setIsMenuOpen(false)}>
+            Explore
           </Link>
           <button
             onClick={handleMessagesClick}

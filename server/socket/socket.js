@@ -34,11 +34,23 @@ io.on("connection", (socket) => {
     socket.join(userId);
     io.emit("getOnlineUsers", Object.keys(userSocketMap));
 
+
+ socket.on('join_team_room', (teamRoom) => {
+        socket.join(teamRoom);
+        console.log(`A user joined team room: ${teamRoom}`);
+    });
+
+    socket.on('leave_team_room', (teamRoom) => {
+        socket.leave(teamRoom);
+        console.log(`A user left team room: ${teamRoom}`);
+    });
+
     socket.on("disconnect", () => {
         console.log("user disconnected", socket.id);
         delete userSocketMap[userId];
         io.emit("getOnlineUsers", Object.keys(userSocketMap));
     });
+
 });
 
 export { app, io, server };

@@ -5,6 +5,8 @@ import ProtectedRoute from './components/auth/ProtectedRoute';
 import Spinner from './components/common/Spinner';
 import SplashScreen from './components/common/SplashScreen';
 import { AnimatePresence } from 'framer-motion';
+import ExplorePage from './pages/ExplorePage';
+import TeamPage from './pages/TeamPage';
 
 const Home = lazy(() => import('./pages/Home'));
 const Login = lazy(() => import('./pages/Login'));
@@ -85,7 +87,9 @@ function App() {
               <Route path="dashboard" element={<Dashboard />} />
               <Route path="messages" element={<MessagesPage />} />
               <Route path="profile/edit" element={<EditProfilePage />} />
+              <Route path="explore" element={<ExplorePage />} /> 
               <Route path="lucky-roll" element={<LuckyRollPage />} />
+              <Route path="team/:teamId" element={<TeamPage />} />
             </Route>
           </Route>
         </Routes>

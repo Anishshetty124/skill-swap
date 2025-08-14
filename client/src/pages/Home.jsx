@@ -107,7 +107,6 @@ const fetchKeywordSuggestions = async (query) => {
         const response = await apiClient.get(`/skills/keyword-suggestions?search=${query}`);
         const suggestions = response.data.data || [];
 
-        // Create a unique list of suggestions based on the 'title' property
         const uniqueSuggestions = [
           ...new Map(suggestions.map((item) => [item.title, item])).values(),
         ];
@@ -534,60 +533,6 @@ const fetchKeywordSuggestions = async (query) => {
       <LazyLoad>
         <RecommendedSkills />
       </LazyLoad>
-
-      <LazyLoad>
-        <div className="mt-16 text-center bg-slate-100 dark:bg-slate-800 p-8 rounded-2xl shadow-lg">
-          <h2 className="text-3xl font-bold mb-4">Join the Community</h2>
-          <p className="text-slate-600 dark:text-slate-400 mb-6 max-w-xl mx-auto">
-            See who's leading the community in skills and credits, and start
-            your own journey to the top!
-          </p>
-          <Link
-            to="/leaderboard"
-            className="inline-block px-8 py-3 bg-accent-600 text-white font-bold rounded-full shadow-lg hover:bg-accent-700 transition-colors"
-          >
-            View the Leaderboard
-          </Link>
-        </div>
-      </LazyLoad>
-
-
-
-     <LazyLoad>
-  <div className="mt-16 text-center p-8 rounded-2xl shadow-xl max-w-xl mx-auto bg-gradient-to-br from-slate-800 to-slate-900 border border-blue-500/20 relative overflow-hidden">
-    
-    {/* Decorative Glow Effects */}
-    <div className="absolute -top-1/2 -left-1/2 w-full h-full bg-blue-500/10 rounded-full filter blur-3xl animate-pulse"></div>
-    <div className="absolute -bottom-1/2 -right-1/2 w-full h-full bg-cyan-500/10 rounded-full filter blur-3xl animate-pulse" style={{ animationDelay: '2s' }}></div>
-
-    <div className="relative z-10 flex flex-col items-center">
-        {/* Icon */}
-        <div className="mb-4 p-3 bg-slate-700/50 rounded-full border border-slate-600">
-            <Gift className="h-8 w-8 text-cyan-400" />
-        </div>
-
-        <h2 className="text-3xl font-extrabold mb-4 text-slate-100 drop-shadow-md">
-            Feeling Lucky?
-        </h2>
-
-        <p className="text-slate-400 mb-8 max-w-md mx-auto leading-relaxed text-lg">
-            Try your luck with our{" "}
-            <span className="font-semibold text-cyan-400">
-                Daily Lucky Roll
-            </span>{" "}
-            and win free Swap Credits to help you on your learning journey!
-        </p>
-
-        {/* High-Contrast Button */}
-        <Link
-            to="/lucky-roll"
-            className="inline-block px-10 py-3 bg-white text-slate-900 font-bold rounded-full shadow-lg transition-transform duration-300 transform hover:scale-105 hover:shadow-cyan-500/20"
-        >
-            Try the Lucky Roll
-        </Link>
-    </div>
-  </div>
-</LazyLoad>
 
       <div className="mt-16 text-center">
         <h2 className="text-3xl font-bold mb-8">How SkillSwap Works</h2>

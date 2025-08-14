@@ -5,6 +5,7 @@ import { toast } from "react-toastify";
 import { motion, AnimatePresence } from "framer-motion";
 import Confetti from "react-confetti";
 import { Star } from "lucide-react"; 
+import Spinner from "../common/Spinner";
 
 const segments = 6;
 const segmentAngle = 360 / segments;
@@ -174,9 +175,7 @@ const LuckyRoll = () => {
   };
 
   if (isLoading) {
-    return (
-      <div className="w-full p-6 bg-slate-200 dark:bg-slate-700 rounded-lg animate-pulse h-48"></div>
-    );
+    return <Spinner text="Loading your daily reward..." />;
   }
 
   if (!isAvailable) {

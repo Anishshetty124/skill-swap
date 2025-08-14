@@ -268,18 +268,20 @@ const reportUser = asyncHandler(async (req, res) => {
     });
     
     const reportedUserSocketId = getReceiverSocketId(reportedUserId.toString());
-    const notificationMessage = "You have been reported for inappropriate conduct. Our moderation team will review the case. Further violations may lead to account suspension.";
+    const notificationMessage = "You have been reported for inappropriate conduct. Our moderation team will review the case. Further violations may lead to account suspension.";
+    const notificationUrl = '/messages';
 
-    if (reportedUserSocketId) {
-        io.to(reportedUserSocketId).emit('new_notification', {
-            message: notificationMessage
-        });
-    }
+    if (reportedUserSocketId) {
+        io.to(reportedUserSocketId).emit('new_notification', {
+            message: notificationMessage
+        });
+    }
+    await createNotification(reportedUserId, notificationMessage, notificationUrl);
 
     const pushPayload = {
         title: 'Account Warning',
         body: notificationMessage,
-        url: '/messages' // Or a link to a community guidelines page
+        url: '/messages' 
     };
     await sendPushNotification(reportedUserId, pushPayload);
 
@@ -323,18 +325,36 @@ const deleteConversation = asyncHandler(async (req, res) => {
 
     const conversation = await Conversation.findById(conversationId);
     if (!conversation) {
-        throw new ApiError(404, "Conversation not found");
+        throw new ApiError(404, "Conversation not found.");
     }
 
     if (!conversation.participants.includes(userId)) {
         throw new ApiError(403, "You are not authorized to delete this conversation.");
     }
 
-    await Message.deleteMany({ _id: { $in: conversation.messages } });
+    const otherParticipantId = conversation.participants.find(p => !p.equals(userId));
+
+    if (otherParticipantId) {
+        await ChatRequest.findOneAndDelete({
+            $or: [
+                { sender: userId, receiver: otherParticipantId },
+                { sender: otherParticipantId, receiver: userId }
+            ]
+        });
+    }
+
+    await Message.deleteMany({ conversationId });
 
     await Conversation.findByIdAndDelete(conversationId);
 
-    res.status(200).json(new ApiResponse(200, {}, "Conversation deleted successfully."));
+    if (otherParticipantId) {
+        const receiverSocketId = getReceiverSocketId(otherParticipantId);
+        if (receiverSocketId) {
+            io.to(receiverSocketId).emit('conversationDeleted', conversationId);
+        }
+    }
+
+    res.status(200).json(new ApiResponse(200, {}, "Conversation and associated request deleted successfully."));
 });
 
 

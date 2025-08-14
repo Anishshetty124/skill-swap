@@ -59,7 +59,7 @@ const LeaderboardPreview = () => {
         </Link>
       ))}
       <div className="text-center">
-        <Link to="/leaderboard" className="font-semibold text-accent-500 hover:underline">
+        <Link to="" className="font-semibold text-accent-500 hover:underline">
           View Full Leaderboard →
         </Link>
       </div>

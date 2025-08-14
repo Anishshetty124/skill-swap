@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation,useNavigate } from 'react-router-dom';
 import apiClient from '../api/axios';
 import ProposalCard from '../components/dashboard/ProposalCard';
 import ChatRequestCard from '../components/dashboard/ChatRequestCard';
@@ -8,20 +8,19 @@ import { useSocketContext } from '../context/SocketContext';
 import { toast } from 'react-toastify';
 import ProposalCardSkeleton from '../components/dashboard/ProposalCardSkeleton';
 import { useAuth } from '../context/AuthContext';
-
 const Dashboard = () => {
   const { user } = useAuth();
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState('received_proposals');
   const { socket } = useSocketContext();
+  const location = useLocation();
   const navigate = useNavigate();
+  const [activeTab, setActiveTab] = useState(location.state?.defaultTab || 'received_proposals');
 
   const fetchData = useCallback(async () => {
-    // --- FIX #2: Always show loader on tab change ---
+   
     setLoading(true);
-    setData([]); // Clear previous data to prevent showing unrelated items
-    // -------------------------------------------------
+    setData([]); 
     try {
       let response;
       if (activeTab === 'chat_requests') {
@@ -114,12 +113,11 @@ const Dashboard = () => {
     return (
       <div className="space-y-4">
         {data.map(item => {
-          // --- FIX #1: Prevent crash from undefined user data ---
+          
           if (activeTab === 'chat_requests' && (!item.requester || !item.receiver)) {
-            return null; // Don't render card if user data is missing
+            return null; 
           }
-          // ----------------------------------------------------
-
+         
           if (activeTab === 'chat_requests') {
             const type = item.requester._id === user._id ? 'sent' : 'received';
             return <ChatRequestCard key={item._id} request={item} type={type} onRespond={handleRespondToRequest} onDelete={() => handleDeleteItem(item)} />;
@@ -143,8 +141,7 @@ const Dashboard = () => {
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
       <h1 className="text-3xl font-bold mb-6">Your Dashboard</h1>
       <div className="border-b border-slate-200 dark:border-slate-700 mb-6">
-        {/* --- FIX #3: Responsive Tab Container --- */}
-        {/* This creates a scrollable tab bar on small screens */}
+       
         <nav className="flex space-x-4 sm:space-x-8 -mb-px overflow-x-auto">
           <button onClick={() => setActiveTab('received_proposals')} className={`py-4 px-2 border-b-2 font-medium whitespace-nowrap ${activeTab === 'received_proposals' ? 'border-accent-500 text-accent-600' : 'border-transparent text-slate-500 hover:text-slate-700'}`}>
             Received Proposals

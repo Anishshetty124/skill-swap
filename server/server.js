@@ -24,6 +24,10 @@ import pushRouter from './routes/push.routes.js';
 import rewardRouter from './routes/reward.routes.js';
 import reputationRouter from './routes/reputation.routes.js';
 import chatRequestRouter from './routes/chatRequest.routes.js';
+import notificationRouter from './routes/notification.routes.js';
+import teamRouter from './routes/team.routes.js';
+
+
 
 dotenv.config({ path: './.env' });
 
@@ -75,9 +79,11 @@ app.use('/api/v1/push', pushRouter);
 app.use('/api/v1/rewards', rewardRouter);
 app.use('/api/v1/reputation', reputationRouter);
 app.use('/api/v1/chat-requests', chatRequestRouter);
+app.use('/api/v1/notifications', notificationRouter);
+app.use('/api/v1/teams', teamRouter);
 
 app.use((err, req, res, next) => {
-  if (err instanceof ApiError) {
+    if (err instanceof ApiError) {
     return res.status(err.statusCode).json({
       success: err.success,
       message: err.message,

@@ -51,7 +51,9 @@ const userSchema = new mongoose.Schema({
   badges: { type: [{ type: String, unique: true }], default: [] },
   lastLuckyRoll: { type: Date },
    likes: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
-  dislikes: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }]
+  dislikes: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
+  skillsToTeach: { type: [String], default: [] },
+  skillsToLearn: { type: [String], default: [] }
 }, { timestamps: true });
 
 userSchema.index({ location: '2dsphere' });

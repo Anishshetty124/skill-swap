@@ -5,6 +5,57 @@ import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import UpdateEmailModal from '../components/profile/UpdateEmailModal';
 import ImageCropModal from '../components/profile/ImageCropModal';
+import { XMarkIcon } from '@heroicons/react/24/solid';
+
+const SkillTagInput = ({ title, skills, setSkills }) => {
+    const [inputValue, setInputValue] = useState('');
+
+    const handleAddSkill = () => {
+        const newSkill = inputValue.trim();
+        if (newSkill && !skills.includes(newSkill)) {
+            setSkills([...skills, newSkill]);
+        }
+        setInputValue(''); 
+    };
+
+    const handleRemoveSkill = (skillToRemove) => {
+        setSkills(skills.filter(skill => skill !== skillToRemove));
+    };
+
+    const handleKeyDown = (e) => {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            handleAddSkill();
+        }
+    };
+
+    return (
+        <div>
+            <label className="block text-sm font-medium">{title}</label>
+            <div className="flex items-center gap-2 mt-1">
+                <input
+                    type="text"
+                    value={inputValue}
+                    onChange={(e) => setInputValue(e.target.value)}
+                    onKeyDown={handleKeyDown}
+                    placeholder="Type a skill and press Enter"
+                    className="w-full px-3 py-2 bg-white dark:bg-slate-700 rounded-md"
+                />
+                <button type="button" onClick={handleAddSkill} className="px-4 py-2 bg-blue-500 text-white font-semibold rounded-md hover:bg-blue-600">Add</button>
+            </div>
+            <div className="flex flex-wrap gap-2 mt-3">
+                {skills.map((skill, index) => (
+                    <div key={index} className="flex items-center gap-2 bg-slate-200 dark:bg-slate-600 text-sm rounded-full px-3 py-1">
+                        <span>{skill}</span>
+                        <button type="button" onClick={() => handleRemoveSkill(skill)}>
+                            <XMarkIcon className="h-4 w-4 text-slate-500 hover:text-slate-800 dark:hover:text-slate-200" />
+                        </button>
+                    </div>
+                ))}
+            </div>
+        </div>
+    );
+};
 
 const EditProfilePage = () => {
   const { user, updateUserState, logout } = useAuth();
@@ -17,6 +68,8 @@ const EditProfilePage = () => {
   const [bio, setBio] = useState(user?.bio || '');
   const [locationString, setLocationString] = useState(user?.locationString || '');
   const [socials, setSocials] = useState(user?.socials || { github: '', linkedin: '', website: '' });
+  const [skillsToTeach, setSkillsToTeach] = useState(user?.skillsToTeach || []);
+  const [skillsToLearn, setSkillsToLearn] = useState(user?.skillsToLearn || []);
   const [avatarFile, setAvatarFile] = useState(null);
   const [isAvatarMarkedForDeletion, setIsAvatarMarkedForDeletion] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -33,6 +86,8 @@ const EditProfilePage = () => {
       setBio(user.bio || '');
       setLocationString(user.locationString || '');
       setSocials(user.socials || { github: '', linkedin: '', website: '' });
+      setSkillsToTeach(user.skillsToTeach || []);
+      setSkillsToLearn(user.skillsToLearn || []);
     }
   }, [user]);
 
@@ -86,7 +141,9 @@ const EditProfilePage = () => {
         mobileNumber, 
         bio, 
         locationString, 
-        socials 
+        socials,
+        skillsToTeach,
+        skillsToLearn 
       };
       
       const response = await apiClient.patch('/users/me', updatedData);
@@ -218,7 +275,13 @@ const EditProfilePage = () => {
               </div>
             </div>
           </div>
-          
+          <div className="border-t dark:border-slate-700 pt-6">
+              <h2 className="text-xl font-semibold mb-4">Your Interests</h2>
+              <div className="space-y-6">
+                <SkillTagInput title="Skills you want to teach" skills={skillsToTeach} setSkills={setSkillsToTeach} />
+                <SkillTagInput title="Skills you want to learn" skills={skillsToLearn} setSkills={setSkillsToLearn} />
+              </div>
+            </div>
         </form>
          <div className="fixed bottom-0 left-0 w-full p-4 bg-white dark:bg-slate-800 border-t dark:border-slate-700 md:relative md:bg-transparent md:border-none md:p-0 md:mt-8">
           <div className="container mx-auto max-w-2xl">

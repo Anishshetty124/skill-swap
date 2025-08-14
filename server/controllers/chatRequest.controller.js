@@ -6,6 +6,7 @@ import { User } from '../models/user.model.js';
 import { getReceiverSocketId, io } from '../socket/socket.js';
 import { Conversation } from '../models/conversation.model.js';
 import { sendPushNotification } from '../utils/pushNotifier.js';
+import { createNotification } from '../utils/notificationManager.js'; 
 
 const sendChatRequest = asyncHandler(async (req, res) => {
     const { receiverId } = req.params;
@@ -34,16 +35,14 @@ const sendChatRequest = asyncHandler(async (req, res) => {
     await ChatRequest.create({ requester: requesterId, receiver: receiverId });
 
     const notificationMessage = `You have a new chat request from ${req.user.username}!`;
+    const notificationUrl = '/dashboard';
 
-    // Send real-time socket notification
     const receiverSocketId = getReceiverSocketId(receiverId);
     if (receiverSocketId) {
-        io.to(receiverSocketId).emit('new_chat_request', {
-            message: notificationMessage
-        });
+        io.to(receiverSocketId).emit('new_chat_request', { message: notificationMessage });
     }
+    await createNotification(receiverId, notificationMessage, notificationUrl);
 
-    // Send push notification
     const pushPayload = {
         title: 'New Chat Request!',
         body: notificationMessage,
@@ -55,16 +54,16 @@ const sendChatRequest = asyncHandler(async (req, res) => {
 });
 
 const getChatRequests = asyncHandler(async (req, res) => {
-  const userId = req.user._id;
-  
-  const requests = await ChatRequest.find({
-    $or: [{ requester: userId }, { receiver: userId }]
-  })
-  .populate('requester', 'username firstName lastName profilePicture')
-  .populate('receiver', 'username firstName lastName profilePicture')
-  .sort({ createdAt: -1 });
+    const userId = req.user._id;
 
-  return res.status(200).json(new ApiResponse(200, requests, "All chat requests fetched."));
+    const requests = await ChatRequest.find({
+        $or: [{ requester: userId }, { receiver: userId }]
+    })
+        .populate('requester', 'username firstName lastName profilePicture')
+        .populate('receiver', 'username firstName lastName profilePicture')
+        .sort({ createdAt: -1 });
+
+    return res.status(200).json(new ApiResponse(200, requests, "All chat requests fetched."));
 });
 
 const respondToChatRequest = asyncHandler(async (req, res) => {
@@ -96,22 +95,24 @@ const respondToChatRequest = asyncHandler(async (req, res) => {
         }
     }
 
+    const notificationMessage = `${request.receiver.username} has ${status} your chat request.`;
+    const notificationUrl = '/dashboard';
     const requesterSocketId = getReceiverSocketId(request.requester._id.toString());
     if (requesterSocketId) {
-        io.to(requesterSocketId).emit('new_notification', {
-            message: `${request.receiver.username} has ${status} your chat request.`
-        });
+        io.to(requesterSocketId).emit('new_notification', { message: notificationMessage });
     }
+    await createNotification(request.requester._id, notificationMessage, notificationUrl);
 
     return res.status(200).json(new ApiResponse(200, request, `Chat request ${status}.`));
 });
+
 const deleteChatRequest = asyncHandler(async (req, res) => {
     const { requestId } = req.params;
     const userId = req.user._id;
 
     const request = await ChatRequest.findOne({
         _id: requestId,
-        $or: [{ requester: userId }, { receiver: userId }] 
+        $or: [{ requester: userId }, { receiver: userId }]
     });
 
     if (!request) {
@@ -122,6 +123,5 @@ const deleteChatRequest = asyncHandler(async (req, res) => {
 
     return res.status(200).json(new ApiResponse(200, {}, "Chat request deleted successfully."));
 });
-
 
 export { sendChatRequest, getChatRequests, respondToChatRequest, deleteChatRequest };

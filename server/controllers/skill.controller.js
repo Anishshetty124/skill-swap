@@ -68,6 +68,9 @@ const createSkill = asyncHandler(async (req, res) => {
     tags: generatedTags,
   });
 
+  const updateField = type === 'OFFER' ? 'skillsToTeach' : 'skillsToLearn';
+  await User.findByIdAndUpdate(userId, { $addToSet: { [updateField]: title } });
+
   if (skill.type === 'OFFER') {
     await User.findByIdAndUpdate(userId, { $inc: { skillsOfferedCount: 1 } });
   }
@@ -141,6 +144,11 @@ const updateSkill = asyncHandler(async (req, res) => {
     const { skillId } = req.params;
     const { title, description, category, level, availability, locationString, desiredSkill, costInCredits, creditsOffered } = req.body;
     
+    const originalSkill = await Skill.findById(skillId);
+    if (!originalSkill) {
+        throw new ApiError(404, "Skill not found");
+    }
+
     const updatedData = { 
       title, 
       description, 
@@ -165,6 +173,16 @@ const updateSkill = asyncHandler(async (req, res) => {
       throw new ApiError(404, "Skill not found");
     }
 
+     if (title && title !== originalSkill.title) {
+        const updateField = originalSkill.type === 'OFFER' ? 'skillsToTeach' : 'skillsToLearn';
+        await User.findByIdAndUpdate(originalSkill.user, {
+            $pull: { [updateField]: originalSkill.title }, // Remove old title
+        });
+        await User.findByIdAndUpdate(updatedSkill.user, {
+            $addToSet: { [updateField]: updatedSkill.title } // Add new title
+        });
+    }
+
     return res.status(200).json(new ApiResponse(200, updatedSkill, "Skill updated successfully"));
 });
 
@@ -180,6 +198,9 @@ const deleteSkill = asyncHandler(async (req, res) => {
     throw new ApiError(403, "You are not authorized to delete this skill");
   }
 
+  const updateField = skill.type === 'OFFER' ? 'skillsToTeach' : 'skillsToLearn';
+  await User.findByIdAndUpdate(userId, { $pull: { [updateField]: skill.title } });
+  
   if (skill.type === 'OFFER') {
     await User.findByIdAndUpdate(userId, { $inc: { skillsOfferedCount: -1 } });
   }

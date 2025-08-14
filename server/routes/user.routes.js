@@ -16,11 +16,15 @@ import {
   verifyEmailChange,
   getLeaderboard,
   searchUsers,
-  getChatStatus
+  getChatStatus,
+  healthCheck
 } from "../controllers/user.controller.js";
 import { verifyJWT } from "../middlewares/auth.middleware.js";
 
 const router = Router();
+router.route("/test").get((req, res) => {
+  res.send("User router is working!");
+});
 
 // ----------- PUBLIC ROUTES -----------
 router.route("/register").post(registerUser);
@@ -48,6 +52,7 @@ router.route("/me/avatar")
 router.route("/me/request-email-change").post(requestEmailChange);
 router.route("/me/verify-email-change").post(verifyEmailChange);
 router.route("/:profileId/chat-status").get(verifyJWT, getChatStatus);
+router.route("/health").get(healthCheck);
 router.route("/:username").get(getUserProfile);
 
 export default router;

@@ -238,8 +238,8 @@ const getCurrentUser = asyncHandler(async (req, res) => {
 });
 
 const updateAccountDetails = asyncHandler(async (req, res) => {
-    const { username, firstName, lastName, mobileNumber, bio, locationString, socials } = req.body;
-    
+    const { username, firstName, lastName, mobileNumber, bio, locationString, socials, skillsToTeach, skillsToLearn } = req.body;
+
     if (!username || !firstName || !lastName) {
         throw new ApiError(400, "First name, last name, and username are required.");
     }
@@ -254,7 +254,9 @@ const updateAccountDetails = asyncHandler(async (req, res) => {
     user.bio = bio;
     user.socials = socials;
     user.locationString = locationString;
-
+    user.skillsToTeach = skillsToTeach || [];
+    user.skillsToLearn = skillsToLearn || [];
+    
     const updatedUser = await user.save({ validateBeforeSave: false });
     
     return res.status(200).json(new ApiResponse(200, updatedUser, "Account details updated successfully."));
@@ -427,6 +429,10 @@ const getChatStatus = asyncHandler(async (req, res) => {
     }
 });
 
+const healthCheck = asyncHandler(async (req, res) => {
+    return res.status(200).json(new ApiResponse(200, {}, "Server is healthy."));
+});
+
 export {
   registerUser,
   verifyOtp,
@@ -444,5 +450,6 @@ export {
   verifyEmailChange,
   getLeaderboard,
   searchUsers,
-  getChatStatus
+  getChatStatus,
+  healthCheck
 };

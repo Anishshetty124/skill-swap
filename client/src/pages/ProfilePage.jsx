@@ -1,13 +1,14 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import apiClient from '../api/axios';
 import { useAuth } from '../context/AuthContext';
 import SkillCard from '../components/skills/SkillCard';
-import { MapPinIcon, HandThumbUpIcon, HandThumbDownIcon, ChatBubbleLeftRightIcon, CurrencyDollarIcon } from '@heroicons/react/24/solid';
+import { MapPinIcon, HandThumbUpIcon, HandThumbDownIcon, ChatBubbleLeftRightIcon, CurrencyDollarIcon, BellIcon } from '@heroicons/react/24/solid';
 import Badge from '../components/profile/Badge';
 import ImageLightbox from '../components/common/ImageLightBox';
 import { useLongPress } from '../hooks/useLongPress';
 import ProfilePageSkeleton from '../components/profile/ProfilePageSkeleton';
+import NotificationPanel from '../components/profile/NotificationPanel';
 import { toast } from 'react-toastify';
 
 const AuthPrompt = () => (
@@ -42,6 +43,11 @@ const ProfilePage = () => {
     // Chat
     const [chatStatus, setChatStatus] = useState('idle');
     const [isChatStatusLoading, setIsChatStatusLoading] = useState(true);
+
+    // Notifications
+    const [notifications, setNotifications] = useState([]);
+    const [showNotifications, setShowNotifications] = useState(false);
+    const notificationRef = useRef(null);
 
     const longPressProps = useLongPress(() => {
         if (profile) {
@@ -82,6 +88,12 @@ const ProfilePage = () => {
                 } else {
                     setIsChatStatusLoading(false);
                 }
+
+               
+                if (isAuthenticated && loggedInUser?.username === username) {
+                    const notificationsRes = await apiClient.get('/notifications');
+                    setNotifications(notificationsRes.data.data);
+                }
             } catch (err) {
                 if (err.response?.status === 401) {
                     setIsAccessDenied(true);
@@ -95,6 +107,17 @@ const ProfilePage = () => {
 
         fetchProfileAndChatStatus();
     }, [username, isAuthenticated, loggedInUser]);
+
+    // Close notification panel on outside click
+    useEffect(() => {
+        const handleClickOutside = (event) => {
+            if (notificationRef.current && !notificationRef.current.contains(event.target)) {
+                setShowNotifications(false);
+            }
+        };
+        document.addEventListener("mousedown", handleClickOutside);
+        return () => document.removeEventListener("mousedown", handleClickOutside);
+    }, []);
 
     const handleReputationAction = async (action) => {
         if (!isAuthenticated) {
@@ -123,7 +146,27 @@ const ProfilePage = () => {
         }
     };
 
+    const handleMarkAllRead = async () => {
+        try {
+            await apiClient.post('/notifications/read-all');
+            setNotifications(prev => prev.map(n => ({ ...n, read: true })));
+            toast.success("All notifications marked as read.");
+        } catch (error) {
+            toast.error("Failed to mark notifications as read.");
+        }
+    };
+
+    const handleDeleteNotification = async (notificationId) => {
+        try {
+            await apiClient.delete(`/notifications/${notificationId}`);
+            setNotifications(prev => prev.filter(n => n._id !== notificationId));
+        } catch (error) {
+            toast.error("Failed to delete notification.");
+        }
+    };
+
     const isOwner = loggedInUser?.username === username;
+    const unreadCount = notifications.filter(n => !n.read).length;
 
     if (loading) return <ProfilePageSkeleton />;
     if (isAccessDenied) return <AuthPrompt />;
@@ -204,42 +247,63 @@ const ProfilePage = () => {
                             ) : (
                                 <p className="text-slate-500 italic mt-2">This user has not written a bio yet.</p>
                             )}
+
                             {/* Social Links */}
                             <div className="flex items-center justify-center md:justify-start space-x-4 mt-4 text-blue-500 font-semibold">
                                 {profile.socials?.github && <a href={profile.socials.github} target="_blank" rel="noopener noreferrer" className="hover:underline">GitHub</a>}
                                 {profile.socials?.linkedin && <a href={profile.socials.linkedin} target="_blank" rel="noopener noreferrer" className="hover:underline">LinkedIn</a>}
                                 {profile.socials?.website && <a href={profile.socials.website} target="_blank" rel="noopener noreferrer" className="hover:underline">Website</a>}
                             </div>
+
                             {/* Chat + Reputation */}
-                            <div className="flex flex-wrap justify-center sm:justify-start items-center gap-4 mt-4">
                             <div className="flex flex-col items-center sm:items-start gap-4 mt-4">
-                            {/* Line 1: Chat Button */}
-                            {!isOwner && isAuthenticated && (
-                                <div className="w-full flex justify-center sm:justify-start">
-                                    {renderChatButton()}
-                                </div>
-                            )}
-                            {/* Line 2: Like/Dislike Buttons */}
-                            {!isOwner && isAuthenticated && (
-                                <div className="flex justify-center sm:justify-start gap-4">
-                                    <button onClick={() => handleReputationAction('like')} className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm font-semibold transition-colors ${userVote === 'like' ? 'bg-green-500 text-white' : 'bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600'}`}>
-                                        <HandThumbUpIcon className="h-5 w-5" />
-                                        <span>{likes}</span>
-                                    </button>
-                                    <button onClick={() => handleReputationAction('dislike')} className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm font-semibold transition-colors ${userVote === 'dislike' ? 'bg-red-500 text-white' : 'bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600'}`}>
-                                        <HandThumbDownIcon className="h-5 w-5" />
-                                        <span>{dislikes}</span>
-                                    </button>
-                                </div>
-                            )}
-                        </div>
-                        </div>
+                                {!isOwner && isAuthenticated && (
+                                    <div className="w-full flex justify-center sm:justify-start">
+                                        {renderChatButton()}
+                                    </div>
+                                )}
+                                {!isOwner && isAuthenticated && (
+                                    <div className="flex justify-center sm:justify-start gap-4">
+                                        <button onClick={() => handleReputationAction('like')} className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm font-semibold transition-colors ${userVote === 'like' ? 'bg-green-500 text-white' : 'bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600'}`}>
+                                            <HandThumbUpIcon className="h-5 w-5" />
+                                            <span>{likes}</span>
+                                        </button>
+                                        <button onClick={() => handleReputationAction('dislike')} className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm font-semibold transition-colors ${userVote === 'dislike' ? 'bg-red-500 text-white' : 'bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600'}`}>
+                                            <HandThumbDownIcon className="h-5 w-5" />
+                                            <span>{dislikes}</span>
+                                        </button>
+                                    </div>
+                                )}
+                            </div>
                         </div>
                     </div>
+
+                    {/* Owner Buttons + Notifications */}
                     {isOwner && (
-                        <div className="flex items-center gap-2 flex-shrink-0">
+                        <div className="flex items-center gap-3 flex-shrink-0">
                             <Link to="/my-skills" className="px-4 py-2 text-sm font-semibold text-white bg-blue-500 dark:bg-blue-700 shadow-md rounded-md hover:bg-blue-700 dark:hover:bg-blue-800">My Skills</Link>
                             <Link to="/profile/edit" className="px-4 py-2 text-sm font-semibold text-white bg-cyan-500 dark:bg-cyan-600 hover:bg-cyan-800 rounded-md dark:hover:bg-cyan-700">Edit Profile</Link>
+                            <div ref={notificationRef} className="relative flex-shrink-0">
+                                <button
+                                    onClick={() => setShowNotifications(prev => !prev)}
+                                    className="p-2 rounded-full text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700"
+                                >
+                                    <BellIcon className="h-6 w-6" />
+                                    {unreadCount > 0 && (
+                                        <span className="absolute -top-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-xs text-white">
+                                            {unreadCount}
+                                        </span>
+                                    )}
+                                </button>
+                                {showNotifications && (
+                                    <NotificationPanel
+                                        notifications={notifications}
+                                        onClose={() => setShowNotifications(false)}
+                                        onMarkAllRead={handleMarkAllRead}
+                                        onDelete={handleDeleteNotification}
+                                    />
+                                )}
+                            </div>
                         </div>
                     )}
                 </div>
@@ -272,6 +336,29 @@ const ProfilePage = () => {
                     </div>
                 </div>
 
+                {/* Wants to Teach / Learn */}
+                <div className="border-t dark:border-slate-700 ml-6 mt-6 pt-6 grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                        <h3 className="text-lg font-semibold mb-3">Want to Teach</h3>
+                        {profile.skillsToTeach?.length > 0 ? (
+                            <div className="flex flex-wrap gap-2">
+                                {profile.skillsToTeach.map((skill, i) => (
+                                    <span key={i} className="bg-green-100 dark:bg-green-900/50 text-green-800 dark:text-green-300 text-sm font-medium px-3 py-1 rounded-full">{skill}</span>
+                                ))}
+                            </div>
+                        ) : <p className="text-sm text-slate-500 italic">No skills listed yet.</p>}
+                    </div>
+                    <div>
+                        <h3 className="text-lg font-semibold mb-3">Want to Learn</h3>
+                        {profile.skillsToLearn?.length > 0 ? (
+                            <div className="flex flex-wrap gap-2">
+                                {profile.skillsToLearn.map((skill, i) => (
+                                    <span key={i} className="bg-purple-100 dark:bg-purple-900/50 text-purple-800 dark:text-purple-300 text-sm font-medium px-3 py-1 rounded-full">{skill}</span>
+                                ))}
+                            </div>
+                        ) : <p className="text-sm text-slate-500 italic">No skills listed yet.</p>}
+                    </div>
+                </div>
                 {/* Achievements */}
                 <div className="border-t dark:border-slate-700 mt-6 pt-6">
                     <h3 className="text-lg font-semibold mb-3">Achievements</h3>
