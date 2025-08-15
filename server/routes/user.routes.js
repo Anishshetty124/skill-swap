@@ -17,7 +17,8 @@ import {
   getLeaderboard,
   searchUsers,
   getChatStatus,
-  healthCheck
+  healthCheck,
+  syncUserSkills
 } from "../controllers/user.controller.js";
 import { verifyJWT } from "../middlewares/auth.middleware.js";
 
@@ -48,7 +49,7 @@ router.route("/me")
 router.route("/me/avatar")
   .patch(updateUserAvatar)
   .delete(deleteUserAvatar);
-
+router.route("/sync-skills").post(verifyJWT, syncUserSkills);
 router.route("/me/request-email-change").post(requestEmailChange);
 router.route("/me/verify-email-change").post(verifyEmailChange);
 router.route("/:profileId/chat-status").get(verifyJWT, getChatStatus);

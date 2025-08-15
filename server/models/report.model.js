@@ -11,11 +11,22 @@ const reportSchema = new Schema({
         ref: 'User',
         required: true
     },
+    reportType: {
+        type: String,
+        enum: ['user', 'skill'],
+        required: true
+    },
     conversationId: {
         type: Schema.Types.ObjectId,
         ref: 'Conversation',
-        required: true
+        required: function() { return this.reportType === 'user'; } 
     },
+    reportedSkill: {
+        type: Schema.Types.ObjectId,
+        ref: 'Skill',
+        required: function() { return this.reportType === 'skill'; }
+    },
+    // --- Common fields ---
     reason: {
         type: String,
         required: true,

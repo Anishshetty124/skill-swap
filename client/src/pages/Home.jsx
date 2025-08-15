@@ -96,7 +96,6 @@ const Home = () => {
 
   return () => {
     debouncedKeywordFetch.cancel();
-    debouncedLocationFetch.cancel();
     debouncedYoutubeFetch.cancel();
   };
 }, []);
@@ -120,17 +119,9 @@ const fetchKeywordSuggestions = async (query) => {
       setKeywordSuggestions([]);
     }
   };
-  const fetchLocationSuggestions = async (query) => {
-    if (query.length > 1) {
-      const response = await apiClient.get(`/skills/locations?search=${query}`);
-      setLocationSuggestions(response.data.data);
-    } else {
-      setLocationSuggestions([]);
-    }
-  };
+
 
   const debouncedKeywordFetch = useCallback(debounce(fetchKeywordSuggestions, 300), []);
-  const debouncedLocationFetch = useCallback(debounce(fetchLocationSuggestions, 300), []);
 
   const handleKeywordChange = (e) => {
     const value = e.target.value;
@@ -138,44 +129,33 @@ const fetchKeywordSuggestions = async (query) => {
     debouncedKeywordFetch(value);
   };
 
-  const handleMainSearch = async (e, currentFilters = filters, currentLocQuery = locationQuery) => {
-    if (e) e.preventDefault();
-    setShowScrollButton(true);
-    setError(''); 
+const handleMainSearch = (e, customFilters = undefined, currentLocQuery = locationQuery) => {
+  if (e) e.preventDefault();
 
-    if (currentFilters.keywords && currentFilters.keywords.trim()) {
-      try {
-        setLoading(true); 
-        const safetyResponse = await apiClient.post('/skills/check-safety', { keyword: currentFilters.keywords });
-        
-        if (!safetyResponse.data.data.isSafe) {
-          setError("This search term is not allowed. Please try a different skill.");
-          setSkills([]); 
-          setLoading(false); 
-          return; 
-        }
-      } catch (apiError) {
-        console.error("Failed to perform safety check", apiError);
-        setLoading(false);
-      }
-    }
-    let searchTerms = [];
-    if (currentFilters.keywords) searchTerms.push(currentFilters.keywords);
-    if (currentFilters.category) searchTerms.push(currentFilters.category);
-    if (currentFilters.level) searchTerms.push(currentFilters.level);
-    if (currentLocQuery) searchTerms.push(currentLocQuery);
-    
-    setCurrentSearch(searchTerms.join(', '));
-    setPage(1);
-    setHasMore(true);
-    setSkills([]);
-    fetchSkills(1, true, currentFilters, currentLocQuery);
-    setKeywordSuggestions([]);
-    setLocationSuggestions([]);
-    setSearchedKeyword(currentFilters.keywords);
-    debouncedYoutubeFetch(currentFilters.keywords);
-  };
+  const activeFilters = customFilters !== undefined ? customFilters : filters;
 
+  setShowScrollButton(true);
+  setError('');
+  setSkills([]); 
+
+  const searchTerms = [
+    activeFilters.keywords,
+    activeFilters.category,
+    activeFilters.level,
+    currentLocQuery
+  ].filter(Boolean);
+
+  setCurrentSearch(searchTerms.join(', '));
+  
+  setPage(1);
+  setHasMore(true);
+  fetchSkills(1, true, activeFilters, currentLocQuery);
+  
+  setKeywordSuggestions([]);
+
+  setSearchedKeyword(activeFilters.keywords);
+  debouncedYoutubeFetch(activeFilters.keywords);
+};
 
   const loadMoreSkills = () => {
     const nextPage = page + 1;
@@ -247,8 +227,7 @@ const fetchKeywordSuggestions = async (query) => {
 
   const isAnyFilterActive = filters.keywords || filters.category || filters.level || locationQuery;
   const displayedSkills = showAllSkills ? skills : skills.slice(0, 6);
-  const isMainFilterActive = filters.keywords || filters.category || filters.level;
-
+  const isMainFilterActive = currentSearch !== '';
   const sortedSkills = useMemo(() => {
     const skillsToSort = [...skills];
     

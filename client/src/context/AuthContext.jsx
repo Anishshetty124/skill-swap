@@ -82,7 +82,6 @@ export const AuthProvider = ({ children }) => {
         }
     }, [isAuthenticated, user, fetchUnreadCount]);
 
-    // Logout declared early so other functions can use it
     const logout = useCallback(
         async (shouldNavigate = true) => {
             try {

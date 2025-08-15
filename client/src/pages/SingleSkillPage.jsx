@@ -7,6 +7,8 @@ import { StarIcon, MapPinIcon, FlagIcon } from '@heroicons/react/24/solid';
 import Spinner from '../components/common/Spinner';
 import ProposalModal from '../components/proposals/ProposalModal';
 import { toast } from 'react-toastify';
+import ReportSkillModal from '../components/ReportSkillModal';
+
 
 const StarRating = ({ rating }) => {
   const stars = [];
@@ -65,6 +67,8 @@ const SingleSkillPage = () => {
   // --- Reporting state ---
   const [isReported, setIsReported] = useState(false);
   const [reporting, setReporting] = useState(false);
+  const [isReportModalOpen, setIsReportModalOpen] = useState(false);
+
 
   useEffect(() => {
     const fetchSkillAndMatches = async () => {
@@ -237,7 +241,14 @@ const SingleSkillPage = () => {
           <h1 className="text-3xl font-bold mb-2">{skill.title}</h1>
           {!isOwner && isAuthenticated && (
             <button
-              onClick={handleReportSkill}
+              onClick={() => {
+    if (!isAuthenticated) {
+        toast.error("You must be logged in to report a skill.");
+        return;
+    }
+    setIsReportModalOpen(true);
+}}
+
               disabled={isReported || reporting}
               className="flex items-center gap-2 px-3 py-1 text-sm rounded-full text-slate-500 hover:bg-red-100 hover:text-red-600 dark:hover:bg-red-900/50 dark:hover:text-red-400 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               title={
@@ -371,6 +382,13 @@ const SingleSkillPage = () => {
         onClose={() => setIsModalOpen(false)}
         requestedSkill={skill}
       />
+      <ReportSkillModal
+    isOpen={isReportModalOpen}
+    onClose={() => setIsReportModalOpen(false)}
+    skill={skill}
+    onReportSuccess={() => setIsReported(true)}
+/>
+
     </div>
   );
 };

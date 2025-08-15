@@ -10,6 +10,8 @@ import { Skill } from '../models/skill.model.js';
 import profanity from 'leo-profanity'; 
 import { Report } from '../models/report.model.js';
 import { sendPushNotification } from '../utils/pushNotifier.js';
+import { createNotification } from './notification.controller.js';
+import { ChatRequest } from '../models/chatRequest.model.js';
 profanity.loadDictionary(); 
 profanity.add(profanity.getDictionary('hi'));
 profanity.add(profanity.getDictionary('kn'));
@@ -267,23 +269,27 @@ const reportUser = asyncHandler(async (req, res) => {
         reason: reason
     });
     
-    const reportedUserSocketId = getReceiverSocketId(reportedUserId.toString());
-    const notificationMessage = "You have been reported for inappropriate conduct. Our moderation team will review the case. Further violations may lead to account suspension.";
-    const notificationUrl = '/messages';
+    try {
+        const reportedUserSocketId = getReceiverSocketId(reportedUserId.toString());
+        const notificationMessage = "You have been reported for inappropriate conduct. Our moderation team will review the case. Further violations may lead to account suspension.";
+        const notificationUrl = '/messages';
 
-    if (reportedUserSocketId) {
-        io.to(reportedUserSocketId).emit('new_notification', {
-            message: notificationMessage
-        });
-    }
-    await createNotification(reportedUserId, notificationMessage, notificationUrl);
+        if (reportedUserSocketId) {
+            io.to(reportedUserSocketId).emit('new_notification', {
+                message: notificationMessage
+            });
+        }
+        await createNotification(reportedUserId, notificationMessage, notificationUrl);
 
-    const pushPayload = {
-        title: 'Account Warning',
-        body: notificationMessage,
-        url: '/messages' 
-    };
-    await sendPushNotification(reportedUserId, pushPayload);
+        const pushPayload = {
+            title: 'Account Warning',
+            body: notificationMessage,
+            url: '/messages' 
+        };
+        await sendPushNotification(reportedUserId, pushPayload);
+    } catch (notificationError) {
+        console.error("Failed to send report notifications:", notificationError);
+    }
 
     return res.status(200).json(new ApiResponse(200, {}, "User has been reported. Our moderation team will review the details shortly."));
 });

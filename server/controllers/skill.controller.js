@@ -6,8 +6,11 @@ import { Skill } from '../models/skill.model.js';
 import { User } from '../models/user.model.js';
 import { Proposal } from '../models/proposal.model.js';
 import natural from 'natural';
+import { createNotification } from './notification.controller.js';
+import { sendPushNotification } from '../utils/pushNotifier.js';
 import { GoogleGenerativeAI, HarmBlockThreshold, HarmCategory } from '@google/generative-ai';
 import { getReceiverSocketId } from '../socket/socket.js';
+import { Report } from '../models/report.model.js';
 
 const { WordTokenizer, TfIdf } = natural;
 
@@ -448,29 +451,30 @@ const getYoutubeTutorials = asyncHandler(async (req, res) => {
     const decision = validationText.trim().toUpperCase();
 
     if (decision !== 'YES') {
-      console.log(`Query "${keyword}" blocked by safety filter.`);
+      console.log(`Query "${keyword}" was actively blocked by the AI safety filter.`);
       return res.status(200).json(new ApiResponse(200, [], "Query blocked by safety filter."));
     }
   } catch (error) {
-    console.error("AI Safety Check Failed (blocking search):", error);
-    return res.status(200).json(new ApiResponse(200, [], "Could not verify search term."));
+    console.error(`AI Safety Check failed for keyword "${keyword}", but proceeding with YouTube search. Error:`, error.message);
   }
   
   const youtubeApiUrl = `https://www.googleapis.com/youtube/v3/search?part=snippet&q=${encodeURIComponent(keyword)}%20tutorial&type=video&maxResults=6&key=${process.env.YOUTUBE_API_KEY}`;
+  
   try {
     const response = await fetch(youtubeApiUrl);
     const data = await response.json();
+    
     if (data.error) {
       console.error("YouTube API Error:", data.error.message);
       throw new ApiError(500, "Failed to fetch videos from YouTube.");
     }
+    
     return res.status(200).json(new ApiResponse(200, data.items || [], "YouTube videos fetched"));
   } catch (error) {
     console.error("Fetch Error:", error);
     throw new ApiError(500, "Failed to fetch videos from YouTube.");
   }
 });
-
 
 
 const checkKeywordSafety = asyncHandler(async (req, res) => {
@@ -493,7 +497,12 @@ const checkKeywordSafety = asyncHandler(async (req, res) => {
 
 const reportSkill = asyncHandler(async (req, res) => {
     const { skillId } = req.params;
+    const { reason } = req.body;
     const reporterId = req.user._id;
+
+    if (!reason || reason.trim() === '') {
+        throw new ApiError(400, "A reason is required to report a skill.");
+    }
 
     if (!mongoose.Types.ObjectId.isValid(skillId)) {
         throw new ApiError(400, "Invalid skill ID.");
@@ -504,47 +513,45 @@ const reportSkill = asyncHandler(async (req, res) => {
         throw new ApiError(404, "Skill not found.");
     }
 
-    if (skill.user.equals(reporterId)) {
+    const reportedUserId = skill.user;
+    if (reporterId.equals(reportedUserId)) {
         throw new ApiError(400, "You cannot report your own skill.");
     }
 
-    if (skill.reportedBy.includes(reporterId)) {
+    const existingReport = await Report.findOne({
+        reporter: reporterId,
+        reportedSkill: skillId,
+    });
+
+    if (existingReport) {
         throw new ApiError(400, "You have already reported this skill.");
     }
 
-    const updatedSkill = await Skill.findByIdAndUpdate(
-        skillId,
-        {
-            $inc: { reportCount: 1 },
-            $addToSet: { reportedBy: reporterId } 
-        },
-        { new: true } 
-    ).populate('user', 'username'); 
+    await Report.create({
+        reporter: reporterId,
+        reportedSkill: skillId,
+        reportedUser: reportedUserId,
+        reason: reason,
+        reportType: 'skill'
+    });
 
-    if (!updatedSkill) {
-        throw new ApiError(404, "Skill not found after attempting to update.");
+    try {
+        const ownerSocketId = getReceiverSocketId(reportedUserId.toString());
+        const notificationMessage = `Your skill "${skill.title}" has been reported for review.`;
+        const notificationUrl = `/skills/${skillId}`;
+
+        if (ownerSocketId) {
+            io.to(ownerSocketId).emit('new_notification', { message: notificationMessage });
+        }
+        await createNotification(reportedUserId, notificationMessage, notificationUrl);
+        const pushPayload = { title: 'Skill Reported', body: notificationMessage, url: notificationUrl };
+        await sendPushNotification(reportedUserId, pushPayload);
+
+    } catch (notificationError) {
+        console.error("Failed to send skill report notifications:", notificationError);
     }
 
-    const ownerSocketId = getReceiverSocketId(updatedSkill.user._id.toString());
-
-    if (updatedSkill.reportCount >= 5) {
-        await Skill.findByIdAndDelete(skillId);
-        
-        if (ownerSocketId) {
-            io.to(ownerSocketId).emit('new_notification', {
-                message: `Your skill "${updatedSkill.title}" has been removed due to multiple reports.`
-            });
-        }
-        
-    } else {
-        if (ownerSocketId) {
-            io.to(ownerSocketId).emit('new_notification', {
-                message: `Warning: Your skill "${updatedSkill.title}" has been reported. (${updatedSkill.reportCount}/5)`
-            });
-        }
-    }
-
-    return res.status(200).json(new ApiResponse(200, {}, "Skill has been reported. Thank you for your feedback."));
+    return res.status(200).json(new ApiResponse(200, {}, "Skill has been reported."));
 });
 
 export {

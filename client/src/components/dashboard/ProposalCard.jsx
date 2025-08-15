@@ -335,3 +335,4 @@ const handleCompleteSwap = async () => {
 };
 
 export default ProposalCard;
+

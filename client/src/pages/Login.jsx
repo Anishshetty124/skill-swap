@@ -5,6 +5,7 @@ import { EyeIcon, EyeSlashIcon } from '@heroicons/react/24/solid';
 import apiClient from '../api/axios';
 import { toast } from 'react-toastify';
 import GoogleLoginButton from '../components/auth/GoogleLoginButton';
+import Spinner from '../components/common/Spinner'; // 1. Import Spinner
 
 const Login = () => {
     const [credentials, setCredentials] = useState({ email: '', password: '' });
@@ -14,7 +15,8 @@ const Login = () => {
     const [showResendButton, setShowResendButton] = useState(false);
     const [showForgotPassword, setShowForgotPassword] = useState(false);
     const [resendLoading, setResendLoading] = useState(false);
-    const [isLoading, setIsLoading] = useState(false);
+    const [isSubmitting, setIsSubmitting] = useState(false);
+    const [isLoggingIn, setIsLoggingIn] = useState(false);
     const [timer, setTimer] = useState(0);
     const navigate = useNavigate();
 
@@ -57,7 +59,7 @@ const Login = () => {
         }
         setResendLoading(true);
         try {
-            const response = await apiClient.post('/users/forgot-password', { email: credentials.email });
+            await apiClient.post('/users/forgot-password', { email: credentials.email });
             toast.success("Password reset OTP sent to your email.");
             navigate('/reset-password', { state: { email: credentials.email } });
         } catch (err) {
@@ -72,15 +74,18 @@ const Login = () => {
         setError('');
         setShowResendButton(false);
         setShowForgotPassword(false);
-        setIsLoading(true);
+        setIsSubmitting(true);
 
         try {
-            // This will now wait for the login function to complete.
-            // If the login function throws an error, this catch block will execute.
             await login(credentials);
+            
+            setIsLoggingIn(true);
+            
+            setTimeout(() => {
+            }, 1000);
+
         } catch (err) {
-            // This block will now reliably catch and display errors from the context.
-            const errorMessage = err.response?.data?.message || 'Login failed. Please check your credentials and try again.';
+            const errorMessage = err.response?.data?.message || 'Login failed. Please check your credentials.';
             setError(errorMessage);
             
             if (errorMessage.includes("Please verify your email")) {
@@ -89,9 +94,17 @@ const Login = () => {
                 setShowForgotPassword(true);
             }
         } finally {
-            setIsLoading(false);
+            setIsSubmitting(false);
         }
     };
+
+    if (isLoggingIn) {
+        return (
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900">
+                <Spinner text="Logging in..." />
+            </div>
+        );
+    }
 
     return (
         <div className="flex items-center justify-center min-h-[calc(100vh-200px)] p-4">
@@ -125,10 +138,10 @@ const Login = () => {
                         </div>
                         <button 
                             type="submit" 
-                            disabled={isLoading}
+                            disabled={isSubmitting}
                             className="w-full py-3 font-semibold text-white bg-gradient-to-r from-cyan-500 to-blue-500 rounded-lg shadow-lg hover:shadow-blue-500/50 transition-all duration-300 transform hover:scale-105 disabled:opacity-70 disabled:cursor-not-allowed"
                         >
-                            {isLoading ? 'Logging in...' : 'Log In'}
+                            {isSubmitting ? 'Logging in...' : 'Log In'}
                         </button>
                         <div className="my-6 flex items-center">
                             <div className="flex-grow border-t border-slate-300"></div>

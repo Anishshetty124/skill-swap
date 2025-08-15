@@ -1,6 +1,31 @@
 import { asyncHandler } from '../utils/asyncHandler.js';
 import { ApiResponse } from '../utils/ApiResponse.js';
 import { Notification } from '../models/notification.model.js';
+import { ApiError } from '../utils/ApiError.js'; // Import ApiError
+
+/**
+ * @description Create a new notification (Internal function, not a route handler)
+ * @param {string} userId - The ID of the user to notify
+ * @param {string} message - The notification message
+ * @param {string} url - The URL the notification should link to
+ */
+const createNotification = async (userId, message, url) => {
+    try {
+        if (!userId || !message) {
+            console.error("Cannot create notification: userId and message are required.");
+            return;
+        }
+        await Notification.create({
+            user: userId,
+            message,
+            url
+        });
+    } catch (error) {
+        // This will help debug if the notification model fails to save
+        console.error("Error creating notification in database:", error);
+    }
+};
+
 
 /**
  * @description Get all notifications for the logged-in user
@@ -37,4 +62,9 @@ const deleteNotification = asyncHandler(async (req, res) => {
 });
 
 
-export { getNotifications, markAllAsRead, deleteNotification };
+export { 
+    getNotifications, 
+    markAllAsRead, 
+    deleteNotification,
+    createNotification 
+};

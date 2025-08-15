@@ -279,23 +279,45 @@ const deleteUserAvatar = asyncHandler(async (req, res) => {
 const getUserProfile = asyncHandler(async (req, res) => {
   const { username } = req.params;
   const user = await User.findOne({ username }).select("-password -refreshToken -role");
-  if (!user) throw new ApiError(404, "User not found");
+  if (!user) {
+    throw new ApiError(404, "User not found");
+  }
   
- let { earnedBadges, swapsCompleted, skillsOfferedCount } = await calculateUserStats(user);
+  let { earnedBadges, swapsCompleted, skillsOfferedCount } = await calculateUserStats(user);
 
   const accountAgeInHours = (new Date() - user.createdAt) / (1000 * 60 * 60);
   if (accountAgeInHours > 24) {
     earnedBadges = earnedBadges.filter(badge => badge !== "New Member");
   }
 
-  const [skills, bookmarks] = await Promise.all([
-    Skill.find({ user: user._id, type: 'OFFER' }).sort({ createdAt: -1 }),
+
+  const [allUserSkills, bookmarks] = await Promise.all([
+    Skill.find({ user: user._id }).sort({ createdAt: -1 }),
     Skill.find({ bookmarkedBy: user._id }).populate('user', 'username profilePicture').sort({ createdAt: -1 })
   ]);
   
- const profileData = { ...user.toObject(), skillsOfferedCount, swapsCompleted, skills, bookmarks, badges: earnedBadges };
+  const skillsToTeach = allUserSkills
+    .filter(skill => skill.type === 'OFFER')
+    .map(skill => skill.title);
+    
+  const skillsToLearn = allUserSkills
+    .filter(skill => skill.type === 'REQUEST')
+    .map(skill => skill.title);
+
+  const profileData = { 
+    ...user.toObject(), 
+    skillsOfferedCount, 
+    swapsCompleted, 
+    skills: allUserSkills.filter(skill => skill.type === 'OFFER'), // Only offered skills should be in the main list
+    bookmarks, 
+    badges: earnedBadges,
+    skillsToTeach, 
+    skillsToLearn 
+  };
+
   return res.status(200).json(new ApiResponse(200, profileData, "User profile fetched successfully"));
 });
+
 
 const verifyOtp = asyncHandler(async (req, res) => {
   const { email, otp } = req.body;
@@ -433,6 +455,32 @@ const healthCheck = asyncHandler(async (req, res) => {
     return res.status(200).json(new ApiResponse(200, {}, "Server is healthy."));
 });
 
+const syncUserSkills = asyncHandler(async (req, res) => {
+    const userId = req.user._id;
+
+    const userSkills = await Skill.find({ user: userId }).select('title type');
+
+    const skillsToTeach = [];
+    const skillsToLearn = [];
+
+    userSkills.forEach(skill => {
+        if (skill.type === 'OFFER') {
+            skillsToTeach.push(skill.title);
+        } else if (skill.type === 'REQUEST') {
+            skillsToLearn.push(skill.title);
+        }
+    });
+
+    await User.findByIdAndUpdate(userId, {
+        $addToSet: {
+            skillsToTeach: { $each: skillsToTeach },
+            skillsToLearn: { $each: skillsToLearn }
+        }
+    });
+
+    return res.status(200).json(new ApiResponse(200, {}, "User skills synchronized successfully."));
+});
+
 export {
   registerUser,
   verifyOtp,
@@ -451,5 +499,6 @@ export {
   getLeaderboard,
   searchUsers,
   getChatStatus,
-  healthCheck
+  healthCheck,
+  syncUserSkills
 };

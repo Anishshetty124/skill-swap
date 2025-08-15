@@ -17,7 +17,7 @@ const ReportUserModal = ({ isOpen, onClose, reportedUser, conversationId }) => {
     try {
       await apiClient.post(`/messages/report/${conversationId}`, { reason });
       toast.success("Report submitted successfully. Our team will review it.");
-      onClose(); // Close the modal on success
+      onClose(); 
     } catch (error) {
       toast.error(error.response?.data?.message || "Failed to submit report.");
     } finally {
