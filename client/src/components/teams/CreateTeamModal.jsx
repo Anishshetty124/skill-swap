@@ -3,7 +3,7 @@ import apiClient from '../../api/axios';
 import { toast } from 'react-toastify';
 import { XMarkIcon } from '@heroicons/react/24/solid';
 
-const CreateTeamModal = ({ isOpen, onClose, skill, onTeamCreated }) => {
+const CreateTeamModal = ({ isOpen, onClose, skill, onCreated }) => {
   const [teamName, setTeamName] = useState('');
   const [maxMembers, setMaxMembers] = useState(10);
   const [loading, setLoading] = useState(false);

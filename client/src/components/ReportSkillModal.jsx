@@ -16,10 +16,9 @@ const ReportSkillModal = ({ isOpen, onClose, skill, onReportSuccess }) => {
         }
         setSubmitting(true);
         try {
-            // The backend expects a 'reason' in the request body
             await apiClient.post(`/skills/${skill._id}/report`, { reason });
             toast.success("Report submitted successfully. Our team will review it.");
-            onReportSuccess(); // Tell the parent page the report was successful
+            if (onReportSuccess) onReportSuccess();
             onClose(); 
         } catch (error) {
             toast.error(error.response?.data?.message || "Failed to submit report.");
@@ -57,14 +56,18 @@ const ReportSkillModal = ({ isOpen, onClose, skill, onReportSuccess }) => {
                         />
                         <p className="text-xs text-slate-400 mt-1 text-right">{reason.length}/500</p>
                     </div>
-                    <div className="p-4 bg-slate-50 dark:bg-slate-900/50 border-t dark:border-slate-700 flex justify-end gap-3">
-                        <button type="button" onClick={onClose} className="px-4 py-2 bg-slate-200 dark:bg-slate-600 rounded-md hover:bg-slate-300 dark:hover:bg-slate-500">
+                    <div className="p-4 bg-slate-50 dark:bg-slate-900/50 border-t dark:border-slate-700 flex flex-col-reverse sm:flex-row sm:justify-end gap-3">
+                        <button 
+                            type="button" 
+                            onClick={onClose} 
+                            className="w-full sm:w-auto px-4 py-2 bg-slate-200 dark:bg-slate-600 rounded-md hover:bg-slate-300 dark:hover:bg-slate-500"
+                        >
                             Cancel
                         </button>
                         <button 
                             type="submit" 
                             disabled={submitting}
-                            className="px-4 py-2 bg-red-600 text-white font-semibold rounded-md hover:bg-red-700 disabled:opacity-50"
+                            className="w-full sm:w-auto px-4 py-2 bg-red-600 text-white font-semibold rounded-md hover:bg-red-700 disabled:opacity-50"
                         >
                             {submitting ? <Spinner isButtonSpinner={true} /> : 'Submit Report'}
                         </button>

@@ -1,11 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, Link, useNavigate } from 'react-router-dom';
 import apiClient from '../api/axios';
 import { useAuth } from '../context/AuthContext';
 import { useSocketContext } from '../context/SocketContext';
 import Spinner from '../components/common/Spinner';
 import { toast } from 'react-toastify';
-import { PaperAirplaneIcon, PencilIcon, DocumentArrowDownIcon, TrashIcon, UserMinusIcon } from '@heroicons/react/24/solid';
+import { PaperAirplaneIcon, PencilIcon, DocumentArrowDownIcon, TrashIcon, UserMinusIcon, LinkIcon } from '@heroicons/react/24/solid';
 import { format } from 'date-fns';
 
 const TeamPage = () => {
@@ -18,7 +18,6 @@ const TeamPage = () => {
     const [newMessage, setNewMessage] = useState('');
     const [newNote, setNewNote] = useState('');
     const [meetingLink, setMeetingLink] = useState('');
-    const [isEditingLink, setIsEditingLink] = useState(false);
     const chatEndRef = useRef(null);
 
     useEffect(() => {
@@ -53,9 +52,8 @@ const TeamPage = () => {
             const handleNewNote = (note) => {
                 setTeam(prevTeam => {
                     if (!prevTeam) return null;
-                    // Ensure the note has the author populated
                     if (!note.author) {
-                        note.author = { username: 'Instructor' }; // Fallback
+                        note.author = { username: 'Instructor' };
                     }
                     return {
                         ...prevTeam,
@@ -64,13 +62,20 @@ const TeamPage = () => {
                 });
             };
 
+            const handleChatCleared = () => {
+                toast.info("The instructor has cleared the chat history.");
+                setTeam(prevTeam => ({ ...prevTeam, chat: [] }));
+            };
+
             socket.on('new_team_message', handleNewMessage);
-            socket.on('new_team_note', handleNewNote); // Listen for new notes
+            socket.on('new_team_note', handleNewNote);
+            socket.on('team_chat_cleared', handleChatCleared);
 
             return () => {
                 socket.emit('leave_team_room', teamRoom);
                 socket.off('new_team_message', handleNewMessage);
                 socket.off('new_team_note', handleNewNote);
+                socket.off('team_chat_cleared', handleChatCleared);
             };
         }
     }, [socket, teamId]);
@@ -95,7 +100,6 @@ const TeamPage = () => {
             await apiClient.patch(`/teams/${teamId}/meeting-link`, { meetingLink });
             setTeam(prev => ({ ...prev, meetingLink }));
             toast.success("Meeting link updated!");
-            setIsEditingLink(false);
         } catch (error) {
             toast.error("Failed to update link.");
         }
@@ -104,7 +108,6 @@ const TeamPage = () => {
     const handleAddNote = async () => {
         if (!newNote.trim()) return;
         try {
-            // The backend now populates the note and the socket event will trigger the update
             await apiClient.post(`/teams/${teamId}/notes`, { content: newNote });
             setNewNote('');
             toast.success("Note added!");
@@ -113,14 +116,25 @@ const TeamPage = () => {
         }
     };
 
-     const handleDeleteTeam = async () => {
+    const handleDeleteTeam = async () => {
         if (window.confirm("Are you sure you want to permanently delete this team? This cannot be undone.")) {
             try {
                 await apiClient.delete(`/teams/${teamId}`);
                 toast.success("Team deleted.");
                 navigate('/explore');
             } catch (error) {
-                toast.error(error.response?.data?.message || "Failed to delete team. Check server routes.");
+                toast.error(error.response?.data?.message || "Failed to delete team.");
+            }
+        }
+    };
+
+    const handleClearChat = async () => {
+        if (window.confirm("Are you sure you want to clear the entire chat history? This cannot be undone.")) {
+            try {
+                await apiClient.delete(`/teams/${teamId}/chat`);
+                toast.success("Team chat has been cleared.");
+            } catch (error) {
+                toast.error(error.response?.data?.message || "Failed to clear chat.");
             }
         }
     };
@@ -137,7 +151,7 @@ const TeamPage = () => {
         }
     };
 
-     const handleRemoveMember = async (memberId) => {
+    const handleRemoveMember = async (memberId) => {
         if (window.confirm("Are you sure you want to remove this member from the team?")) {
             try {
                 await apiClient.delete(`/teams/${teamId}/members/${memberId}`);
@@ -171,7 +185,7 @@ const TeamPage = () => {
         try {
             toast.info("Preparing your PDF download...");
             const response = await apiClient.get(`/teams/${teamId}/notes/download`, {
-                responseType: 'blob', // Important for file downloads
+                responseType: 'blob',
             });
     
             const file = new Blob([response.data], { type: 'application/pdf' });
@@ -195,7 +209,6 @@ const TeamPage = () => {
             URL.revokeObjectURL(fileURL);
         } catch (error) {
             toast.error("Could not download notes PDF.");
-            console.error("PDF Download Error:", error);
         }
     };
 
@@ -216,6 +229,18 @@ const TeamPage = () => {
                 </div>
             </div>
 
+            {(isInstructor || isMember) && team.meetingLink && (
+                <div className="bg-white dark:bg-slate-800 rounded-lg shadow-md p-6 mb-8">
+                    <div className="flex items-center gap-4">
+                        <LinkIcon className="h-6 w-6 text-blue-500" />
+                        <div>
+                            <h3 className="font-semibold">Team Meeting Link</h3>
+                            <a href={team.meetingLink} target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:underline break-all">{team.meetingLink}</a>
+                        </div>
+                    </div>
+                </div>
+            )}
+
             {isInstructor && (
                 <div className="bg-white dark:bg-slate-800 rounded-lg shadow-md p-6 mb-8">
                     <h2 className="text-xl font-bold mb-4">Instructor Panel</h2>
@@ -223,23 +248,22 @@ const TeamPage = () => {
                         <div>
                             <label className="block text-sm font-medium mb-1">Meeting Link</label>
                             <div className="flex gap-2">
-                                <input type="url" value={isEditingLink ? meetingLink : team.meetingLink || ''} onChange={e => setMeetingLink(e.target.value)} placeholder="https://meet.google.com/..." className="w-full px-3 py-2 bg-slate-100 dark:bg-slate-700 rounded-md" disabled={!isEditingLink} />
-                                {isEditingLink ? (
-                                    <button onClick={handleUpdateLink} className="px-4 py-2 bg-green-500 text-white rounded-md">Save</button>
-                                ) : (
-                                    <button onClick={() => setIsEditingLink(true)} className="p-2 bg-slate-200 dark:bg-slate-600 rounded-md"><PencilIcon className="h-5 w-5" /></button>
-                                )}
+                                <input type="url" value={meetingLink} onChange={e => setMeetingLink(e.target.value)} placeholder="https://meet.google.com/..." className="w-full px-3 py-2 bg-slate-100 dark:bg-slate-700 rounded-md" />
+                                <button onClick={handleUpdateLink} className="px-4 py-2 bg-green-500 text-white rounded-md">Save</button>
                             </div>
                         </div>
                         <div>
                             <label className="block text-sm font-medium mb-1">Add a Note</label>
                             <div className="flex gap-2">
-                                <textarea value={newNote} onChange={e => setNewNote(e.target.value)} placeholder="Share important info with your team..." className="w-full h-20 px-3 py-2 bg-slate-100 dark:bg-slate-700 rounded-md"></textarea>
+                                <textarea value={newNote} onChange={e => setNewNote(e.target.value)} placeholder="Share notes links, drive links with your team..." className="w-full h-20 px-3 py-2 bg-slate-100 dark:bg-slate-700 rounded-md"></textarea>
                                 <button onClick={handleAddNote} className="px-4 py-2 bg-blue-500 text-white rounded-md self-start">Add Note</button>
                             </div>
                         </div>
-                        <div className="border-t dark:border-slate-700 pt-4">
-                            <button onClick={handleDeleteTeam} className="w-full flex items-center justify-center gap-2 px-4 py-2 text-sm font-semibold text-white bg-red-600 rounded-md hover:bg-red-700">
+                        <div className="border-t dark:border-slate-700 pt-4 flex flex-col sm:flex-row gap-2">
+                            <button onClick={handleClearChat} className="flex-1 flex items-center justify-center gap-2 px-4 py-2 text-sm font-semibold text-white bg-yellow-600 rounded-md hover:bg-yellow-700">
+                                <TrashIcon className="h-5 w-5" /> Clear Chat History
+                            </button>
+                            <button onClick={handleDeleteTeam} className="flex-1 flex items-center justify-center gap-2 px-4 py-2 text-sm font-semibold text-white bg-red-600 rounded-md hover:bg-red-700">
                                 <TrashIcon className="h-5 w-5" /> Delete Team
                             </button>
                         </div>
@@ -249,7 +273,6 @@ const TeamPage = () => {
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
                 <div className="md:col-span-1 space-y-6">
-                    {/* Members List */}
                     <div className="bg-white dark:bg-slate-800 rounded-lg shadow-md p-4">
                         <h3 className="font-bold mb-3">Members ({team.members.length + 1}/{team.maxMembers})</h3>
                         <ul className="space-y-3">
@@ -266,8 +289,7 @@ const TeamPage = () => {
                         </ul>
                     </div>
                     
-                    {/* Team Notes Section */}
-                     <div className="bg-white dark:bg-slate-800 rounded-lg shadow-md p-4">
+                    <div className="bg-white dark:bg-slate-800 rounded-lg shadow-md p-4">
                         <div className="flex justify-between items-center mb-3">
                             <h3 className="font-bold">Team Notes</h3>
                             <button onClick={handleDownloadNotes} className="p-2 bg-slate-200 dark:bg-slate-600 rounded-md hover:bg-slate-300 dark:hover:bg-slate-500" title="Download Notes as PDF">
@@ -300,7 +322,6 @@ const TeamPage = () => {
                     )}
                 </div>
 
-                {/* Team Chat */}
                 <div className="md:col-span-2 bg-white dark:bg-slate-800 rounded-lg shadow-md flex flex-col h-[70vh]">
                     <h3 className="p-4 font-bold border-b dark:border-slate-700">Team Chat</h3>
                     <div className="flex-grow p-4 overflow-y-auto">

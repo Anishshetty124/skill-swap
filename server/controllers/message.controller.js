@@ -234,64 +234,76 @@ const clearConversation = asyncHandler(async (req, res) => {
 });
 
 const reportUser = asyncHandler(async (req, res) => {
-    const { conversationId } = req.params;
-    const { reason } = req.body;
-    const reporterId = req.user._id;
-
-    if (!reason || reason.trim() === '') {
-        throw new ApiError(400, "A reason is required to report a user.");
-    }
-
-    const conversation = await Conversation.findById(conversationId);
-    if (!conversation) {
-        throw new ApiError(404, "Conversation not found.");
-    }
-
-    const reportedUserId = conversation.participants.find(p => !p.equals(reporterId));
-    if (!reportedUserId) {
-        throw new ApiError(400, "Could not identify the user to report in this conversation.");
-    }
-
-    const existingReport = await Report.findOne({
-        reporter: reporterId,
-        reportedUser: reportedUserId,
-        conversationId: conversationId
-    });
-
-    if (existingReport) {
-        throw new ApiError(400, "You have already reported this user for this conversation.");
-    }
-
-    await Report.create({
-        reporter: reporterId,
-        reportedUser: reportedUserId,
-        conversationId: conversationId,
-        reason: reason
-    });
-    
     try {
-        const reportedUserSocketId = getReceiverSocketId(reportedUserId.toString());
-        const notificationMessage = "You have been reported for inappropriate conduct. Our moderation team will review the case. Further violations may lead to account suspension.";
-        const notificationUrl = '/messages';
+        const { conversationId } = req.params;
+        const { reason } = req.body;
+        const reporterId = req.user?._id;
 
-        if (reportedUserSocketId) {
-            io.to(reportedUserSocketId).emit('new_notification', {
-                message: notificationMessage
-            });
+        if (!reporterId) {
+            throw new ApiError(401, "Unauthorized. Please log in first.");
         }
-        await createNotification(reportedUserId, notificationMessage, notificationUrl);
 
-        const pushPayload = {
-            title: 'Account Warning',
-            body: notificationMessage,
-            url: '/messages' 
-        };
-        await sendPushNotification(reportedUserId, pushPayload);
-    } catch (notificationError) {
-        console.error("Failed to send report notifications:", notificationError);
+        if (!reason || reason.trim() === '') {
+            throw new ApiError(400, "A reason is required to report a user.");
+        }
+
+        const conversation = await Conversation.findById(conversationId);
+        if (!conversation) {
+            throw new ApiError(404, "Conversation not found.");
+        }
+
+        const reportedUserId = conversation.participants.find(
+            p => p.toString() !== reporterId.toString()
+        );
+
+        if (!reportedUserId) {
+            throw new ApiError(400, "Could not identify the user to report in this conversation.");
+        }
+
+        const existingReport = await Report.findOne({
+            reporter: reporterId,
+            reportedUser: reportedUserId,
+            conversationId: conversationId
+        });
+
+        if (existingReport) {
+            throw new ApiError(400, "You have already reported this user for this conversation.");
+        }
+
+        await Report.create({
+            reporter: reporterId,
+            reportedUser: reportedUserId,
+            conversationId: conversationId,
+            reason: reason,
+            reportType: 'user' 
+        });
+        try {
+            const reportedUserSocketId = getReceiverSocketId(reportedUserId.toString());
+            const notificationMessage = "You have been reported for inappropriate conduct. Our moderation team will review the case. Further violations may lead to account suspension.";
+            const notificationUrl = '/messages';
+
+            if (reportedUserSocketId) {
+                io.to(reportedUserSocketId).emit('new_notification', {
+                    message: notificationMessage
+                });
+            }
+            await createNotification(reportedUserId, notificationMessage, notificationUrl);
+
+            const pushPayload = {
+                title: 'Account Warning',
+                body: notificationMessage,
+                url: '/messages' 
+            };
+            await sendPushNotification(reportedUserId, pushPayload);
+        } catch (notificationError) {
+            console.error("Failed to send report notifications:", notificationError);
+        }
+
+        return res.status(200).json(new ApiResponse(200, {}, "User has been reported. Our moderation team will review the details shortly."));
+    } catch (err) {
+        console.error("ReportUser Error:", err); 
+        throw err;
     }
-
-    return res.status(200).json(new ApiResponse(200, {}, "User has been reported. Our moderation team will review the details shortly."));
 });
 
 

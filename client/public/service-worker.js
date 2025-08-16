@@ -3,10 +3,10 @@ self.addEventListener('push', event => {
   
   const options = {
     body: data.body,
-    icon: '/logo.png', 
-    badge: '/logo.png', 
+    icon: '/logo.png',
+    badge: '/logo.png',
     data: {
-      url: data.url 
+      url: data.url
     }
   };
 

@@ -209,6 +209,23 @@ const sendTeamMessage = asyncHandler(async (req, res) => {
     return res.status(201).json(new ApiResponse(201, populatedMessage, "Message sent."));
 });
 
+const clearTeamChat = asyncHandler(async (req, res) => {
+    const { teamId } = req.params;
+    const userId = req.user._id;
+
+    const team = await Team.findById(teamId);
+    if (!team) throw new ApiError(404, "Team not found.");
+    if (!team.instructor.equals(userId)) throw new ApiError(403, "Only the instructor can clear the chat.");
+
+    team.chat = []; 
+    await team.save();
+
+    const teamRoom = `team_${teamId}`;
+    io.to(teamRoom).emit('team_chat_cleared');
+
+    return res.status(200).json(new ApiResponse(200, {}, "Team chat cleared successfully."));
+});
+
 const deleteTeam = asyncHandler(async (req, res) => {
     const { teamId } = req.params;
     const userId = req.user._id;
@@ -265,5 +282,6 @@ export {
     leaveTeam,
     downloadNotesPDF,
     removeMember, 
-    deleteNote    
+    deleteNote,
+    clearTeamChat
 };
