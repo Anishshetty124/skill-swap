@@ -1,7 +1,7 @@
 
 -----
 
-SkillSwap: A Modern Skill Exchange Platform
+skill4skill: A Modern Skill Exchange Platform
 
 A feature-rich, full-stack web application built on the MERN stack where users trade skills and knowledge using a virtual credit system.
 
@@ -9,14 +9,14 @@ A feature-rich, full-stack web application built on the MERN stack where users t
 
 Live website Link: skilswap.netlify.app
 
-SkillSwap is an innovative, full-stack web application built with the MERN stack (MongoDB, Express.js, React.js, Node.js). It functions as a dynamic marketplace that empowers users to exchange their skills and knowledge through a unique virtual credit system, fostering a vibrant community of collaborative learning and mutual growth.
+skill4skill is an innovative, full-stack web application built with the MERN stack (MongoDB, Express.js, React.js, Node.js). It functions as a dynamic marketplace that empowers users to exchange their skills and knowledge through a unique virtual credit system, fostering a vibrant community of collaborative learning and mutual growth.
 
 This project is engineered with a professional, scalable, and maintainable architecture. It integrates a comprehensive suite of modern web technologies, including real-time chat and notifications via WebSockets, secure JWT-based authentication with refresh tokens, and AI-powered features like a skill assistant and content moderation using the Google Gemini API.
 
 ### Table of Contents
 
   * [Live Demo & Screenshots](https://www.google.com/search?q=%23-live-demo--screenshots)
-  * [Why SkillSwap?](https://www.google.com/search?q=%23-why-skillswap)
+  * [Why skill4skill?](https://www.google.com/search?q=%23-why-skill4skill)
   * [Features In-Depth](https://www.google.com/search?q=%23-features-in-depth)
       * [Core Platform Mechanics](https://www.google.com/search?q=%23-core-platform-mechanics)
       * [User Engagement & Security](https://www.google.com/search?q=%23-user-engagement--security)
@@ -40,7 +40,7 @@ This project is engineered with a professional, scalable, and maintainable archi
 
 ### ✨ Live Demo & Screenshots
 
-**Live Site:** [https://skillswap-demo.netlify.app](https://skillswap-demo.netlify.app) *(Replace with your actual deployed URL)*
+**Live Site:** [https://skill4skill-demo.netlify.app](https://skill4skill-demo.netlify.app) *(Replace with your actual deployed URL)*
 
 | | |
 | :---: | :---: |
@@ -53,14 +53,14 @@ This project is engineered with a professional, scalable, and maintainable archi
 
 -----
 
-### 🤔 Why SkillSwap?
+### 🤔 Why skill4skill?
 
-In a world of expensive online courses and passive learning, SkillSwap offers a dynamic, community-driven alternative.
+In a world of expensive online courses and passive learning, skill4skill offers a dynamic, community-driven alternative.
 
   * **Breaks Financial Barriers:** Instead of money, the currency is your own knowledge. It creates an accessible ecosystem where learning is not limited by a user's financial status.
   * **Fosters Active Learning:** By teaching others, users reinforce their own understanding. This two-way exchange promotes deeper learning and mastery.
   * **Builds Community:** The platform is designed to connect people. From proposals to real-time chat, every interaction is a step towards building a supportive network of learners and mentors.
-  * **Modern & Secure:** Built with industry-standard practices, SkillSwap provides a safe, reliable, and modern user experience that users can trust.
+  * **Modern & Secure:** Built with industry-standard practices, skill4skill provides a safe, reliable, and modern user experience that users can trust.
 
 -----
 
@@ -120,7 +120,7 @@ This project follows a professional, scalable MERN stack architecture, emphasizi
 ### 📁 Detailed Project Structure
 
 ```
-skillswap/
+skill4skill/
 ├── client/             # React Frontend (Vite)
 │   ├── public/
 │   ├── src/
@@ -214,7 +214,7 @@ All endpoints are prefixed with `/api/v1`.
 
 ### 💻 Tech Stack
 
-A curated list of the technologies and services that power SkillSwap.
+A curated list of the technologies and services that power skill4skill.
 
 **Frontend:**
 
@@ -247,7 +247,7 @@ A curated list of the technologies and services that power SkillSwap.
 
 ### 🚀 Local Development Setup
 
-Follow these instructions to get a local copy of SkillSwap up and running on your machine.
+Follow these instructions to get a local copy of skill4skill up and running on your machine.
 
 #### Prerequisites
 
@@ -263,8 +263,8 @@ Make sure you have the following software installed on your system:
 1.  **Clone the repository:**
 
     ```sh
-    git clone https://github.com/your-username/skillswap.git
-    cd skillswap
+    git clone https://github.com/your-username/skill4skill.git
+    cd skill4skill
     ```
 
 2.  **Install Backend Dependencies:**
@@ -307,7 +307,7 @@ Make sure you have the following software installed on your system:
       * In the `/server` terminal: `npm run dev` (This will start the backend, typically on `http://localhost:8000`)
       * In the `/client` terminal: `npm run dev` (This will start the React Vite server, typically on `http://localhost:5173`)
 
-You should now be able to access the SkillSwap application in your browser at `http://localhost:5173`.
+You should now be able to access the skill4skill application in your browser at `http://localhost:5173`.
 
 #### 🔑 Environment Variables
 
@@ -365,7 +365,7 @@ The React client is a static application and can be deployed to services like **
       * **Build command:** `npm run build`
       * **Publish directory:** `client/dist`
 5.  **Add your production environment variable:**
-      * `VITE_API_BASE_URL` = https://skillswap-production-32b3.up.railway.app
+      * `VITE_API_BASE_URL` = https://skill4skill-production-32b3.up.railway.app
 6.  **Deploy\!** Netlify will build your React app and deploy the static files globally.
 
 
@@ -378,5 +378,5 @@ Distributed under the MIT License. See `LICENSE` file for more information.
 ### 📞 Contact
 anish shetty - anishshetty124@gmail.com
 
-Project Link: https://github.com/Anishshetty124/skillswap.git
+Project Link: https://github.com/Anishshetty124/skill4skill.git
 

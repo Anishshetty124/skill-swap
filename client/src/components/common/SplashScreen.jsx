@@ -25,12 +25,12 @@ useEffect(() => {
       >
         <img 
           src="/logo.png" 
-          alt="SkillSwap Logo" 
+          alt="skill4skill Logo" 
           className="w-full h-auto rounded-2xl" 
         />
       </motion.div>
       <p className="mt-4 text-lg font-semibold text-slate-300">
-        SkillSwap
+        skill4skill
       </p>
     </motion.div>
   );

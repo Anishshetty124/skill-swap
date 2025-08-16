@@ -236,7 +236,7 @@ const Navbar = () => {
                 <path fill="currentColor" className="text-blue-500 dark:text-blue-400" d="M12 22a10 10 0 0 0 7.07-2.93l-1.41-1.41A8 8 0 0 1 4.93 4.93l-1.41-1.41A10 10 0 0 0 12 22" />
               </svg>
               <span className="text-2xl font-bold text-slate-800 dark:text-white">
-                SkillSwap
+                skill4skill
               </span>
             </Link>
 

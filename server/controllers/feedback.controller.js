@@ -37,7 +37,7 @@ const submitFeedback = asyncHandler(async (req, res) => {
   
   const emailMsg = {
     to: 'anishshetty124@gmail.com',
-    from: 'codex.5342@gmail.com', 
+    from: 'noreply@skill4skill.tech', 
     subject: `New Feedback Received: [${feedbackType.toUpperCase()}]`,
     html: `
       <h2>New Feedback Submitted</h2>

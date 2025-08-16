@@ -46,11 +46,11 @@ const registerUser = asyncHandler(async (req, res) => {
 
   const msg = {
     to: user.email,
-    from: 'codex.5342@gmail.com',
-    subject: 'Your SkillSwap Verification Code',
+    from: 'noreply@skill4skill.tech',
+    subject: 'Your skill4skill Verification Code',
     html: `
       <div style="font-family: sans-serif; padding: 20px; color: #333;">
-        <h2>Welcome to SkillSwap!</h2>
+        <h2>Welcome to skill4skill!</h2>
         <p>Your verification code is:</p>
         <p style="font-size: 24px; font-weight: bold; letter-spacing: 2px; background: #f0f0f0; padding: 10px; border-radius: 5px;">${otp}</p>
         <p style="font-size: 12px; color: #777;">This code will expire in 10 minutes.</p>
@@ -139,8 +139,8 @@ const forgotPassword = asyncHandler(async (req, res) => {
 
   const msg = {
     to: user.email,
-    from: 'codex.5342@gmail.com', 
-    subject: 'Your SkillSwap Password Reset Code',
+    from: 'noreply@skill4skill.tech',
+    subject: 'Your skill4skill Password Reset Code',
     html: `
       <div style="font-family: sans-serif; padding: 20px; color: #333;">
         <h2>Password Reset Request</h2>
@@ -210,7 +210,7 @@ const requestEmailChange = asyncHandler(async (req, res) => {
   user.emailChangeOtp = otp;
   user.emailChangeOtpExpiry = otpExpiry;
   await user.save({ validateBeforeSave: false });
-  const msg = { to: newEmail, from: 'codex.5342@gmail.com', subject: 'Verify Your New Email for SkillSwap', html: `Your code to change your email is: <strong>${otp}</strong>` };
+  const msg = { to: newEmail, from: 'noreply@skill4skill.tech', subject: 'Verify Your New Email for skill4skill', html: `Your code to change your email is: <strong>${otp}</strong>` };
   await sgMail.send(msg);
   return res.status(200).json(new ApiResponse(200, {}, "Verification OTP sent to your new email address."));
 });
@@ -368,8 +368,8 @@ const resendVerificationEmail = asyncHandler(async (req, res) => {
 
   const msg = {
     to: user.email,
-    subject: 'Your New SkillSwap Verification Code',
-    from: 'codex.5342@gmail.com', 
+    subject: 'Your New skill4skill Verification Code',
+    from: 'noreply@skill4skill.tech',
     html: `
       <div style="font-family: sans-serif; padding: 20px; color: #333;">
         <h2>Here is your new verification code</h2>

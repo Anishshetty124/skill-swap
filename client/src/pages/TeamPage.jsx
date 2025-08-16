@@ -5,272 +5,280 @@ import { useAuth } from '../context/AuthContext';
 import { useSocketContext } from '../context/SocketContext';
 import Spinner from '../components/common/Spinner';
 import { toast } from 'react-toastify';
-import { PaperAirplaneIcon, PencilIcon, DocumentArrowDownIcon, TrashIcon, UserMinusIcon, LinkIcon, LockClosedIcon, CurrencyDollarIcon, CheckCircleIcon, XCircleIcon } from '@heroicons/react/24/solid';
-import { format, isSameDay, isToday, isYesterday } from 'date-fns';
+import {
+  PaperAirplaneIcon,
+  PencilIcon,
+  DocumentArrowDownIcon,
+  TrashIcon,
+  UserMinusIcon,
+  LinkIcon,
+  LockClosedIcon,
+  CurrencyDollarIcon,
+  CheckCircleIcon,
+  XCircleIcon,
+} from '@heroicons/react/24/solid';
+import { format, isToday, isYesterday } from 'date-fns';
 import EditTeamModal from '../components/teams/EditTeamModal';
 
 const formatDateSeparator = (date) => {
-    const d = new Date(date);
-    if (isToday(d)) return 'Today';
-    if (isYesterday(d)) return 'Yesterday';
-    return format(d, 'MMMM d, yyyy');
+  const d = new Date(date);
+  if (isToday(d)) return 'Today';
+  if (isYesterday(d)) return 'Yesterday';
+  return format(d, 'MMMM d, yyyy');
+};
+
+const confirmAction = async (message) => {
+  return window.confirm(message);
 };
 
 const TeamPage = () => {
-    const { teamId } = useParams();
-    const { user } = useAuth();
-    const { socket } = useSocketContext();
-    const navigate = useNavigate();
-    const [team, setTeam] = useState(null);
-    const [loading, setLoading] = useState(true);
-    const [newMessage, setNewMessage] = useState('');
-    const [newNote, setNewNote] = useState('');
-    const [meetingLink, setMeetingLink] = useState('');
-    const [isEditModalOpen, setIsEditModalOpen] = useState(false);
-    const [isConfirming, setIsConfirming] = useState(false);
-    const chatEndRef = useRef(null);
+  const { teamId } = useParams();
+  const { user } = useAuth();
+  const { socket } = useSocketContext();
+  const navigate = useNavigate();
 
-    const fetchTeam = useCallback(async () => {
-        try {
-            setLoading(true);
-            const response = await apiClient.get(`/teams/${teamId}`);
-            setTeam(response.data.data);
-            setMeetingLink(response.data.data.meetingLink || '');
-        } catch (error) {
-            toast.error("Could not load team details.");
-            navigate('/explore'); 
-        } finally {
-            setLoading(false);
-        }
-    }, [teamId, navigate]);
+  const [team, setTeam] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [newMessage, setNewMessage] = useState('');
+  const [newNote, setNewNote] = useState('');
+  const [meetingLink, setMeetingLink] = useState('');
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [isConfirming, setIsConfirming] = useState(false);
+  const chatEndRef = useRef(null);
 
-    useEffect(() => {
-        fetchTeam();
-    }, [fetchTeam]);
+  const fetchTeam = useCallback(async () => {
+    try {
+      setLoading(true);
+      const response = await apiClient.get(`/teams/${teamId}`);
+      setTeam(response.data.data);
+      setMeetingLink(response.data.data.meetingLink || '');
+    } catch (error) {
+      toast.error('Could not load team details.');
+      navigate('/explore');
+    } finally {
+      setLoading(false);
+    }
+  }, [teamId, navigate]);
 
-    useEffect(() => {
-        if (socket && teamId) {
-            const teamRoom = `team_${teamId}`;
-            socket.emit('join_team_room', teamRoom);
+  useEffect(() => {
+    fetchTeam();
+  }, [fetchTeam]);
 
-            const handleNewMessage = (message) => setTeam(prev => ({ ...prev, chat: [...prev.chat, message] }));
-            const handleNewNote = (note) => setTeam(prev => ({ ...prev, notes: [...prev.notes, note] }));
-            const handleChatCleared = () => {
-                toast.info("The instructor has cleared the chat history.");
-                setTeam(prev => ({ ...prev, chat: [] }));
-            };
-            const handleMessageDeleted = ({ messageId }) => {
-                setTeam(prev => ({ ...prev, chat: prev.chat.filter(msg => msg._id !== messageId) }));
-            };
-            const handleTeamDetailsUpdated = (updatedDetails) => {
-                toast.info("The team details have been updated by the instructor.");
-                setTeam(prev => ({ ...prev, ...updatedDetails }));
-            };
-            const handleTeamClosed = ({ message }) => {
-                toast.success(message);
-                setTeam(prev => ({ ...prev, status: 'completed' }));
-            };
-            const handleClosureInitiated = () => {
-                toast.info("The instructor has requested to close the team. Please confirm completion.");
-                setTeam(prev => ({ ...prev, status: 'pending_completion' }));
-            };
-            const handleMemberConfirmed = (updatedTeam) => {
-                setTeam(prev => ({ ...prev, completionConfirmedBy: updatedTeam.completionConfirmedBy }));
-            };
-            const handleClosureCancelled = () => {
-                toast.warn("The instructor has cancelled the team closure request.");
-                setTeam(prev => ({ ...prev, status: 'open', completionConfirmedBy: [] }));
-            };
+  // --- SOCKET HANDLERS ---
+  useEffect(() => {
+    if (!socket || !teamId) return;
 
-            socket.on('new_team_message', handleNewMessage);
-            socket.on('new_team_note', handleNewNote);
-            socket.on('team_chat_cleared', handleChatCleared);
-            socket.on('team_message_deleted', handleMessageDeleted);
-            socket.on('team_details_updated', handleTeamDetailsUpdated);
-            socket.on('team_closed', handleTeamClosed);
-            socket.on('team_closure_initiated', handleClosureInitiated);
-            socket.on('member_confirmed_completion', handleMemberConfirmed);
-            socket.on('team_closure_cancelled', handleClosureCancelled);
+    const teamRoom = `team_${teamId}`;
+    socket.emit('join_team_room', teamRoom);
 
-            return () => {
-                socket.emit('leave_team_room', teamRoom);
-                socket.off('new_team_message', handleNewMessage);
-                socket.off('new_team_note', handleNewNote);
-                socket.off('team_chat_cleared', handleChatCleared);
-                socket.off('team_message_deleted', handleMessageDeleted);
-                socket.off('team_details_updated', handleTeamDetailsUpdated);
-                socket.off('team_closed', handleTeamClosed);
-                socket.off('team_closure_initiated', handleClosureInitiated);
-                socket.off('member_confirmed_completion', handleMemberConfirmed);
-                socket.off('team_closure_cancelled', handleClosureCancelled);
-            };
-        }
-    }, [socket, teamId]);
-
-    useEffect(() => {
-        chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-    }, [team?.chat]);
-
-    const handleSendMessage = async (e) => {
-        e.preventDefault();
-        if (!newMessage.trim()) return;
-        try {
-            await apiClient.post(`/teams/${teamId}/chat`, { message: newMessage });
-            setNewMessage('');
-        } catch (error) {
-            toast.error(error.response?.data?.message || "Failed to send message.");
-        }
-    };
-    
-    const handleUpdateLink = async () => {
-        try {
-            await apiClient.patch(`/teams/${teamId}/meeting-link`, { meetingLink });
-            setTeam(prev => ({ ...prev, meetingLink }));
-            toast.success("Meeting link updated!");
-        } catch (error) {
-            toast.error("Failed to update link.");
-        }
+    const registerHandler = (event, handler) => {
+      socket.on(event, handler);
+      return () => socket.off(event, handler);
     };
 
-    const handleAddNote = async () => {
-        if (!newNote.trim()) return;
-        try {
-            await apiClient.post(`/teams/${teamId}/notes`, { content: newNote });
-            setNewNote('');
-        } catch (error) {
-            toast.error(error.response?.data?.message || "Failed to add note.");
-        }
-    };
+    const cleanups = [
+      registerHandler('new_team_message', (message) =>
+        setTeam((prev) => ({ ...prev, chat: [...(prev.chat || []), message] }))
+      ),
+      registerHandler('new_team_note', (note) =>
+        setTeam((prev) => ({ ...prev, notes: [...(prev.notes || []), note] }))
+      ),
+      registerHandler('team_chat_cleared', () => {
+        toast.info('The instructor has cleared the chat history.');
+        setTeam((prev) => ({ ...prev, chat: [] }));
+      }),
+      registerHandler('team_message_deleted', ({ messageId }) =>
+        setTeam((prev) => ({ ...prev, chat: prev.chat.filter((msg) => msg._id !== messageId) }))
+      ),
+      registerHandler('team_details_updated', (updatedDetails) => {
+        toast.info('The team details have been updated by the instructor.');
+        setTeam((prev) => ({ ...prev, ...updatedDetails }));
+      }),
+      registerHandler('team_closed', ({ message }) => {
+        toast.success(message);
+        setTeam((prev) => ({ ...prev, status: 'completed' }));
+      }),
+      registerHandler('team_closure_initiated', () => {
+        toast.info('The instructor has requested to close the team. Please confirm completion.');
+        setTeam((prev) => ({ ...prev, status: 'pending_completion' }));
+      }),
+      registerHandler('member_confirmed_completion', (updatedTeam) =>
+        setTeam((prev) => ({ ...prev, completionConfirmedBy: updatedTeam.completionConfirmedBy }))
+      ),
+      registerHandler('team_closure_cancelled', () => {
+        toast.warn('The instructor has cancelled the team closure request.');
+        setTeam((prev) => ({ ...prev, status: 'open', completionConfirmedBy: [] }));
+      }),
+    ];
 
-    const handleDeleteTeam = async () => {
-        if (window.confirm("Are you sure you want to permanently delete this team? This will refund credits to all members.")) {
-            try {
-                await apiClient.delete(`/teams/${teamId}`);
-                toast.success("Team deleted.");
-                navigate('/explore');
-            } catch (error) {
-                toast.error(error.response?.data?.message || "Failed to delete team.");
-            }
-        }
+    return () => {
+      socket.emit('leave_team_room', teamRoom);
+      cleanups.forEach((cleanup) => cleanup());
     };
+  }, [socket, teamId]);
 
-    const handleClearChat = async () => {
-        if (window.confirm("Are you sure you want to clear the entire chat history? This cannot be undone.")) {
-            try {
-                await apiClient.delete(`/teams/${teamId}/chat`);
-            } catch (error) {
-                toast.error(error.response?.data?.message || "Failed to clear chat.");
-            }
-        }
-    };
+  useEffect(() => {
+    chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [team?.chat]);
 
-    const handleLeaveTeam = async () => {
-        if (window.confirm("Are you sure you want to leave this team? Your credits will be refunded.")) {
-            try {
-                await apiClient.post(`/teams/${teamId}/leave`);
-                toast.success("You have left the team and your credits have been refunded.");
-                navigate('/explore');
-            } catch (error) {
-                toast.error(error.response?.data?.message || "Failed to leave the team.");
-            }
-        }
-    };
+  // --- ACTION HANDLERS ---
+  const handleSendMessage = async (e) => {
+    e.preventDefault();
+    if (!newMessage.trim()) return;
+    try {
+      await apiClient.post(`/teams/${teamId}/chat`, { message: newMessage });
+      setNewMessage('');
+    } catch (error) {
+      toast.error(error.response?.data?.message || 'Failed to send message.');
+    }
+  };
 
-    const handleRemoveMember = async (memberId) => {
-        if (window.confirm("Are you sure you want to remove this member? Their credits will be refunded.")) {
-            try {
-                await apiClient.delete(`/teams/${teamId}/members/${memberId}`);
-                setTeam(prev => ({
-                    ...prev,
-                    members: prev.members.filter(member => member._id !== memberId)
-                }));
-                toast.success("Member removed and credits refunded.");
-            } catch (error) {
-                toast.error(error.response?.data?.message || "Failed to remove member.");
-            }
-        }
-    };
+  const handleUpdateLink = async () => {
+    try {
+      await apiClient.patch(`/teams/${teamId}/meeting-link`, { meetingLink });
+      setTeam((prev) => ({ ...prev, meetingLink }));
+      toast.success('Meeting link updated!');
+    } catch (error) {
+      toast.error('Failed to update link.');
+    }
+  };
 
-    const handleDeleteNote = async (noteId) => {
-        if (window.confirm("Are you sure you want to delete this note?")) {
-            try {
-                await apiClient.delete(`/teams/${teamId}/notes/${noteId}`);
-                setTeam(prev => ({
-                    ...prev,
-                    notes: prev.notes.filter(note => note._id !== noteId)
-                }));
-                toast.success("Note deleted.");
-            } catch (error) {
-                toast.error(error.response?.data?.message || "Failed to delete note.");
-            }
-        }
-    };
+  const handleAddNote = async () => {
+    if (!newNote.trim()) return;
+    try {
+      await apiClient.post(`/teams/${teamId}/notes`, { content: newNote });
+      setNewNote('');
+    } catch (error) {
+      toast.error(error.response?.data?.message || 'Failed to add note.');
+    }
+  };
 
-    const handleDeleteMessage = async (messageId) => {
-        if (window.confirm("Are you sure you want to delete this message?")) {
-            try {
-                await apiClient.delete(`/teams/${teamId}/chat/${messageId}`);
-            } catch (error) {
-                toast.error(error.response?.data?.message || "Failed to delete message.");
-            }
-        }
-    };
+  const handleDeleteTeam = async () => {
+    if (await confirmAction('Are you sure you want to permanently delete this team? This will refund credits to all members.')) {
+      try {
+        await apiClient.delete(`/teams/${teamId}`);
+        toast.success('Team deleted.');
+        navigate('/explore');
+      } catch (error) {
+        toast.error(error.response?.data?.message || 'Failed to delete team.');
+      }
+    }
+  };
 
-    const handleInitiateClosure = async () => {
-        if (window.confirm("Are you sure you want to request to close this team? Members will need to confirm completion.")) {
-            try {
-                await apiClient.post(`/teams/${teamId}/initiate-closure`);
-            } catch (error) {
-                toast.error(error.response?.data?.message || "Failed to initiate closure.");
-            }
-        }
-    };
+  const handleClearChat = async () => {
+    if (await confirmAction('Are you sure you want to clear the entire chat history? This cannot be undone.')) {
+      try {
+        await apiClient.delete(`/teams/${teamId}/chat`);
+      } catch (error) {
+        toast.error(error.response?.data?.message || 'Failed to clear chat.');
+      }
+    }
+  };
 
-    const handleConfirmCompletion = async () => {
-        setIsConfirming(true);
-        try {
-            await apiClient.post(`/teams/${teamId}/confirm-completion`);
-            toast.success("You have confirmed the team's completion.");
-        } catch (error) {
-            toast.error(error.response?.data?.message || "Failed to confirm completion.");
-        } finally {
-            setIsConfirming(false);
-        }
-    };
+  const handleLeaveTeam = async () => {
+    if (await confirmAction('Are you sure you want to leave this team? Your credits will be refunded.')) {
+      try {
+        await apiClient.post(`/teams/${teamId}/leave`);
+        toast.success('You have left the team and your credits have been refunded.');
+        navigate('/explore');
+      } catch (error) {
+        toast.error(error.response?.data?.message || 'Failed to leave the team.');
+      }
+    }
+  };
 
-    const handleCancelClosure = async () => {
-        if (window.confirm("Are you sure you want to cancel the closure request? This will reopen the team.")) {
-            try {
-                await apiClient.post(`/teams/${teamId}/cancel-closure`);
-            } catch (error) {
-                toast.error(error.response?.data?.message || "Failed to cancel closure.");
-            }
-        }
-    };
+  const handleRemoveMember = async (memberId) => {
+    if (await confirmAction('Are you sure you want to remove this member? Their credits will be refunded.')) {
+      try {
+        await apiClient.delete(`/teams/${teamId}/members/${memberId}`);
+        setTeam((prev) => ({
+          ...prev,
+          members: prev.members.filter((m) => m._id !== memberId),
+        }));
+        toast.success('Member removed and credits refunded.');
+      } catch (error) {
+        toast.error(error.response?.data?.message || 'Failed to remove member.');
+      }
+    }
+  };
 
-    const handleDownloadNotes = async () => {
-        try {
-            toast.info("Preparing your PDF download...");
-            const response = await apiClient.get(`/teams/${teamId}/notes/download`, { responseType: 'blob' });
-            const file = new Blob([response.data], { type: 'application/pdf' });
-            const fileURL = URL.createObjectURL(file);
-            const link = document.createElement('a');
-            link.href = fileURL;
-            const contentDisposition = response.headers['content-disposition'];
-            let fileName = `team_notes_${teamId}.pdf`;
-            if (contentDisposition) {
-                const fileNameMatch = contentDisposition.match(/filename="(.+)"/);
-                if (fileNameMatch && fileNameMatch.length === 2) fileName = fileNameMatch[1];
-            }
-            link.setAttribute('download', fileName);
-            document.body.appendChild(link);
-            link.click();
-            link.parentNode.removeChild(link);
-            URL.revokeObjectURL(fileURL);
-        } catch (error) {
-            toast.error("Could not download notes PDF.");
-        }
-    };
+  const handleDeleteNote = async (noteId) => {
+    if (await confirmAction('Are you sure you want to delete this note?')) {
+      try {
+        await apiClient.delete(`/teams/${teamId}/notes/${noteId}`);
+        setTeam((prev) => ({ ...prev, notes: prev.notes.filter((n) => n._id !== noteId) }));
+        toast.success('Note deleted.');
+      } catch (error) {
+        toast.error(error.response?.data?.message || 'Failed to delete note.');
+      }
+    }
+  };
+
+  const handleDeleteMessage = async (messageId) => {
+    if (await confirmAction('Are you sure you want to delete this message?')) {
+      try {
+        await apiClient.delete(`/teams/${teamId}/chat/${messageId}`);
+      } catch (error) {
+        toast.error(error.response?.data?.message || 'Failed to delete message.');
+      }
+    }
+  };
+
+  const handleInitiateClosure = async () => {
+    if (await confirmAction('Are you sure you want to request to close this team? Members will need to confirm completion.')) {
+      try {
+        await apiClient.post(`/teams/${teamId}/initiate-closure`);
+      } catch (error) {
+        toast.error(error.response?.data?.message || 'Failed to initiate closure.');
+      }
+    }
+  };
+
+  const handleConfirmCompletion = async () => {
+    setIsConfirming(true);
+    try {
+      await apiClient.post(`/teams/${teamId}/confirm-completion`);
+      toast.success("You have confirmed the team's completion.");
+    } catch (error) {
+      toast.error(error.response?.data?.message || 'Failed to confirm completion.');
+    } finally {
+      setIsConfirming(false);
+    }
+  };
+
+  const handleCancelClosure = async () => {
+    if (await confirmAction('Are you sure you want to cancel the closure request? This will reopen the team.')) {
+      try {
+        await apiClient.post(`/teams/${teamId}/cancel-closure`);
+      } catch (error) {
+        toast.error(error.response?.data?.message || 'Failed to cancel closure.');
+      }
+    }
+  };
+
+  const handleDownloadNotes = async () => {
+    try {
+      toast.info('Preparing your PDF download...');
+      const response = await apiClient.get(`/teams/${teamId}/notes/download`, { responseType: 'blob' });
+      const file = new Blob([response.data], { type: 'application/pdf' });
+      const fileURL = URL.createObjectURL(file);
+      const link = document.createElement('a');
+      link.href = fileURL;
+      const contentDisposition = response.headers['content-disposition'];
+      let fileName = `team_notes_${teamId}.pdf`;
+      if (contentDisposition) {
+        const match = contentDisposition.match(/filename="(.+)"/);
+        if (match?.[1]) fileName = match[1];
+      }
+      link.setAttribute('download', fileName);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(fileURL);
+    } catch (error) {
+      toast.error('Could not download notes PDF.');
+    }
+  };
 
     if (loading) return <Spinner text="Loading team..." />;
     if (!team) return <p className="text-center p-10">Team not found.</p>;

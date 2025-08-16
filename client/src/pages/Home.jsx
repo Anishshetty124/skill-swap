@@ -514,7 +514,7 @@ const handleMainSearch = (e, customFilters = undefined, currentLocQuery = locati
       </LazyLoad>
 
       <div className="mt-16 text-center">
-        <h2 className="text-3xl font-bold mb-8">How SkillSwap Works</h2>
+        <h2 className="text-3xl font-bold mb-8">How skill4skill Works</h2>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
           <div className="flex flex-col items-center">
             <div className="p-4 bg-white dark:bg-slate-800 rounded-full shadow-lg mb-4">

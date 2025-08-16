@@ -18,8 +18,8 @@ export default defineConfig({
         }]
       },
       manifest: {
-        name: 'SkillSwap',
-        short_name: 'SkillSwap',
+        name: 'skill4skill',
+        short_name: 'skill4skill',
         description: 'A platform to barter skills.',
         theme_color: '#121212',
         background_color: '#121212',

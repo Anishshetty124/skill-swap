@@ -186,7 +186,7 @@ const Login = () => {
                         <path fill="white" d="M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2m4.69 6.31l-1.42 1.42a3 3 0 1 1-4.24-4.24L12.45 4a8 8 0 1 1-5.66 2.34l-1.42-1.42A10 10 0 1 0 16.69 8.31" />
                         <path fill="white" d="M12 22a10 10 0 0 0 7.07-2.93l-1.41-1.41A8 8 0 0 1 4.93 4.93l-1.41-1.41A10 10 0 0 0 12 22" />
                     </svg>
-                    <h2 className="text-3xl font-bold mt-4">SkillSwap</h2>
+                    <h2 className="text-3xl font-bold mt-4">skill4skill</h2>
                     <p className="mt-2 text-center">Exchange what you know for what you don't.</p>
                 </div>
             </div>

@@ -77,7 +77,7 @@ const sendCustomNotification = asyncHandler(async (req, res) => {
     }
 
     // 3. Send push notification
-    const pushPayload = { title: 'A Message from SkillSwap Admin', body: message, url: url || '/' };
+    const pushPayload = { title: 'A Message from skill4skill Admin', body: message, url: url || '/' };
     await sendPushNotification(userId, pushPayload);
 
     res.status(200).json(new ApiResponse(200, {}, "Custom notification sent successfully."));

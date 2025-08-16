@@ -64,7 +64,7 @@ const createProposal = asyncHandler(async (req, res) => {
   await createNotification(receiverId, notificationMessage, notificationUrl);
 
   const pushPayload = {
-    title: 'New SkillSwap Proposal!',
+    title: 'New skill4skill Proposal!',
     body: `You have a new proposal from ${req.user.username}.`,
     url: `${process.env.FRONTEND_URL}/dashboard`
   };
