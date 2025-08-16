@@ -31,7 +31,7 @@ const teamSchema = new Schema({
         type: Schema.Types.ObjectId,
         ref: 'Skill',
         required: true,
-        unique: true // Each skill can only have one team
+        unique: true
     },
     instructor: {
         type: Schema.Types.ObjectId,
@@ -49,19 +49,23 @@ const teamSchema = new Schema({
     },
     status: {
         type: String,
-        enum: ['open', 'closed'],
+        enum: ['open', 'closed', 'completed', 'pending_completion'], 
         default: 'open'
     },
     teamName: {
         type: String,
         trim: true
     },
-      meetingLink: {
+    meetingLink: {
         type: String,
         trim: true
     },
     notes: [noteSchema],
-    chat: [teamMessageSchema]
+    chat: [teamMessageSchema],
+    completionConfirmedBy: [{
+        type: Schema.Types.ObjectId,
+        ref: 'User'
+    }]
 }, { timestamps: true });
 
 export const Team = mongoose.model('Team', teamSchema);

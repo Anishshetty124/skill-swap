@@ -2,21 +2,30 @@ import React from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { toast } from 'react-toastify';
-import apiClient from '../../api/axios';
+import { CurrencyDollarIcon } from '@heroicons/react/24/solid';
 
 const TeamCard = ({ team, onJoin }) => {
   const { user, isAuthenticated } = useAuth();
   const navigate = useNavigate();
-  const isMember = team.members.includes(user?._id);
-  const isInstructor = team.instructor._id === user?._id;
+  
+  
+  const isMember = user ? team.members.includes(user._id) : false;
+  const isInstructor = user ? team.instructor._id === user._id : false;
   const isFull = team.members.length >= team.maxMembers;
+  const cost = team.skill.costInCredits || 0;
 
   const handleJoin = () => {
     if (!isAuthenticated) {
       toast.info("Please log in to join a team.");
+      navigate('/login');
       return;
     }
-    onJoin(team._id);
+    
+   
+    const confirmationMessage = `This team costs ${cost} credits to join. Are you sure you want to proceed?`;
+    if (window.confirm(confirmationMessage)) {
+      onJoin(team._id);
+    }
   };
 
   const renderButton = () => {
@@ -31,7 +40,7 @@ const TeamCard = ({ team, onJoin }) => {
       );
     }
     if (isFull) {
-        return <button className="px-4 py-2 text-sm font-semibold text-white bg-slate-400 rounded-md cursor-not-allowed" disabled>Full</button>;
+      return <button className="px-4 py-2 text-sm font-semibold text-white bg-slate-400 rounded-md cursor-not-allowed" disabled>Full</button>;
     }
     return <button onClick={handleJoin} className="px-4 py-2 text-sm font-semibold text-white bg-blue-600 rounded-md hover:bg-blue-700">Join Team</button>;
   };
@@ -53,11 +62,18 @@ const TeamCard = ({ team, onJoin }) => {
           </div>
         </div>
       </div>
-      <div className="mt-6 flex justify-between items-center">
-        <p className="font-bold text-lg">
-          {team.members.length} / {team.maxMembers}
-          <span className="font-normal text-sm text-slate-500 ml-1">members</span>
-        </p>
+      <div className="mt-6 border-t dark:border-slate-700 pt-4 flex justify-between items-center">
+        <div>
+            <p className="font-bold text-lg">
+                {team.members.length} / {team.maxMembers}
+                <span className="font-normal text-sm text-slate-500 ml-1">members</span>
+            </p>
+            
+            <div className="flex items-center gap-1 text-sm font-semibold text-amber-500 mt-1">
+                <CurrencyDollarIcon className="h-4 w-4" />
+                <span>{cost} Credits</span>
+            </div>
+        </div>
         {renderButton()}
       </div>
     </div>

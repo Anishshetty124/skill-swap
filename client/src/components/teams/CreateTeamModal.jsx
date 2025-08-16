@@ -1,24 +1,26 @@
 import React, { useState } from 'react';
 import apiClient from '../../api/axios';
 import { toast } from 'react-toastify';
-import { XMarkIcon } from '@heroicons/react/24/solid';
+import { XMarkIcon, CurrencyDollarIcon } from '@heroicons/react/24/solid';
 
 const CreateTeamModal = ({ isOpen, onClose, skill, onCreated }) => {
   const [teamName, setTeamName] = useState('');
   const [maxMembers, setMaxMembers] = useState(10);
   const [loading, setLoading] = useState(false);
+  const [costInCredits, setCostInCredits] = useState(skill.costInCredits || 0);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
     try {
-      const response = await apiClient.post('/teams', {
-        skillId: skill._id,
-        teamName: teamName || `${skill.title} Team`,
-        maxMembers,
-      });
+     const response = await apiClient.post('/teams', {
+  skillId: skill._id,
+  teamName: teamName || `${skill.title} Team`,
+  maxMembers,
+  costInCredits, 
+});
       toast.success("Team created successfully!");
-      onTeamCreated(response.data.data);
+      if (onCreated) onCreated(response.data.data);
       onClose();
     } catch (error) {
       toast.error(error.response?.data?.message || "Failed to create team.");
@@ -40,6 +42,22 @@ const CreateTeamModal = ({ isOpen, onClose, skill, onCreated }) => {
         </div>
         <form onSubmit={handleSubmit}>
           <div className="p-6 space-y-4">
+           <div>
+  <label htmlFor="costInCredits" className="block text-sm font-medium mb-1">
+    Cost in Credits
+  </label>
+  <input
+    id="costInCredits"
+    type="number"
+    value={costInCredits}
+  onChange={(e) => {
+  const value = e.target.value;
+  setCostInCredits(value === '' ? '' : parseInt(value, 10));
+}}
+    min="0"
+    className="w-full px-3 py-2 bg-slate-100 dark:bg-slate-700 rounded-md"
+  />
+</div>
             <div>
               <label htmlFor="teamName" className="block text-sm font-medium mb-1">Team Name (Optional)</label>
               <input

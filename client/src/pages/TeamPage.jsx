@@ -1,12 +1,20 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import apiClient from '../api/axios';
 import { useAuth } from '../context/AuthContext';
 import { useSocketContext } from '../context/SocketContext';
 import Spinner from '../components/common/Spinner';
 import { toast } from 'react-toastify';
-import { PaperAirplaneIcon, PencilIcon, DocumentArrowDownIcon, TrashIcon, UserMinusIcon, LinkIcon } from '@heroicons/react/24/solid';
-import { format } from 'date-fns';
+import { PaperAirplaneIcon, PencilIcon, DocumentArrowDownIcon, TrashIcon, UserMinusIcon, LinkIcon, LockClosedIcon, CurrencyDollarIcon, CheckCircleIcon } from '@heroicons/react/24/solid';
+import { format, isSameDay, isToday, isYesterday } from 'date-fns';
+import EditTeamModal from '../components/teams/EditTeamModal';
+
+const formatDateSeparator = (date) => {
+    const d = new Date(date);
+    if (isToday(d)) return 'Today';
+    if (isYesterday(d)) return 'Yesterday';
+    return format(d, 'MMMM d, yyyy');
+};
 
 const TeamPage = () => {
     const { teamId } = useParams();
@@ -18,64 +26,77 @@ const TeamPage = () => {
     const [newMessage, setNewMessage] = useState('');
     const [newNote, setNewNote] = useState('');
     const [meetingLink, setMeetingLink] = useState('');
+    const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+    const [isConfirming, setIsConfirming] = useState(false);
     const chatEndRef = useRef(null);
 
-    useEffect(() => {
-        const fetchTeam = async () => {
-            try {
-                setLoading(true);
-                const response = await apiClient.get(`/teams/${teamId}`);
-                setTeam(response.data.data);
-                setMeetingLink(response.data.data.meetingLink || '');
-            } catch (error) {
-                toast.error("Could not load team details.");
-                navigate('/explore'); 
-            } finally {
-                setLoading(false);
-            }
-        };
-        fetchTeam();
+    const fetchTeam = useCallback(async () => {
+        try {
+            setLoading(true);
+            const response = await apiClient.get(`/teams/${teamId}`);
+            setTeam(response.data.data);
+            setMeetingLink(response.data.data.meetingLink || '');
+        } catch (error) {
+            toast.error("Could not load team details.");
+            navigate('/explore'); 
+        } finally {
+            setLoading(false);
+        }
     }, [teamId, navigate]);
+
+    useEffect(() => {
+        fetchTeam();
+    }, [fetchTeam]);
 
     useEffect(() => {
         if (socket && teamId) {
             const teamRoom = `team_${teamId}`;
             socket.emit('join_team_room', teamRoom);
 
-            const handleNewMessage = (message) => {
-                setTeam(prevTeam => ({
-                    ...prevTeam,
-                    chat: [...prevTeam.chat, message]
-                }));
-            };
-            
-            const handleNewNote = (note) => {
-                setTeam(prevTeam => {
-                    if (!prevTeam) return null;
-                    if (!note.author) {
-                        note.author = { username: 'Instructor' };
-                    }
-                    return {
-                        ...prevTeam,
-                        notes: [...prevTeam.notes, note]
-                    };
-                });
-            };
-
+            const handleNewMessage = (message) => setTeam(prev => ({ ...prev, chat: [...prev.chat, message] }));
+            const handleNewNote = (note) => setTeam(prev => ({ ...prev, notes: [...prev.notes, note] }));
             const handleChatCleared = () => {
                 toast.info("The instructor has cleared the chat history.");
-                setTeam(prevTeam => ({ ...prevTeam, chat: [] }));
+                setTeam(prev => ({ ...prev, chat: [] }));
+            };
+            const handleMessageDeleted = ({ messageId }) => {
+                setTeam(prev => ({ ...prev, chat: prev.chat.filter(msg => msg._id !== messageId) }));
+            };
+            const handleTeamDetailsUpdated = (updatedDetails) => {
+                toast.info("The team details have been updated by the instructor.");
+                setTeam(prev => ({ ...prev, ...updatedDetails }));
+            };
+            const handleTeamClosed = ({ message }) => {
+                toast.success(message);
+                setTeam(prev => ({ ...prev, status: 'completed' }));
+            };
+            const handleClosureInitiated = () => {
+                toast.info("The instructor has requested to close the team. Please confirm completion.");
+                setTeam(prev => ({ ...prev, status: 'pending_completion' }));
+            };
+            const handleMemberConfirmed = (updatedTeam) => {
+                setTeam(prev => ({ ...prev, completionConfirmedBy: updatedTeam.completionConfirmedBy }));
             };
 
             socket.on('new_team_message', handleNewMessage);
             socket.on('new_team_note', handleNewNote);
             socket.on('team_chat_cleared', handleChatCleared);
+            socket.on('team_message_deleted', handleMessageDeleted);
+            socket.on('team_details_updated', handleTeamDetailsUpdated);
+            socket.on('team_closed', handleTeamClosed);
+            socket.on('team_closure_initiated', handleClosureInitiated);
+            socket.on('member_confirmed_completion', handleMemberConfirmed);
 
             return () => {
                 socket.emit('leave_team_room', teamRoom);
                 socket.off('new_team_message', handleNewMessage);
                 socket.off('new_team_note', handleNewNote);
                 socket.off('team_chat_cleared', handleChatCleared);
+                socket.off('team_message_deleted', handleMessageDeleted);
+                socket.off('team_details_updated', handleTeamDetailsUpdated);
+                socket.off('team_closed', handleTeamClosed);
+                socket.off('team_closure_initiated', handleClosureInitiated);
+                socket.off('member_confirmed_completion', handleMemberConfirmed);
             };
         }
     }, [socket, teamId]);
@@ -94,7 +115,7 @@ const TeamPage = () => {
             toast.error(error.response?.data?.message || "Failed to send message.");
         }
     };
-
+    
     const handleUpdateLink = async () => {
         try {
             await apiClient.patch(`/teams/${teamId}/meeting-link`, { meetingLink });
@@ -110,14 +131,13 @@ const TeamPage = () => {
         try {
             await apiClient.post(`/teams/${teamId}/notes`, { content: newNote });
             setNewNote('');
-            toast.success("Note added!");
         } catch (error) {
             toast.error(error.response?.data?.message || "Failed to add note.");
         }
     };
 
     const handleDeleteTeam = async () => {
-        if (window.confirm("Are you sure you want to permanently delete this team? This cannot be undone.")) {
+        if (window.confirm("Are you sure you want to permanently delete this team? This will refund credits to all members.")) {
             try {
                 await apiClient.delete(`/teams/${teamId}`);
                 toast.success("Team deleted.");
@@ -132,7 +152,6 @@ const TeamPage = () => {
         if (window.confirm("Are you sure you want to clear the entire chat history? This cannot be undone.")) {
             try {
                 await apiClient.delete(`/teams/${teamId}/chat`);
-                toast.success("Team chat has been cleared.");
             } catch (error) {
                 toast.error(error.response?.data?.message || "Failed to clear chat.");
             }
@@ -140,10 +159,10 @@ const TeamPage = () => {
     };
 
     const handleLeaveTeam = async () => {
-        if (window.confirm("Are you sure you want to leave this team?")) {
+        if (window.confirm("Are you sure you want to leave this team? Your credits will be refunded.")) {
             try {
                 await apiClient.post(`/teams/${teamId}/leave`);
-                toast.success("You have successfully left the team.");
+                toast.success("You have left the team and your credits have been refunded.");
                 navigate('/explore');
             } catch (error) {
                 toast.error(error.response?.data?.message || "Failed to leave the team.");
@@ -152,14 +171,14 @@ const TeamPage = () => {
     };
 
     const handleRemoveMember = async (memberId) => {
-        if (window.confirm("Are you sure you want to remove this member from the team?")) {
+        if (window.confirm("Are you sure you want to remove this member? Their credits will be refunded.")) {
             try {
                 await apiClient.delete(`/teams/${teamId}/members/${memberId}`);
                 setTeam(prev => ({
                     ...prev,
                     members: prev.members.filter(member => member._id !== memberId)
                 }));
-                toast.success("Member removed.");
+                toast.success("Member removed and credits refunded.");
             } catch (error) {
                 toast.error(error.response?.data?.message || "Failed to remove member.");
             }
@@ -181,30 +200,55 @@ const TeamPage = () => {
         }
     };
 
+    const handleDeleteMessage = async (messageId) => {
+        if (window.confirm("Are you sure you want to delete this message?")) {
+            try {
+                await apiClient.delete(`/teams/${teamId}/chat/${messageId}`);
+            } catch (error) {
+                toast.error(error.response?.data?.message || "Failed to delete message.");
+            }
+        }
+    };
+
+    const handleInitiateClosure = async () => {
+        if (window.confirm("Are you sure you want to request to close this team? Members will need to confirm completion.")) {
+            try {
+                await apiClient.post(`/teams/${teamId}/initiate-closure`);
+            } catch (error) {
+                toast.error(error.response?.data?.message || "Failed to initiate closure.");
+            }
+        }
+    };
+
+    const handleConfirmCompletion = async () => {
+        setIsConfirming(true);
+        try {
+            await apiClient.post(`/teams/${teamId}/confirm-completion`);
+            toast.success("You have confirmed the team's completion.");
+        } catch (error) {
+            toast.error(error.response?.data?.message || "Failed to confirm completion.");
+        } finally {
+            setIsConfirming(false);
+        }
+    };
+
     const handleDownloadNotes = async () => {
         try {
             toast.info("Preparing your PDF download...");
-            const response = await apiClient.get(`/teams/${teamId}/notes/download`, {
-                responseType: 'blob',
-            });
-    
+            const response = await apiClient.get(`/teams/${teamId}/notes/download`, { responseType: 'blob' });
             const file = new Blob([response.data], { type: 'application/pdf' });
             const fileURL = URL.createObjectURL(file);
-    
             const link = document.createElement('a');
             link.href = fileURL;
-            
             const contentDisposition = response.headers['content-disposition'];
             let fileName = `team_notes_${teamId}.pdf`;
             if (contentDisposition) {
                 const fileNameMatch = contentDisposition.match(/filename="(.+)"/);
-                if (fileNameMatch && fileNameMatch.length === 2)
-                    fileName = fileNameMatch[1];
+                if (fileNameMatch && fileNameMatch.length === 2) fileName = fileNameMatch[1];
             }
             link.setAttribute('download', fileName);
             document.body.appendChild(link);
             link.click();
-    
             link.parentNode.removeChild(link);
             URL.revokeObjectURL(fileURL);
         } catch (error) {
@@ -217,15 +261,31 @@ const TeamPage = () => {
 
     const isInstructor = team.instructor._id === user?._id;
     const isMember = team.members.some(member => member._id === user?._id);
+    const isTeamCompleted = team.status === 'completed';
+    const isPendingCompletion = team.status === 'pending_completion';
+    const hasConfirmed = team.completionConfirmedBy.includes(user?._id);
+    const majorityCount = Math.ceil(team.members.length / 2);
 
     return (
         <div className="max-w-7xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
             <div className="bg-white dark:bg-slate-800 rounded-lg shadow-md p-6 mb-8">
-                <h1 className="text-3xl font-bold">{team.teamName}</h1>
-                <p className="text-slate-500 dark:text-slate-400">A team for the skill: <span className="font-semibold">{team.skill.title}</span></p>
-                <div className="mt-4">
-                    <h3 className="font-semibold">Instructor</h3>
-                    <p>{team.instructor.firstName} {team.instructor.lastName} (@{team.instructor.username})</p>
+                <div className="flex justify-between items-start">
+                    <div>
+                        <h1 className="text-3xl font-bold">{team.teamName}</h1>
+                        <p className="text-slate-500 dark:text-slate-400">A team for the skill: <span className="font-semibold">{team.skill.title}</span></p>
+                        <div className="mt-4">
+                            <h3 className="font-semibold">Instructor</h3>
+                            <p>{team.instructor.firstName} {team.instructor.lastName} (@{team.instructor.username})</p>
+                        </div>
+                    </div>
+                    <div className="flex flex-col items-end gap-2">
+                        {isTeamCompleted && <span className="px-3 py-1 text-sm font-semibold text-white bg-green-500 rounded-full">Completed</span>}
+                        {isPendingCompletion && <span className="px-3 py-1 text-sm font-semibold text-white bg-yellow-500 rounded-full">Pending Completion</span>}
+                        <div className="flex items-center gap-1 font-bold text-amber-500">
+                            <CurrencyDollarIcon className="h-5 w-5" />
+                            <span>{team.skill.costInCredits || 0} Credits to Join</span>
+                        </div>
+                    </div>
                 </div>
             </div>
 
@@ -241,7 +301,18 @@ const TeamPage = () => {
                 </div>
             )}
 
-            {isInstructor && (
+            {isPendingCompletion && isMember && (
+                <div className="bg-white dark:bg-slate-800 rounded-lg shadow-md p-6 mb-8">
+                    <h2 className="text-xl font-bold mb-2">Confirm Team Completion</h2>
+                    <p className="text-slate-600 dark:text-slate-400 mb-4">The instructor has requested to close this team. Please confirm that the skill has been taught to your satisfaction.</p>
+                    <p className="font-semibold mb-4">{team.completionConfirmedBy.length} of {majorityCount} required members have confirmed.</p>
+                    <button onClick={handleConfirmCompletion} disabled={hasConfirmed || isConfirming} className="w-full flex items-center justify-center gap-2 px-4 py-2 text-sm font-semibold text-white bg-green-600 rounded-md hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed">
+                        {hasConfirmed ? 'You have confirmed' : isConfirming ? 'Confirming...' : 'Confirm Completion'}
+                    </button>
+                </div>
+            )}
+
+            {isInstructor && !isTeamCompleted && !isPendingCompletion && (
                 <div className="bg-white dark:bg-slate-800 rounded-lg shadow-md p-6 mb-8">
                     <h2 className="text-xl font-bold mb-4">Instructor Panel</h2>
                     <div className="space-y-4">
@@ -260,8 +331,16 @@ const TeamPage = () => {
                             </div>
                         </div>
                         <div className="border-t dark:border-slate-700 pt-4 flex flex-col sm:flex-row gap-2">
+                            <button onClick={() => setIsEditModalOpen(true)} className="flex-1 flex items-center justify-center gap-2 px-4 py-2 text-sm font-semibold text-white bg-blue-600 rounded-md hover:bg-blue-700">
+                                <PencilIcon className="h-5 w-5" /> Edit Team
+                            </button>
+                            <button onClick={handleInitiateClosure} className="flex-1 flex items-center justify-center gap-2 px-4 py-2 text-sm font-semibold text-white bg-green-600 rounded-md hover:bg-green-700">
+                                <LockClosedIcon className="h-5 w-5" /> Request to Close Team
+                            </button>
+                        </div>
+                        <div className="border-t dark:border-slate-700 pt-4 flex flex-col sm:flex-row gap-2">
                             <button onClick={handleClearChat} className="flex-1 flex items-center justify-center gap-2 px-4 py-2 text-sm font-semibold text-white bg-yellow-600 rounded-md hover:bg-yellow-700">
-                                <TrashIcon className="h-5 w-5" /> Clear Chat History
+                                <TrashIcon className="h-5 w-5" /> Clear Chat
                             </button>
                             <button onClick={handleDeleteTeam} className="flex-1 flex items-center justify-center gap-2 px-4 py-2 text-sm font-semibold text-white bg-red-600 rounded-md hover:bg-red-700">
                                 <TrashIcon className="h-5 w-5" /> Delete Team
@@ -281,14 +360,17 @@ const TeamPage = () => {
                                 <span className="font-semibold">{team.instructor.username} (Instructor)</span>
                             </li>
                             {team.members.map(member => (
-                                <li key={member._id} className="flex items-center gap-3">
-                                    <img src={member.profilePicture || `https://api.dicebear.com/8.x/initials/svg?seed=${member.firstName} ${member.lastName}`} alt={member.username} className="w-8 h-8 rounded-full" />
-                                    <span>{member.username}</span>
+                                <li key={member._id} className="flex items-center justify-between gap-3">
+                                    <Link to={`/profile/${member.username}`} className="flex items-center gap-3 hover:underline">
+                                        <img src={member.profilePicture || `https://api.dicebear.com/8.x/initials/svg?seed=${member.firstName} ${member.lastName}`} alt={member.username} className="w-8 h-8 rounded-full" />
+                                        <span>{member.username}</span>
+                                        {team.completionConfirmedBy.includes(member._id) && <CheckCircleIcon className="h-5 w-5 text-green-500" title="Confirmed Completion" />}
+                                    </Link>
+                                    {isInstructor && !isTeamCompleted && <button onClick={() => handleRemoveMember(member._id)} className="text-red-500 hover:text-red-700"><UserMinusIcon className="h-5 w-5"/></button>}
                                 </li>
                             ))}
                         </ul>
                     </div>
-                    
                     <div className="bg-white dark:bg-slate-800 rounded-lg shadow-md p-4">
                         <div className="flex justify-between items-center mb-3">
                             <h3 className="font-bold">Team Notes</h3>
@@ -299,11 +381,9 @@ const TeamPage = () => {
                         <div className="space-y-4 max-h-96 overflow-y-auto">
                             {team.notes && team.notes.length > 0 ? [...team.notes].reverse().map(note => (
                                 <div key={note._id} className="p-3 bg-slate-100 dark:bg-slate-700 rounded-md group relative">
-                                    <p className="text-sm whitespace-pre-wrap">{note.content}</p>
-                                    <p className="text-xs text-slate-500 dark:text-slate-400 mt-2">
-                                        - {note.author?.username || '...'} on {format(new Date(note.createdAt), 'MMM d, yyyy')}
-                                    </p>
-                                    {isInstructor && (
+                                    <p className="text-sm whitespace-pre-wrap break-words">{note.content}</p>
+                                    <p className="text-xs text-slate-500 dark:text-slate-400 mt-2">- {note.author?.username || '...'} on {format(new Date(note.createdAt), 'MMM d, yyyy')}</p>
+                                    {isInstructor && !isTeamCompleted && (
                                         <button onClick={() => handleDeleteNote(note._id)} className="absolute top-2 right-2 text-red-500 hover:text-red-700 opacity-0 group-hover:opacity-100 transition-opacity" title="Delete note">
                                             <TrashIcon className="h-4 w-4" />
                                         </button>
@@ -312,8 +392,7 @@ const TeamPage = () => {
                             )) : <p className="text-sm text-slate-500">No notes yet.</p>}
                         </div>
                     </div>
-
-                    {isMember && !isInstructor && (
+                    {isMember && !isInstructor && !isTeamCompleted && (
                         <div className="bg-white dark:bg-slate-800 rounded-lg shadow-md p-4">
                             <button onClick={handleLeaveTeam} className="w-full flex items-center justify-center gap-2 px-4 py-2 text-sm font-semibold text-white bg-orange-600 rounded-md hover:bg-orange-700 transition-colors">
                                 <UserMinusIcon className="h-5 w-5" /> Leave Team
@@ -321,27 +400,53 @@ const TeamPage = () => {
                         </div>
                     )}
                 </div>
-
                 <div className="md:col-span-2 bg-white dark:bg-slate-800 rounded-lg shadow-md flex flex-col h-[70vh]">
                     <h3 className="p-4 font-bold border-b dark:border-slate-700">Team Chat</h3>
                     <div className="flex-grow p-4 overflow-y-auto">
-                        {team.chat.map(msg => (
-                            <div key={msg._id} className={`flex gap-3 my-3 ${msg.sender._id === user._id ? 'justify-end' : ''}`}>
-                                {msg.sender._id !== user._id && <img src={msg.sender.profilePicture || `https://api.dicebear.com/8.x/initials/svg?seed=${msg.sender.firstName} ${msg.sender.lastName}`} className="w-8 h-8 rounded-full" />}
-                                <div className={`px-4 py-2 rounded-lg max-w-xs ${msg.sender._id === user._id ? 'bg-blue-500 text-white' : 'bg-slate-200 dark:bg-slate-700'}`}>
-                                    <p className="text-sm whitespace-pre-wrap">{msg.message}</p>
-                                    <p className="text-xs opacity-70 mt-1 text-right">{format(new Date(msg.createdAt), 'p')}</p>
-                                </div>
-                            </div>
-                        ))}
+                        {team.chat.map((msg, index) => {
+                            const showDateSeparator = index === 0 || !isSameDay(new Date(team.chat[index - 1].createdAt), new Date(msg.createdAt));
+                            const isMyMessage = msg.sender._id === user._id;
+                            const canDelete = isMyMessage || isInstructor;
+                            return (
+                                <React.Fragment key={msg._id}>
+                                    {showDateSeparator && (
+                                        <div className="text-center my-4">
+                                            <span className="text-xs font-semibold text-slate-500 bg-slate-100 dark:bg-slate-700 px-3 py-1 rounded-full">
+                                                {formatDateSeparator(msg.createdAt)}
+                                            </span>
+                                        </div>
+                                    )}
+                                    <div className={`flex items-end gap-2 my-2 group ${isMyMessage ? 'justify-end' : 'justify-start'}`}>
+                                        {!isMyMessage && <img src={msg.sender.profilePicture || `https://api.dicebear.com/8.x/initials/svg?seed=${msg.sender.firstName} ${msg.sender.lastName}`} className="w-8 h-8 rounded-full self-start" />}
+                                        {isMyMessage && canDelete && !isTeamCompleted && (
+                                            <button onClick={() => handleDeleteMessage(msg._id)} className="text-red-500 opacity-0 group-hover:opacity-100 transition-opacity mb-1">
+                                                <TrashIcon className="h-4 w-4" />
+                                            </button>
+                                        )}
+                                        <div className={`px-4 py-2 rounded-lg max-w-xs ${isMyMessage ? 'bg-blue-500 text-white' : 'bg-slate-200 dark:bg-slate-700'}`}>
+                                            <p className="text-sm whitespace-pre-wrap break-words">{msg.message}</p>
+                                            <p className="text-xs opacity-70 mt-1 text-right">{format(new Date(msg.createdAt), 'p')}</p>
+                                        </div>
+                                        {!isMyMessage && canDelete && !isTeamCompleted && (
+                                            <button onClick={() => handleDeleteMessage(msg._id)} className="text-red-500 opacity-0 group-hover:opacity-100 transition-opacity mb-1">
+                                                <TrashIcon className="h-4 w-4" />
+                                            </button>
+                                        )}
+                                    </div>
+                                </React.Fragment>
+                            );
+                        })}
                         <div ref={chatEndRef} />
                     </div>
-                    <form onSubmit={handleSendMessage} className="p-4 border-t dark:border-slate-700 flex gap-2">
-                        <input type="text" value={newMessage} onChange={e => setNewMessage(e.target.value)} placeholder="Type a message..." className="w-full px-4 py-2 bg-slate-100 dark:bg-slate-700 rounded-full" />
-                        <button type="submit" className="p-2 bg-blue-500 text-white rounded-full"><PaperAirplaneIcon className="h-6 w-6" /></button>
-                    </form>
+                    {!isTeamCompleted && (
+                        <form onSubmit={handleSendMessage} className="p-4 border-t dark:border-slate-700 flex gap-2">
+                            <input type="text" value={newMessage} onChange={e => setNewMessage(e.target.value)} placeholder="Type a message..." className="w-full px-4 py-2 bg-slate-100 dark:bg-slate-700 rounded-full" />
+                            <button type="submit" className="p-2 bg-blue-500 text-white rounded-full"><PaperAirplaneIcon className="h-6 w-6" /></button>
+                        </form>
+                    )}
                 </div>
             </div>
+            {isInstructor && <EditTeamModal isOpen={isEditModalOpen} onClose={() => setIsEditModalOpen(false)} team={team} onSuccess={fetchTeam}/>}
         </div>
     );
 };
