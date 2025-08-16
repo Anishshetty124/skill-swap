@@ -17,7 +17,7 @@ import {
   CheckCircleIcon,
   XCircleIcon,
 } from '@heroicons/react/24/solid';
-import { format, isToday, isYesterday } from 'date-fns';
+import { format, isSameDay, isToday, isYesterday } from 'date-fns';
 import EditTeamModal from '../components/teams/EditTeamModal';
 
 const formatDateSeparator = (date) => {
