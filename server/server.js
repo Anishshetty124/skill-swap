@@ -26,7 +26,7 @@ import reputationRouter from './routes/reputation.routes.js';
 import chatRequestRouter from './routes/chatRequest.routes.js';
 import notificationRouter from './routes/notification.routes.js';
 import teamRouter from './routes/team.routes.js';
-
+import adminRouter from './routes/admin.routes.js';
 
 
 dotenv.config({ path: './.env' });
@@ -81,6 +81,7 @@ app.use('/api/v1/reputation', reputationRouter);
 app.use('/api/v1/chat-requests', chatRequestRouter);
 app.use('/api/v1/notifications', notificationRouter);
 app.use('/api/v1/teams', teamRouter);
+app.use('/api/v1/admin', adminRouter);
 
 app.use((err, req, res, next) => {
     if (err instanceof ApiError) {

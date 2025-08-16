@@ -5,7 +5,7 @@ import { useAuth } from '../context/AuthContext';
 import { useSocketContext } from '../context/SocketContext';
 import Spinner from '../components/common/Spinner';
 import { toast } from 'react-toastify';
-import { PaperAirplaneIcon, PencilIcon, DocumentArrowDownIcon, TrashIcon, UserMinusIcon, LinkIcon, LockClosedIcon, CurrencyDollarIcon, CheckCircleIcon } from '@heroicons/react/24/solid';
+import { PaperAirplaneIcon, PencilIcon, DocumentArrowDownIcon, TrashIcon, UserMinusIcon, LinkIcon, LockClosedIcon, CurrencyDollarIcon, CheckCircleIcon, XCircleIcon } from '@heroicons/react/24/solid';
 import { format, isSameDay, isToday, isYesterday } from 'date-fns';
 import EditTeamModal from '../components/teams/EditTeamModal';
 
@@ -77,6 +77,10 @@ const TeamPage = () => {
             const handleMemberConfirmed = (updatedTeam) => {
                 setTeam(prev => ({ ...prev, completionConfirmedBy: updatedTeam.completionConfirmedBy }));
             };
+            const handleClosureCancelled = () => {
+                toast.warn("The instructor has cancelled the team closure request.");
+                setTeam(prev => ({ ...prev, status: 'open', completionConfirmedBy: [] }));
+            };
 
             socket.on('new_team_message', handleNewMessage);
             socket.on('new_team_note', handleNewNote);
@@ -86,6 +90,7 @@ const TeamPage = () => {
             socket.on('team_closed', handleTeamClosed);
             socket.on('team_closure_initiated', handleClosureInitiated);
             socket.on('member_confirmed_completion', handleMemberConfirmed);
+            socket.on('team_closure_cancelled', handleClosureCancelled);
 
             return () => {
                 socket.emit('leave_team_room', teamRoom);
@@ -97,6 +102,7 @@ const TeamPage = () => {
                 socket.off('team_closed', handleTeamClosed);
                 socket.off('team_closure_initiated', handleClosureInitiated);
                 socket.off('member_confirmed_completion', handleMemberConfirmed);
+                socket.off('team_closure_cancelled', handleClosureCancelled);
             };
         }
     }, [socket, teamId]);
@@ -232,6 +238,16 @@ const TeamPage = () => {
         }
     };
 
+    const handleCancelClosure = async () => {
+        if (window.confirm("Are you sure you want to cancel the closure request? This will reopen the team.")) {
+            try {
+                await apiClient.post(`/teams/${teamId}/cancel-closure`);
+            } catch (error) {
+                toast.error(error.response?.data?.message || "Failed to cancel closure.");
+            }
+        }
+    };
+
     const handleDownloadNotes = async () => {
         try {
             toast.info("Preparing your PDF download...");
@@ -263,7 +279,7 @@ const TeamPage = () => {
     const isMember = team.members.some(member => member._id === user?._id);
     const isTeamCompleted = team.status === 'completed';
     const isPendingCompletion = team.status === 'pending_completion';
-    const hasConfirmed = team.completionConfirmedBy.includes(user?._id);
+    const hasConfirmed = user ? team.completionConfirmedBy.includes(user._id) : false;
     const majorityCount = Math.ceil(team.members.length / 2);
 
     return (
@@ -301,14 +317,21 @@ const TeamPage = () => {
                 </div>
             )}
 
-            {isPendingCompletion && isMember && (
+            {isPendingCompletion && (isMember || isInstructor) && (
                 <div className="bg-white dark:bg-slate-800 rounded-lg shadow-md p-6 mb-8">
                     <h2 className="text-xl font-bold mb-2">Confirm Team Completion</h2>
-                    <p className="text-slate-600 dark:text-slate-400 mb-4">The instructor has requested to close this team. Please confirm that the skill has been taught to your satisfaction.</p>
+                    <p className="text-slate-600 dark:text-slate-400 mb-4">The instructor has requested to close this team. A majority of members must confirm that the skill has been taught.</p>
                     <p className="font-semibold mb-4">{team.completionConfirmedBy.length} of {majorityCount} required members have confirmed.</p>
-                    <button onClick={handleConfirmCompletion} disabled={hasConfirmed || isConfirming} className="w-full flex items-center justify-center gap-2 px-4 py-2 text-sm font-semibold text-white bg-green-600 rounded-md hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed">
-                        {hasConfirmed ? 'You have confirmed' : isConfirming ? 'Confirming...' : 'Confirm Completion'}
-                    </button>
+                    {isMember && (
+                        <button onClick={handleConfirmCompletion} disabled={hasConfirmed || isConfirming} className="w-full flex items-center justify-center gap-2 px-4 py-2 text-sm font-semibold text-white bg-green-600 rounded-md hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed">
+                            {hasConfirmed ? 'You have confirmed' : isConfirming ? 'Confirming...' : 'Confirm Completion'}
+                        </button>
+                    )}
+                    {isInstructor && (
+                         <button onClick={handleCancelClosure} className="w-full flex items-center justify-center gap-2 mt-2 px-4 py-2 text-sm font-semibold text-white bg-red-600 rounded-md hover:bg-red-700">
+                            <XCircleIcon className="h-5 w-5" /> Cancel Closure Request
+                        </button>
+                    )}
                 </div>
             )}
 

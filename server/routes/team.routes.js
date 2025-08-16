@@ -16,7 +16,8 @@ import {
     deleteTeamMessage,
     updateTeamDetails,
     initiateTeamClosure,
-    confirmCompletion
+    confirmCompletion,
+    cancelTeamClosure
 } from '../controllers/team.controller.js';
 import { verifyJWT } from '../middlewares/auth.middleware.js';
 
@@ -39,5 +40,6 @@ router.route('/:teamId/notes/:noteId').delete(deleteNote);
 router.route("/:teamId/details").patch(updateTeamDetails);
 router.route("/:teamId/initiate-closure").post(verifyJWT, initiateTeamClosure);
 router.route("/:teamId/confirm-completion").post(verifyJWT, confirmCompletion)
+router.route("/:teamId/cancel-closure").post(verifyJWT, cancelTeamClosure);
 
 export default router;

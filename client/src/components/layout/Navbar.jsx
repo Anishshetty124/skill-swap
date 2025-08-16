@@ -133,7 +133,7 @@ const Navbar = () => {
     </>
   );
 
-  // Links for Mobile View 
+  // Mobile Nav Links
   const mobileNavLinks = (
     <div className="flex flex-col items-stretch divide-y divide-slate-300 dark:divide-slate-700 p-2">
       <Link
@@ -244,7 +244,7 @@ const Navbar = () => {
             <div className="hidden md:flex items-center space-x-6">
               {desktopNavLinks}
               {isAuthenticated && user && (
-                <Link to={`/profile/${user.username}`}>
+                <Link to={`/profile/${user.username}`} className="relative">
                   {user.profilePicture ? (
                     <img
                       className="h-12 w-12 rounded-full object-cover border-2 border-blue-500"
@@ -256,6 +256,9 @@ const Navbar = () => {
                       {user.username.charAt(0).toUpperCase()}
                     </div>
                   )}
+                  {totalUnreadCount > 0 && (
+                    <span className="absolute bottom-0 right-0 block h-3.5 w-3.5 rounded-full bg-red-500 border-2 border-white dark:border-slate-900"></span>
+                  )}
                 </Link>
               )}
               <ThemeToggle />
@@ -265,7 +268,7 @@ const Navbar = () => {
             <div className="md:hidden flex items-center gap-2" >
               <ThemeToggle />
               {isAuthenticated && user && (
-                <Link to={`/profile/${user.username}`}>
+                <Link to={`/profile/${user.username}`} className="relative">
                   {user.profilePicture ? (
                     <img
                       className="h-11 w-11 rounded-full object-cover border-2 border-blue-500"
@@ -276,6 +279,9 @@ const Navbar = () => {
                     <div className="h-10 w-10 rounded-full bg-gradient-to-r from-blue-500 to-cyan-400 text-white dark:from-blue-700 dark:to-cyan-500 dark:text-slate-200 flex items-center justify-center font-bold text-xl border-2 border-slate-300 dark:border-slate-600">
                       {user.username.charAt(0).toUpperCase()}
                     </div>
+                  )}
+                  {totalUnreadCount > 0 && (
+                    <span className="absolute bottom-0 right-0 block h-3 w-3 rounded-full bg-red-500 border-2 border-white dark:border-slate-900"></span>
                   )}
                 </Link>
               )}

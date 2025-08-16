@@ -13,6 +13,7 @@ router.use(verifyJWT);
 router.route('/').get(getNotifications);
 
 router.route('/read-all').post(markAllAsRead);
+router.route('/mark-all-read').post(markAllAsRead);
 
 router.route('/:notificationId').delete(deleteNotification);
 

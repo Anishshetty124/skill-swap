@@ -282,6 +282,14 @@ const initiateTeamClosure = asyncHandler(async (req, res) => {
     if (!team) throw new ApiError(404, "Team not found.");
     if (!team.instructor.equals(userId)) throw new ApiError(403, "Only the instructor can initiate team closure.");
     if (team.status !== 'open') throw new ApiError(400, "Team is not open for closure.");
+    
+    if (team.members.length === 0) {
+        team.status = 'completed';
+        await team.save();
+        io.to(`team_${teamId}`).emit('team_closed', { message: "The instructor has marked the team as complete." });
+        return res.status(200).json(new ApiResponse(200, team, "Team with no members has been completed."));
+    }
+
     team.status = 'pending_completion';
     await team.save();
     const teamRoom = `team_${teamId}`;
@@ -302,6 +310,7 @@ const confirmCompletion = asyncHandler(async (req, res) => {
         throw new ApiError(400, "You have already confirmed completion.");
     }
     team.completionConfirmedBy.push(userId);
+    
     const majorityCount = Math.ceil(team.members.length / 2);
     if (team.completionConfirmedBy.length >= majorityCount) {
         team.status = 'completed';
@@ -312,9 +321,32 @@ const confirmCompletion = asyncHandler(async (req, res) => {
         }
         const teamRoom = `team_${teamId}`;
         io.to(teamRoom).emit('team_closed', { message: `The team has been marked as complete. ${totalCreditsAwarded} credits awarded to the instructor.` });
+    } else {
+        const teamRoom = `team_${teamId}`;
+        io.to(teamRoom).emit('member_confirmed_completion', team);
     }
+    
     await team.save();
     return res.status(200).json(new ApiResponse(200, team, "Completion confirmed."));
+});
+
+const cancelTeamClosure = asyncHandler(async (req, res) => {
+    const { teamId } = req.params;
+    const userId = req.user._id;
+
+    const team = await Team.findById(teamId);
+    if (!team) throw new ApiError(404, "Team not found.");
+    if (!team.instructor.equals(userId)) throw new ApiError(403, "Only the instructor can cancel the closure process.");
+    if (team.status !== 'pending_completion') throw new ApiError(400, "This team is not pending completion.");
+
+    team.status = 'open';
+    team.completionConfirmedBy = [];
+    await team.save();
+
+    const teamRoom = `team_${teamId}`;
+    io.to(teamRoom).emit('team_closure_cancelled', team);
+
+    return res.status(200).json(new ApiResponse(200, team, "Team closure has been cancelled."));
 });
 
 export { 
@@ -334,5 +366,6 @@ export {
     deleteTeamMessage,
     updateTeamDetails,
     initiateTeamClosure,
-    confirmCompletion
+    confirmCompletion,
+    cancelTeamClosure
 };
