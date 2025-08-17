@@ -18,7 +18,9 @@ import {
   searchUsers,
   getChatStatus,
   healthCheck,
-  syncUserSkills
+  syncUserSkills,
+  getUserSkills,
+  getUserBookmarks
 } from "../controllers/user.controller.js";
 import { verifyJWT } from "../middlewares/auth.middleware.js";
 
@@ -42,6 +44,7 @@ router.use(verifyJWT);
 
 router.route("/logout").post(logoutUser);
 
+
 router.route("/me")
   .get(getCurrentUser)
   .patch(updateAccountDetails);
@@ -49,11 +52,16 @@ router.route("/me")
 router.route("/me/avatar")
   .patch(updateUserAvatar)
   .delete(deleteUserAvatar);
-router.route("/sync-skills").post(verifyJWT, syncUserSkills);
+
+router.route("/sync-skills").post(syncUserSkills); 
 router.route("/me/request-email-change").post(requestEmailChange);
 router.route("/me/verify-email-change").post(verifyEmailChange);
-router.route("/:profileId/chat-status").get(verifyJWT, getChatStatus);
 router.route("/health").get(healthCheck);
-router.route("/:username").get(getUserProfile);
+
+router.route("/:profileId/chat-status").get(getChatStatus); 
+
+router.route("/:username/skills").get(getUserSkills); 
+router.route("/:username/bookmarks").get(getUserBookmarks); 
+router.route("/:username").get(getUserProfile); 
 
 export default router;
