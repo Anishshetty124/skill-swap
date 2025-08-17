@@ -7,7 +7,7 @@ A feature-rich, full-stack web application built on the MERN stack where users t
 
 -----
 
-Live website Link: skilswap.netlify.app
+Live website Link: skill4skill.tech
 
 skill4skill is an innovative, full-stack web application built with the MERN stack (MongoDB, Express.js, React.js, Node.js). It functions as a dynamic marketplace that empowers users to exchange their skills and knowledge through a unique virtual credit system, fostering a vibrant community of collaborative learning and mutual growth.
 
@@ -40,16 +40,9 @@ This project is engineered with a professional, scalable, and maintainable archi
 
 ### ✨ Live Demo & Screenshots
 
-**Live Site:** [https://skill4skill-demo.netlify.app](https://skill4skill-demo.netlify.app) *(Replace with your actual deployed URL)*
+**Live Site:** [https://skill4skill.tech](https://skill4skill.tech)
 
-| | |
-| :---: | :---: |
-| *Modern Homepage with Hero Section & CTA* | *Fully Responsive Real-time Chat with Message Selection* |
-|  |  |
-| *Detailed Skill & User Profile Pages* | *Intuitive User Dashboard with Proposals Management* |
-|  |  |
-
-*(To add screenshots: upload your images to a service like [Imgur](https://imgur.com/) and replace the URLs above.)*
+<img width="1920" height="1140" alt="Screenshot 2025-08-16 203957" src="https://github.com/user-attachments/assets/b53edd58-ca30-47be-be6c-b63febb49334" />
 
 -----
 
@@ -316,7 +309,7 @@ You should now be able to access the skill4skill application in your browser at 
 | Variable | Description | Example |
 | :--- | :--- | :--- |
 | `PORT` | The port the backend server will run on. | `8000` |
-| `MONGODB_URI`| Your connection string for the MongoDB database. | `mongodb+srv://...` |
+| `MONGODB_URI`| Your connection string for the MongoDB database. | `mongodb+srv://....` |
 | `CORS_ORIGIN`| The URL of your frontend for CORS policy. | `http://localhost:5173` |
 | `ACCESS_TOKEN_SECRET` | A long, random, secret string for JWTs. | `a-very-long-random-secret` |
 | `ACCESS_TOKEN_EXPIRY` | How long the access token should last. | `1d` |
