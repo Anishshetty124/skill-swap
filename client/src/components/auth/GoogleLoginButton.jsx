@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Spinner from '../common/Spinner';
 
 const GoogleLoginButton = () => {
@@ -9,15 +9,28 @@ const GoogleLoginButton = () => {
     window.location.href = `${import.meta.env.VITE_API_BASE_URL}/auth/google?prompt=select_account`;
   };
 
+  useEffect(() => {
+    const handlePageShow = (event) => {
+      if (event.persisted) {
+        setIsLoading(false);
+      }
+    };
+
+    window.addEventListener('pageshow', handlePageShow);
+    return () => {
+      window.removeEventListener('pageshow', handlePageShow);
+    };
+  }, []);
+
   return (
     <button
       type="button"
       onClick={handleGoogleLogin}
       disabled={isLoading}
-      className="w-full flex items-center justify-center gap-3 py-3 font-semibold text-slate-700 bg-white border border-slate-300 rounded-lg shadow-sm hover:bg-slate-50 transition-all duration-300 disabled:opacity-75 disabled:cursor-wait min-h-[50px]"
+      className="w-full flex items-center justify-center gap-3 py-3 font-semibold text-slate-700 bg-slate-100 border border-slate-300 rounded-lg shadow-sm hover:bg-slate-50 transition-all duration-300 disabled:opacity-75 disabled:cursor-wait min-h-[50px] dark:bg-slate-700 dark:text-slate-200 dark:border-slate-600 dark:hover:bg-slate-600"
     >
       {isLoading ? (
-        <Spinner size="sm" text="Redirecting..." />
+        <Spinner size="sm" text="Redirecting..." className="text-slate-700 dark:text-slate-200" />
       ) : (
         <>
           <svg className="w-6 h-6" viewBox="0 0 48 48">

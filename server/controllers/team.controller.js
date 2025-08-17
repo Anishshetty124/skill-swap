@@ -7,6 +7,26 @@ import { User } from '../models/user.model.js';
 import mongoose from 'mongoose';
 import { io, getReceiverSocketId } from '../socket/socket.js';
 import PDFDocument from 'pdfkit';
+import { createNotification } from './notification.controller.js';
+import { sendPushNotification } from '../utils/pushNotifier.js';
+
+const notifyTeamMembers = async (team, senderId, message, url) => {
+    const recipients = team.members.filter(memberId => !memberId.equals(senderId));
+    if (!team.instructor.equals(senderId)) {
+        recipients.push(team.instructor);
+    }
+
+    const notificationPromises = recipients.map(async (recipientId) => {
+        await createNotification(recipientId, message, url);
+        const socketId = getReceiverSocketId(recipientId.toString());
+        if (socketId) {
+            io.to(socketId).emit('new_notification', { message });
+        }
+        await sendPushNotification(recipientId, { title: `Team: ${team.teamName}`, body: message, url });
+    });
+
+    await Promise.all(notificationPromises);
+};
 
 const createTeam = asyncHandler(async (req, res) => {
     const { skillId, teamName, maxMembers, costInCredits } = req.body;
@@ -46,11 +66,7 @@ const joinTeam = asyncHandler(async (req, res) => {
     user.swapCredits -= cost;
     await user.save();
     const updatedTeam = await Team.findOneAndUpdate(
-        {
-            _id: teamId,
-            members: { $ne: userId },
-            $expr: { $lt: [{ $size: "$members" }, "$maxMembers"] }
-        },
+        { _id: teamId, members: { $ne: userId }, $expr: { $lt: [{ $size: "$members" }, "$maxMembers"] } },
         { $push: { members: userId } },
         { new: true }
     ).populate('skill', 'title category').populate('instructor', 'username firstName lastName profilePicture');
@@ -59,6 +75,7 @@ const joinTeam = asyncHandler(async (req, res) => {
         await user.save();
         throw new ApiError(400, "Team is full, you are already a member, or the team does not exist.");
     }
+    await notifyTeamMembers(updatedTeam, userId, `${user.username} has joined the team!`, `/team/${teamId}`);
     return res.status(200).json(new ApiResponse(200, updatedTeam, "Successfully joined the team."));
 });
 
@@ -111,6 +128,7 @@ const addNote = asyncHandler(async (req, res) => {
     const populatedNote = team.notes[team.notes.length - 1];
     const teamRoom = `team_${teamId}`;
     io.to(teamRoom).emit('new_team_note', populatedNote);
+    await notifyTeamMembers(team, userId, `The instructor added a new note to the team.`, `/team/${teamId}`);
     return res.status(201).json(new ApiResponse(201, populatedNote, "Note added successfully."));
 });
 
@@ -185,6 +203,7 @@ const sendTeamMessage = asyncHandler(async (req, res) => {
     const populatedMessage = team.chat[team.chat.length - 1];
     const teamRoom = `team_${teamId}`;
     io.to(teamRoom).emit('new_team_message', populatedMessage);
+    await notifyTeamMembers(team, senderId, `${req.user.username}: ${message}`, `/team/${teamId}`);
     return res.status(201).json(new ApiResponse(201, populatedMessage, "Message sent."));
 });
 
@@ -282,18 +301,17 @@ const initiateTeamClosure = asyncHandler(async (req, res) => {
     if (!team) throw new ApiError(404, "Team not found.");
     if (!team.instructor.equals(userId)) throw new ApiError(403, "Only the instructor can initiate team closure.");
     if (team.status !== 'open') throw new ApiError(400, "Team is not open for closure.");
-    
     if (team.members.length === 0) {
         team.status = 'completed';
         await team.save();
         io.to(`team_${teamId}`).emit('team_closed', { message: "The instructor has marked the team as complete." });
         return res.status(200).json(new ApiResponse(200, team, "Team with no members has been completed."));
     }
-
     team.status = 'pending_completion';
     await team.save();
     const teamRoom = `team_${teamId}`;
     io.to(teamRoom).emit('team_closure_initiated');
+    await notifyTeamMembers(team, userId, "The instructor has requested to close the team. Please confirm completion.", `/team/${teamId}`);
     return res.status(200).json(new ApiResponse(200, team, "Team closure process initiated."));
 });
 
@@ -310,7 +328,6 @@ const confirmCompletion = asyncHandler(async (req, res) => {
         throw new ApiError(400, "You have already confirmed completion.");
     }
     team.completionConfirmedBy.push(userId);
-    
     const majorityCount = Math.ceil(team.members.length / 2);
     if (team.completionConfirmedBy.length >= majorityCount) {
         team.status = 'completed';
@@ -321,11 +338,11 @@ const confirmCompletion = asyncHandler(async (req, res) => {
         }
         const teamRoom = `team_${teamId}`;
         io.to(teamRoom).emit('team_closed', { message: `The team has been marked as complete. ${totalCreditsAwarded} credits awarded to the instructor.` });
+        await notifyTeamMembers(team, userId, `The team has been successfully completed!`, `/team/${teamId}`);
     } else {
         const teamRoom = `team_${teamId}`;
         io.to(teamRoom).emit('member_confirmed_completion', team);
     }
-    
     await team.save();
     return res.status(200).json(new ApiResponse(200, team, "Completion confirmed."));
 });
@@ -333,19 +350,16 @@ const confirmCompletion = asyncHandler(async (req, res) => {
 const cancelTeamClosure = asyncHandler(async (req, res) => {
     const { teamId } = req.params;
     const userId = req.user._id;
-
     const team = await Team.findById(teamId);
     if (!team) throw new ApiError(404, "Team not found.");
     if (!team.instructor.equals(userId)) throw new ApiError(403, "Only the instructor can cancel the closure process.");
     if (team.status !== 'pending_completion') throw new ApiError(400, "This team is not pending completion.");
-
     team.status = 'open';
     team.completionConfirmedBy = [];
     await team.save();
-
     const teamRoom = `team_${teamId}`;
     io.to(teamRoom).emit('team_closure_cancelled', team);
-
+    await notifyTeamMembers(team, userId, "The instructor has cancelled the team closure request.", `/team/${teamId}`);
     return res.status(200).json(new ApiResponse(200, team, "Team closure has been cancelled."));
 });
 

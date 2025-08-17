@@ -14,7 +14,7 @@ const createNotification = async (userId, message, url) => {
         if (!userId || !message) {
             console.error("Cannot create notification: userId and message are required.");
             return;
-        }
+        }  
         await Notification.create({
             user: userId,
             message,
