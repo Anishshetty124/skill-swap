@@ -59,7 +59,7 @@ const joinTeam = asyncHandler(async (req, res) => {
     if (!teamForCostCheck) throw new ApiError(404, "Team not found.");
     if (teamForCostCheck.instructor.equals(userId)) throw new ApiError(400, "You cannot join a team you are instructing.");
     const user = await User.findById(userId);
-    const cost = teamForCostCheck.skill.costInCredits || 0;
+    const cost = teamForCostCheck.skill ? teamForCostCheck.skill.costInCredits || 0 : 0;
     if (user.swapCredits < cost) {
         throw new ApiError(400, `You need ${cost} credits to join this team, but you only have ${user.swapCredits}.`);
     }
@@ -141,7 +141,7 @@ const leaveTeam = asyncHandler(async (req, res) => {
     if (!team.members.some(memberId => memberId.equals(userId))) {
         throw new ApiError(400, "You are not a member of this team.");
     }
-    const cost = team.skill.costInCredits || 0;
+    const cost = team.skill ? team.skill.costInCredits || 0 : 0;
     if (cost > 0) {
         await User.findByIdAndUpdate(userId, { $inc: { swapCredits: cost } });
     }
@@ -167,7 +167,7 @@ const downloadNotesPDF = asyncHandler(async (req, res) => {
     res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
     doc.pipe(res);
     doc.fontSize(20).text(`Notes for ${team.teamName}`, { align: 'center' });
-    doc.fontSize(14).text(`Skill: ${team.skill.title}`, { align: 'center' });
+    doc.fontSize(14).text(`Skill: ${team.skill ? team.skill.title : '[Deleted Skill]'}`, { align: 'center' });
     doc.moveDown(2);
     if (team.notes && team.notes.length > 0) {
         team.notes.forEach(note => {
@@ -226,7 +226,7 @@ const deleteTeam = asyncHandler(async (req, res) => {
     const team = await Team.findById(teamId).populate('skill', 'costInCredits');
     if (!team) throw new ApiError(404, "Team not found.");
     if (!team.instructor.equals(userId)) throw new ApiError(403, "Only the instructor can delete the team.");
-    const cost = team.skill.costInCredits || 0;
+    const cost = team.skill ? team.skill.costInCredits || 0 : 0;
     if (cost > 0 && team.members.length > 0) {
         await User.updateMany({ _id: { $in: team.members } }, { $inc: { swapCredits: cost } });
     }
@@ -240,7 +240,7 @@ const removeMember = asyncHandler(async (req, res) => {
     const team = await Team.findById(teamId).populate('skill', 'costInCredits');
     if (!team) throw new ApiError(404, "Team not found.");
     if (!team.instructor.equals(instructorId)) throw new ApiError(403, "Only the instructor can remove members.");
-    const cost = team.skill.costInCredits || 0;
+    const cost = team.skill ? team.skill.costInCredits || 0 : 0;
     if (cost > 0) {
         await User.findByIdAndUpdate(memberId, { $inc: { swapCredits: cost } });
     }
@@ -331,7 +331,7 @@ const confirmCompletion = asyncHandler(async (req, res) => {
     const majorityCount = Math.ceil(team.members.length / 2);
     if (team.completionConfirmedBy.length >= majorityCount) {
         team.status = 'completed';
-        const costPerMember = team.skill.costInCredits || 0;
+        const costPerMember = team.skill ? team.skill.costInCredits || 0 : 0;
         const totalCreditsAwarded = team.members.length * costPerMember;
         if (totalCreditsAwarded > 0) {
             await User.findByIdAndUpdate(team.instructor, { $inc: { swapCredits: totalCreditsAwarded } });

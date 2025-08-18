@@ -25,11 +25,12 @@ import {
 import { verifyJWT } from "../middlewares/auth.middleware.js";
 
 const router = Router();
+
 router.route("/test").get((req, res) => {
   res.send("User router is working!");
 });
 
-// ----------- PUBLIC ROUTES -----------
+// PUBLIC ROUTES
 router.route("/register").post(registerUser);
 router.route("/login").post(loginUser);
 router.route("/search").get(searchUsers);
@@ -39,11 +40,10 @@ router.route("/resend-verification").post(resendVerificationEmail);
 router.route("/forgot-password").post(forgotPassword);
 router.route("/reset-password").post(resetPassword);
 
-// ----------- PROTECTED ROUTES -----------
+// PROTECTED ROUTES
 router.use(verifyJWT);
 
 router.route("/logout").post(logoutUser);
-
 
 router.route("/me")
   .get(getCurrentUser)
@@ -53,15 +53,15 @@ router.route("/me/avatar")
   .patch(updateUserAvatar)
   .delete(deleteUserAvatar);
 
-router.route("/sync-skills").post(syncUserSkills); 
+router.route("/sync-skills").post(syncUserSkills);
 router.route("/me/request-email-change").post(requestEmailChange);
 router.route("/me/verify-email-change").post(verifyEmailChange);
 router.route("/health").get(healthCheck);
+router.route("/:profileId/chat-status").get(getChatStatus);
 
-router.route("/:profileId/chat-status").get(getChatStatus); 
+router.route("/:username/skills").get(getUserSkills);
+router.route("/:username/bookmarks").get(getUserBookmarks);
 
-router.route("/:username/skills").get(getUserSkills); 
-router.route("/:username/bookmarks").get(getUserBookmarks); 
-router.route("/:username").get(getUserProfile); 
+router.route("/:username").get(getUserProfile);
 
 export default router;

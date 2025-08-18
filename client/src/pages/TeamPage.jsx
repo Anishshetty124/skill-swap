@@ -16,6 +16,7 @@ import {
   CurrencyDollarIcon,
   CheckCircleIcon,
   XCircleIcon,
+  ExclamationTriangleIcon,
 } from '@heroicons/react/24/solid';
 import { format, isSameDay, isToday, isYesterday } from 'date-fns';
 import EditTeamModal from '../components/teams/EditTeamModal';
@@ -312,6 +313,29 @@ const TeamPage = () => {
   const hasConfirmed = user ? team.completionConfirmedBy.includes(user._id) : false;
   const majorityCount = Math.ceil(team.members.length / 2);
 
+  if (!team.skill) {
+    return (
+      <div className="max-w-2xl mx-auto py-16 text-center">
+        <ExclamationTriangleIcon className="h-16 w-16 text-red-400 mx-auto mb-4" />
+        <h1 className="text-2xl font-bold text-red-600 dark:text-red-400">Error: Skill Not Found</h1>
+        <p className="text-slate-600 dark:text-slate-400 mt-2">
+          The skill associated with this team has been deleted. This team is no longer active.
+        </p>
+        {isInstructor && (
+          <div className="mt-6">
+            <p className="text-sm text-slate-500 mb-2">As the instructor, you can permanently delete this team.</p>
+            <button
+              onClick={handleDeleteTeam}
+              className="px-6 py-2 bg-red-600 text-white font-semibold rounded-md hover:bg-red-700"
+            >
+              Delete This Team
+            </button>
+          </div>
+        )}
+      </div>
+    );
+  }
+
   return (
     <div className="max-w-7xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
       <div className="bg-white dark:bg-slate-800 rounded-lg shadow-md p-6 mb-8">
@@ -504,4 +528,4 @@ const TeamPage = () => {
   );
 };
 
-export default TeamPage
+export default TeamPage;

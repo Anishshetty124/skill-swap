@@ -7,8 +7,11 @@ import { CurrencyDollarIcon } from '@heroicons/react/24/solid';
 const TeamCard = ({ team, onJoin }) => {
   const { user, isAuthenticated } = useAuth();
   const navigate = useNavigate();
-  
-  
+
+  if (!team || !team.skill) {
+    return null;
+  }
+
   const isMember = user ? team.members.includes(user._id) : false;
   const isInstructor = user ? team.instructor._id === user._id : false;
   const isFull = team.members.length >= team.maxMembers;
@@ -21,7 +24,6 @@ const TeamCard = ({ team, onJoin }) => {
       return;
     }
     
-   
     const confirmationMessage = `This team costs ${cost} credits to join. Are you sure you want to proceed?`;
     if (window.confirm(confirmationMessage)) {
       onJoin(team._id);
@@ -68,7 +70,6 @@ const TeamCard = ({ team, onJoin }) => {
                 {team.members.length} / {team.maxMembers}
                 <span className="font-normal text-sm text-slate-500 ml-1">members</span>
             </p>
-            
             <div className="flex items-center gap-1 text-sm font-semibold text-amber-500 mt-1">
                 <CurrencyDollarIcon className="h-4 w-4" />
                 <span>{cost} Credits</span>
